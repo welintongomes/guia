@@ -61,7 +61,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .btn.purple{background:linear-gradient(135deg,var(--purple),#5b2a7a);color:white;}
 .btn.cyan{background:linear-gradient(135deg,var(--cyan),#065985);color:white;box-shadow:0 4px 16px rgba(8,145,178,.2);}
 .btn.orange-btn{background:linear-gradient(135deg,#ea580c,#9a3412);color:white;}
-.btn.sm{padding:15px 12px;font-size:12px;width:auto;flex:1;}
+.btn.sm{padding:10px 15px;margin-left: 0px;font-size:12px;width:auto;flex:1;}
 .btn.ghost{background:transparent;border:1px solid rgba(245,200,0,.3);color:var(--yellow);}
 .btn.ghost-cyan{background:transparent;border:1px solid rgba(8,145,178,.3);color:var(--cyan2);}
 .btn.ghost-orange{background:transparent;border:1px solid rgba(234,88,12,.3);color:#fb923c;}
@@ -743,7 +743,7 @@ function buildFluxoExec(){
   
   // 👇 BOTÃO DE PROCEDIMENTO APARECE PARA AMBOS AQUI:
   const btnProcHtml = noAtual.procId ? `
-    <button class="btn yellow sm" style="margin-top:10px; border:2px solid var(--yellow); padding:8px 12px; font-size:12px; font-weight:bold; width:100%;" onclick="A.verProcNoFluxo(${noAtual.procId}, '${esc(S.procedimentos.find(x=>x.id===noAtual.procId)?.nome||'Técnico')}', ${noAtual.procValor || 0})">
+    <button class="btn yellow sm" style="margin-top:10px; border:2px solid var(--yellow); padding:8px 12px; font-size:12px; font-weight:bold; width:88%;" onclick="A.verProcNoFluxo(${noAtual.procId}, '${esc(S.procedimentos.find(x=>x.id===noAtual.procId)?.nome||'Técnico')}', ${noAtual.procValor || 0})">
       📋 VER PROCEDIMENTO ${noAtual.procValor > 0 ? `(R$ ${noAtual.procValor.toFixed(2).replace('.', ',')})` : ''}
     </button>` : '';
 
@@ -804,7 +804,7 @@ function buildFluxoExec(){
   <div style="display:flex;gap:6px; flex-wrap:wrap; margin-top:10px;">
     ${fe.historico.length?`<button class="btn steel sm" onclick="A.fluxoVoltar()" style="flex:1">← VOLTAR</button>`:''}
     <button class="btn ghost-cyan sm" onclick="A.fluxoReiniciar()" style="flex:1">🔄 REINICIAR</button>
-    <button class="btn green sm" onclick="A.salvarFluxoHistorico()" style="flex:2">💾 SALVAR NO HISTÓRICO</button>
+    <button class="btn green sm" onclick="A.salvarFluxoHistorico()" style="flex:2">💾 SALVAR </button>
     <button class="btn steel sm" onclick="A.sairFluxo()" style="width:45px">✕</button>
   </div>`;
 }
@@ -876,7 +876,7 @@ function buildHistorico() {
 
     let html = `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:0 4px;">
-      <div style="font-size:12px; color:var(--chrome);">Exibindo últimos registros</div>
+      <div style="font-size:12px;margin-right:22px; color:var(--chrome);">Exibindo últimos registros</div>
       <button class="btn red sm" onclick="A.limparTodoHistorico()">✕ LIMPAR TUDO</button>
     </div>`;
 
