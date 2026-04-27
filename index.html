@@ -122,7 +122,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .seq-missing-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(0,0,0,.3);border-radius:var(--r);border-left:3px solid var(--red);}
 .seq-missing-num{font-family:var(--font-head);font-size:16px;color:var(--red);flex-shrink:0;width:24px;text-align:center;}
 .seq-missing-name{font-size:12px;font-weight:600;color:var(--chrome2);}
-.treino-card{background:var(--steel);border:1px solid rgba(168,85,247,.15);border-radius:var(--r2);overflow:hidden;position:relative;}
+.treino-card{background:var(--steel);border:1px solid rgba(168,85,247,.15);border-radius:var(--r2);overflow:clip;position:relative;}
 .treino-step{background:var(--steel2);border:1.5px solid rgba(255,255,255,.07);border-radius:var(--r2);overflow:hidden;cursor:pointer;transition:all .2s;user-select:none;}
 .treino-step:active{transform:scale(.97);}
 .treino-step.correct{border-color:var(--green2);background:rgba(46,204,113,.05);animation:correctFlash .4s ease;}
@@ -326,7 +326,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 <script>
 'use strict';
 /* ══ INDEXEDDB ══ */
-const DB={name:'MecanicoPro',ver:7,db:null};
+const DB={name:'MecanicoPro',ver:8,db:null};
 DB.open=()=>new Promise((res,rej)=>{
   const req=indexedDB.open(DB.name,DB.ver);
   req.onupgradeneeded=e=>{
@@ -336,6 +336,7 @@ DB.open=()=>new Promise((res,rej)=>{
     if(!d.objectStoreNames.contains('treino_scores')){const ts=d.createObjectStore('treino_scores',{keyPath:'id',autoIncrement:true});ts.createIndex('procId','procId',{unique:false});}
     if(!d.objectStoreNames.contains('fluxos'))d.createObjectStore('fluxos',{keyPath:'id',autoIncrement:true});
     if(!d.objectStoreNames.contains('biblioteca')){const bs=d.createObjectStore('biblioteca',{keyPath:'id',autoIncrement:true});bs.createIndex('titulo','titulo',{unique:false});}
+    if(!d.objectStoreNames.contains('historico'))d.createObjectStore('historico',{keyPath:'id',autoIncrement:true});
   };
   req.onsuccess=e=>{DB.db=e.target.result;res(DB.db);};
   req.onerror=()=>rej(req.error);
@@ -353,6 +354,7 @@ const S={
   procedimentos:[],
   fluxos:[],
   biblioteca:[],
+  historico:[],
   bibPagina:0,
   bibBusca:'',
   procBusca:'',  // <-- ADICIONE ESTA LINHA
@@ -607,7 +609,7 @@ function buildExecAtiva(){
   const proximo=steps.find(s=>!done.has(s.id));
   let conteudo='';
   if(!proximo){
-    conteudo=`<div style="text-align:center;padding:28px 16px;display:flex;flex-direction:column;align-items:center;gap:14px"><div style="font-size:52px">✅</div><div style="font-family:var(--font-head);font-size:26px;letter-spacing:2px;color:var(--green2)">CONCLUÍDO!</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;letter-spacing:1px">${total} passos executados</div><button class="btn green" style="max-width:240px" onclick="A.finalizarExec(true)">✔ SALVAR NO HISTÓRICO</button><button class="btn steel sm" onclick="A.finalizarExec(false)">Descartar</button></div>`;
+    conteudo=`<div style="text-align:center;padding:28px 16px;display:flex;flex-direction:column;align-items:center;gap:14px"><div style="font-size:52px">✅</div><div style="font-family:var(--font-head);font-size:26px;letter-spacing:2px;color:var(--green2)">TRABALHO CONCLUÍDO!</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;letter-spacing:1px">${total} passos executados</div><button class="btn green" style="max-width:240px" onclick="A.finalizarExec(true)">✔ FINALIZAR EXECUÇÃO</button></div>`;
   }else{
     const idxAtual=steps.indexOf(proximo);const faltando=steps.slice(0,idxAtual).filter(s=>!done.has(s.id));
     const doneCards=steps.filter(s=>done.has(s.id)).map(s=>`<div class="step-done-card"><div class="done-check">✓</div><div class="done-num">#${s.ordem}</div><div class="done-name">${esc(s.titulo)}</div></div>`).join('');
@@ -656,15 +658,22 @@ function buildTreinoAtivo(){
   <button class="btn ghost sm" style="border-color:rgba(192,57,43,.3);color:#e74c3c" onclick="A.abandonarTreino()">✕ Sair do Treino</button>`;
 }
 function buildTreinoResultado(){
-  const tr=S.treino;const proc=S.procedimentos.find(p=>p.id===tr.procId);const total=tr.steps.length;const taxa=Math.round((tr.acertos/total)*100);
+  const tr=S.treino;const proc=S.procedimentos.find(p=>p.id===tr.procId);const total=tr.steps.length;
+  
+  // Calcula a nota real para exibir na tela final
+  const taxa=Math.round((total / (total + tr.erros)) * 100);
+  
   const nota=taxa===100?'PERFEITO! 🏆':taxa>=80?'MUITO BOM! ⭐':taxa>=60?'BOM 👍':'PRATIQUE MAIS 💪';
   const corNota=taxa===100?'var(--yellow)':taxa>=80?'var(--green2)':taxa>=60?'#5dade2':'#e74c3c';
   const stepsOrdenados=(proc?.steps||[]).slice().sort((a,b)=>a.ordem-b.ordem);
-  const gabaritoHtml=stepsOrdenados.map(s=>{const resp=tr.respostas.find(r=>r.stepId===s.id);const ok=resp?.correto;
-    return`<div class="gabarito-item"><div class="gabarito-num ${ok?'ok':'err'}">${ok?'✓':'✗'}</div><div style="flex:1"><div style="font-family:var(--font-head);font-size:13px;letter-spacing:.5px;color:${ok?'var(--chrome2)':'#e74c3c'}">#${s.ordem} ${esc(s.titulo)}</div>${!ok&&resp?`<div style="font-family:var(--font-mono);font-size:9px;color:var(--chrome);text-transform:uppercase">Você colocou como #${resp.ordemDada}</div>`:''}</div></div>`;
+  
+  // O gabarito agora só mostra a ordem perfeita, porque a prova do erro fica no Histórico Geral
+  const gabaritoHtml=stepsOrdenados.map(s=>{
+    return`<div class="gabarito-item"><div class="gabarito-num ok">✓</div><div style="flex:1"><div style="font-family:var(--font-head);font-size:13px;letter-spacing:.5px;color:var(--chrome2)">#${s.ordem} ${esc(s.titulo)}</div></div></div>`;
   }).join('');
-  return`<div class="treino-card"><div class="card-head"><div class="card-title" style="color:#a855f7">🎓 RESULTADO</div></div><div class="card-body"><div style="text-align:center;padding:12px 0"><div style="font-family:var(--font-head);font-size:48px;color:${corNota};letter-spacing:2px">${taxa}%</div><div style="font-family:var(--font-head);font-size:20px;color:${corNota};letter-spacing:1px;margin-top:3px">${nota}</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;letter-spacing:1px;margin-top:6px">${tr.acertos} certos · ${tr.erros} erros · ${total} total</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn purple sm" onclick="A.iniciarTreino(${tr.procId})" style="flex:2">🔄 TREINAR NOVAMENTE</button><button class="btn steel sm" onclick="A.abandonarTreino()">Voltar</button></div></div></div>
-  <div class="card"><div class="card-head"><div class="card-title">📋 GABARITO</div></div><div style="padding:8px 13px;display:flex;flex-direction:column;gap:5px">${gabaritoHtml}</div></div>`;
+  
+  return`<div class="treino-card"><div class="card-head"><div class="card-title" style="color:#a855f7">🎓 RESULTADO DO TREINO</div></div><div class="card-body"><div style="text-align:center;padding:12px 0"><div style="font-family:var(--font-head);font-size:48px;color:${corNota};letter-spacing:2px">${taxa}%</div><div style="font-family:var(--font-head);font-size:20px;color:${corNota};letter-spacing:1px;margin-top:3px">${nota}</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;letter-spacing:1px;margin-top:6px;background:rgba(0,0,0,.2);padding:6px;border-radius:4px;display:inline-block;">DESEMPENHO: ${total} PASSOS · <span style="color:#e74c3c">${tr.erros} ERROS COMETIDOS</span></div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn purple sm" onclick="A.iniciarTreino(${tr.procId})" style="flex:2">🔄 TREINAR NOVAMENTE</button><button class="btn steel sm" onclick="A.abandonarTreino()">Voltar</button></div></div></div>
+  <div class="card"><div class="card-head"><div class="card-title">📋 GABARITO (ORDEM CORRETA)</div></div><div style="padding:8px 13px;display:flex;flex-direction:column;gap:5px">${gabaritoHtml}</div></div>`;
 }
 
 /* ══ ABA FLUXO ══ */
@@ -724,54 +733,79 @@ function buildFluxoExec(){
   const fluxo=S.fluxos.find(f=>f.id===fe.fluxoId);if(!fluxo)return buildFluxos();
   const nos=fluxo.nos||[];const noAtual=nos.find(n=>n.id===fe.noAtual);
   if(!noAtual)return`<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">NÓ NÃO ENCONTRADO</div></div>`;
+  
   const breadcrumb=fe.historico.length?`<div class="fluxo-breadcrumb">${fe.historico.map(h=>`<div class="bc-item"><span>${esc((h.pergunta||'').slice(0,20))}</span><span class="bc-resp"> ${esc(h.resposta)}</span></div>`).join('')}</div>`:'';
   
   const fotosExecHtml = (noAtual.fotos?.length) ? `<div class="exec-imgs" style="margin:12px 0">${noAtual.fotos.map((f,i)=>`<div class="exec-img" onclick="lightbox('${f}')"><img src="${f}"></div>`).join('')}</div>` : '';
-  const audioExecHtml = noAtual.audio ? `<div style="margin:12px 0; background:rgba(34,211,238,0.1); padding:10px; border-radius:var(--r); border-left:3px solid var(--cyan2);">
-    <div style="font-family:var(--font-mono);font-size:10px;color:var(--cyan2);text-transform:uppercase;margin-bottom:6px;">🎙 Instrução em Áudio</div>
-    <audio controls src="${noAtual.audio}" style="width:100%; height:40px;" onplay="tocarAudioLockScreen('${esc(noAtual.pergunta||noAtual.titulo)}')"></audio>
-  </div>` : '';
+  const audioExecHtml = noAtual.audio ? `<div style="margin:12px 0; background:rgba(34,211,238,0.1); padding:10px; border-radius:var(--r); border-left:3px solid var(--cyan2);"><div style="font-family:var(--font-mono);font-size:10px;color:var(--cyan2);text-transform:uppercase;margin-bottom:6px;">🎙 Instrução em Áudio</div><audio controls src="${noAtual.audio}" style="width:100%; height:40px;" onplay="tocarAudioLockScreen('${esc(noAtual.pergunta||noAtual.titulo)}')"></audio></div>` : '';
 
-  if(noAtual.tipo==='diagnostico'){
-    return`<div class="card" style="border-color:rgba(34,211,238,.15)">
-      <div class="card-head"><div class="card-title" style="color:var(--cyan2)">🔀 ${esc(fluxo.nome)}</div></div>
-      ${breadcrumb}
-    </div>
+  const isDiag = noAtual.tipo === 'diagnostico';
+  
+  // 👇 BOTÃO DE PROCEDIMENTO APARECE PARA AMBOS AQUI:
+  const btnProcHtml = noAtual.procId ? `
+    <button class="btn yellow sm" style="margin-top:10px; border:2px solid var(--yellow); padding:8px 12px; font-size:12px; font-weight:bold; width:100%;" onclick="A.verProcNoFluxo(${noAtual.procId}, '${esc(S.procedimentos.find(x=>x.id===noAtual.procId)?.nome||'Técnico')}', ${noAtual.procValor || 0})">
+      📋 VER PROCEDIMENTO ${noAtual.procValor > 0 ? `(R$ ${noAtual.procValor.toFixed(2).replace('.', ',')})` : ''}
+    </button>` : '';
+
+  let conteudoPrincipal = '';
+  if(isDiag){
+    conteudoPrincipal = `
     <div class="fluxo-diag-card">
       <div style="font-family:var(--font-mono);font-size:10px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">✅ DIAGNÓSTICO FINAL</div>
       <div class="fluxo-diag-title">${esc(noAtual.titulo||noAtual.pergunta||'')}</div>
-      ${audioExecHtml}
-      ${fotosExecHtml}
+      ${audioExecHtml} ${fotosExecHtml}
       ${noAtual.descricao?`<div class="fluxo-diag-desc">${esc(noAtual.descricao)}</div>`:''}
       ${noAtual.codigo?`<pre class="code-block"><code>${esc(noAtual.codigo)}</code></pre>`:''}
       ${noAtual.solucao?`<div style="background:rgba(0,0,0,.3);border-radius:var(--r);padding:10px 12px;border-left:3px solid var(--cyan2);margin-top:4px"><div style="font-family:var(--font-mono);font-size:9px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">SOLUÇÃO RECOMENDADA</div><div style="font-size:13px;color:var(--chrome2);line-height:1.6">${esc(noAtual.solucao)}</div></div>`:''}
-      ${noAtual.procId?`<button class="btn yellow sm" onclick="abrirModalProcInline(${noAtual.procId})">📋 VER PROCEDIMENTO AQUI</button>`:''}    </div>
-    <div style="display:flex;gap:8px">
-      ${fe.historico.length?`<button class="btn steel sm" onclick="A.fluxoVoltar()">← VOLTAR</button>`:''}
-      <button class="btn ghost-cyan sm" onclick="A.fluxoReiniciar()">🔄 REINICIAR</button>
-      <button class="btn steel sm" onclick="A.sairFluxo()">✕ SAIR</button>
+      ${btnProcHtml}
+    </div>`;
+  } else {
+    const opcoesHtml=(noAtual.opcoes||[]).map((o,i)=>`<button class="fluxo-opt-btn" onclick="A.fluxoResponder(${i})"><span style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.5px;min-width:20px;color:rgba(34,211,238,.5)">${String.fromCharCode(65+i)}</span> ${esc(o.label)}<span class="fluxo-opt-arrow">›</span></button>`).join('');
+    conteudoPrincipal = `
+    <div class="fluxo-node-card">
+      <div class="fluxo-node-head"><div class="fluxo-q-badge">PERGUNTA</div><div class="fluxo-question">${esc(noAtual.pergunta||noAtual.titulo||'')}</div></div>
+      <div style="padding: 0 16px;">${audioExecHtml} ${fotosExecHtml}</div>
+      ${noAtual.descricao?`<div class="fluxo-desc" style="padding-top:0">${esc(noAtual.descricao)}</div>`:''}
+      ${noAtual.codigo?`<div style="padding:0 16px"><pre class="code-block" style="margin-top:0"><code>${esc(noAtual.codigo)}</code></pre></div>`:''}
+      ${btnProcHtml ? `<div style="padding: 0 16px;">${btnProcHtml}</div>` : ''}
+      <div class="fluxo-opts">${opcoesHtml||'<div style="color:var(--chrome);font-size:13px">Sem opções</div>'}</div>
     </div>`;
   }
-  
-  const opcoesHtml=(noAtual.opcoes||[]).map((o,i)=>`<button class="fluxo-opt-btn" onclick="A.fluxoResponder(${i})"><span style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.5px;min-width:20px;color:rgba(34,211,238,.5)">${String.fromCharCode(65+i)}</span> ${esc(o.label)}<span class="fluxo-opt-arrow">›</span></button>`).join('');
-  return`<div class="card" style="border-color:rgba(34,211,238,.15)">
+
+  if(!fe.orcamento) fe.orcamento = [];
+  const totalOrcamento = fe.orcamento.reduce((acc, item) => acc + item.valor, 0);
+
+  const orcamentoHtml = `
+  <div style="margin-top:16px; background:rgba(46,204,113,.05); border:1px solid rgba(46,204,113,.3); border-radius:var(--r); padding:10px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <div style="font-family:var(--font-head); font-size:18px; color:var(--green2); letter-spacing:1px;">💰 TOTAL: R$ ${totalOrcamento.toFixed(2).replace('.', ',')}</div>
+      <button class="btn green sm" style="width:auto; padding:4px 10px; font-size:10px;" onclick="A.abrirModalOrcamento()">＋ ADICIONAR VALOR</button>
+    </div>
+    ${fe.orcamento.length > 0 ? `<div style="display:flex; flex-direction:column; gap:4px;">
+      ${fe.orcamento.map((item, idx) => `
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--chrome2); background:rgba(0,0,0,.2); padding:6px 10px; border-radius:4px; border-left:2px solid var(--green2);">
+          <span>${esc(item.descricao)}</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color:var(--green2); font-weight:bold;">R$ ${item.valor.toFixed(2).replace('.', ',')}</span>
+            <button onclick="A.removerItemOrcamento(${idx})" style="background:rgba(192,57,43,.1); border:1px solid rgba(192,57,43,.2); border-radius:4px; color:#e74c3c; cursor:pointer; font-weight:bold; width:20px; height:20px; display:flex; align-items:center; justify-content:center;">✕</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>` : `<div style="font-size:11px; color:var(--chrome);">Nenhum valor adicionado. Clique no botão acima se houver custos nesta etapa.</div>`}
+  </div>`;
+
+  return `
+  <div class="card" style="border-color:rgba(34,211,238,.15)">
     <div class="card-head"><div class="card-title" style="color:var(--cyan2)">🔀 ${esc(fluxo.nome)}</div></div>
     ${breadcrumb}
   </div>
-  <div class="fluxo-node-card">
-    <div class="fluxo-node-head"><div class="fluxo-q-badge">PERGUNTA</div><div class="fluxo-question">${esc(noAtual.pergunta||noAtual.titulo||'')}</div></div>
-    <div style="padding: 0 16px;">
-       ${audioExecHtml}
-       ${fotosExecHtml}
-    </div>
-    ${noAtual.descricao?`<div class="fluxo-desc" style="padding-top:0">${esc(noAtual.descricao)}</div>`:''}
-    ${noAtual.codigo?`<div style="padding:0 16px"><pre class="code-block" style="margin-top:0"><code>${esc(noAtual.codigo)}</code></pre></div>`:''}
-    <div class="fluxo-opts">${opcoesHtml||'<div style="color:var(--chrome);font-size:13px">Sem opções</div>'}</div>
-  </div>
-  <div style="display:flex;gap:8px">
-    ${fe.historico.length?`<button class="btn steel sm" onclick="A.fluxoVoltar()">← VOLTAR</button>`:''}
-    <button class="btn ghost-cyan sm" onclick="A.fluxoReiniciar()">🔄 REINICIAR</button>
-    <button class="btn steel sm" onclick="A.sairFluxo()">✕ SAIR</button>
+  ${conteudoPrincipal}
+  ${orcamentoHtml}
+  <div style="display:flex;gap:6px; flex-wrap:wrap; margin-top:10px;">
+    ${fe.historico.length?`<button class="btn steel sm" onclick="A.fluxoVoltar()" style="flex:1">← VOLTAR</button>`:''}
+    <button class="btn ghost-cyan sm" onclick="A.fluxoReiniciar()" style="flex:1">🔄 REINICIAR</button>
+    <button class="btn green sm" onclick="A.salvarFluxoHistorico()" style="flex:2">💾 SALVAR NO HISTÓRICO</button>
+    <button class="btn steel sm" onclick="A.sairFluxo()" style="width:45px">✕</button>
   </div>`;
 }
 
@@ -809,19 +843,147 @@ function buildBiblioteca(){
 }
 
 /* ══ ABA HISTÓRICO ══ */
-async function buildHistorico(){
-  const body=document.getElementById('body');
-  body.innerHTML=`<div class="card"><div class="card-head"><div class="card-title">⏳ CARREGANDO...</div></div></div>`;
-  let execs=[],scores=[];
-  try{execs=await DB.getAll('execucoes');}catch{}
-  try{scores=await DB.getAll('treino_scores');}catch{}
-  execs.sort((a,b)=>b.ts-a.ts);scores.sort((a,b)=>b.ts-a.ts);
-  const totExec=execs.length,totOk=execs.filter(e=>e.concluido).length;const melhorTreino=scores.length?Math.max(...scores.map(s=>s.taxa)):0;
-  const execHtml=execs.length===0?`<div style="text-align:center;padding:14px;color:var(--chrome);font-family:var(--font-mono);font-size:10px;text-transform:uppercase">Nenhuma execução</div>`:execs.slice(0,20).map(e=>{const p=S.procedimentos.find(x=>x.id===e.procId);const cor=e.concluido?'var(--green2)':'#e74c3c';const mins=e.duracao?Math.round(e.duracao/60000)+'min':'-';return`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--steel2);border-radius:var(--r);border:1px solid rgba(255,255,255,.05)"><span style="font-size:18px">${e.concluido?'✅':'❌'}</span><div style="flex:1;min-width:0"><div style="font-family:var(--font-head);font-size:13px;color:${cor}">${p?.nome||'Deletado'}</div><div style="font-family:var(--font-mono);font-size:9px;color:var(--chrome)">${fmtDateFull(e.ts)} · ${mins}</div></div><span style="font-family:var(--font-mono);font-size:10px;color:var(--chrome)">${e.stepsConcluidos||0}/${e.stepsTotal||0}</span></div>`;}).join('');
-  const scoreHtml=scores.length===0?`<div style="text-align:center;padding:14px;color:var(--chrome);font-family:var(--font-mono);font-size:10px;text-transform:uppercase">Nenhum treino</div>`:scores.slice(0,20).map(s=>{const p=S.procedimentos.find(x=>x.id===s.procId);const cor=s.taxa>=80?'var(--green2)':s.taxa>=60?'var(--yellow)':'#e74c3c';return`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--steel2);border-radius:var(--r);border:1px solid rgba(168,85,247,.1)"><span style="font-size:18px">🎓</span><div style="flex:1;min-width:0"><div style="font-family:var(--font-head);font-size:13px;color:var(--chrome2)">${p?.nome||'Deletado'}</div><div style="font-family:var(--font-mono);font-size:9px;color:var(--chrome)">${fmtDateFull(s.ts)}</div></div><span style="font-family:var(--font-head);font-size:18px;color:${cor}">${s.taxa}%</span></div>`;}).join('');
-  body.innerHTML=`<div class="card"><div class="card-head"><div class="card-title">📊 RESUMO GERAL</div></div><div class="card-body"><div style="display:flex;gap:8px;flex-wrap:wrap">${[{v:totExec,l:'Execuções',c:'var(--yellow)'},{v:totOk,l:'Concluídas',c:'var(--green2)'},{v:scores.length,l:'Treinos',c:'#a855f7'},{v:melhorTreino+'%',l:'Melhor Treino',c:'var(--yellow)'}].map(s=>`<div style="flex:1;min-width:55px;background:var(--steel2);border-radius:var(--r);padding:9px;text-align:center;border:1px solid rgba(255,255,255,.05)"><div style="font-family:var(--font-head);font-size:24px;color:${s.c}">${s.v}</div><div style="font-family:var(--font-mono);font-size:8px;color:var(--chrome);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">${s.l}</div></div>`).join('')}</div></div></div>
-  <div class="card"><div class="card-head"><div class="card-title">▶ EXECUÇÕES</div></div><div style="padding:7px 13px 13px;display:flex;flex-direction:column;gap:5px">${execHtml}</div></div>
-  <div class="card"><div class="card-head"><div class="card-title" style="color:#a855f7">🎓 TREINOS</div></div><div style="padding:7px 13px 13px;display:flex;flex-direction:column;gap:5px">${scoreHtml}</div></div>`;
+
+/* ══ ABA HISTÓRICO ══ */
+function formataDataRelativa(ts) {
+  if (!ts) return 'Desconhecido';
+  const d = new Date(ts);
+  const hoje = new Date();
+  const ontem = new Date(); ontem.setDate(ontem.getDate() - 1);
+  if (d.toDateString() === hoje.toDateString()) return 'HOJE';
+  if (d.toDateString() === ontem.toDateString()) return 'ONTEM';
+  return d.toLocaleDateString('pt-BR');
+}
+
+function buildHistorico() {
+    const body=document.getElementById('body');
+    let historico = S.historico || [];
+    
+    historico = historico.filter(h => h.tipo === 'fluxo' || h.tipo === 'treino'); 
+
+    if (historico.length === 0) {
+      body.innerHTML = `<div class="empty" style="margin-top:40px"><div class="empty-icon" style="font-size:40px; opacity:0.3; margin-bottom:10px">⏳</div><div class="empty-title">NENHUM HISTÓRICO</div><div style="font-size:12px; color:var(--chrome); text-align:center; margin-top:5px;">Seus diagnósticos e boletins de treino aparecerão aqui.</div></div>`;
+      return;
+    }
+
+    const sorted = [...historico].sort((a, b) => (b.data || 0) - (a.data || 0)).slice(0, 50);
+    const grupos = {};
+    sorted.forEach(h => {
+      const dataStr = formataDataRelativa(h.data);
+      if (!grupos[dataStr]) grupos[dataStr] = [];
+      grupos[dataStr].push(h);
+    });
+
+    let html = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:0 4px;">
+      <div style="font-size:12px; color:var(--chrome);">Exibindo últimos registros</div>
+      <button class="btn red sm" onclick="A.limparTodoHistorico()">✕ LIMPAR TUDO</button>
+    </div>`;
+
+    for (const data in grupos) {
+      html += `<div style="font-family: var(--font-mono); font-size: 11px; color: var(--chrome); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px dashed rgba(255,255,255,.1); padding-bottom: 4px; margin: 16px 0 8px 0;">${data}</div>`;
+
+      grupos[data].forEach(h => {
+          const isFluxo = h.tipo === 'fluxo';
+          const isTreino = h.tipo === 'treino';
+          
+          const icon = isFluxo ? '🔀' : '🎓';
+          const corHeader = isFluxo ? 'var(--cyan2)' : '#a855f7';
+          const cor = isFluxo ? 'var(--cyan2)' : (h.taxa >= 80 ? 'var(--green2)' : (h.taxa >= 50 ? 'var(--yellow)' : '#e74c3c'));
+          
+          const dataHora = new Date(h.data);
+          const horaStr = dataHora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+
+          let detalhesHtml = '';
+          
+          if (isFluxo && h.historico && h.historico.length) {
+              const statusCor = h.status === 'CONCLUÍDO' ? 'var(--green2)' : 'var(--yellow)';
+              const podeRetomar = h.status === 'INTERROMPIDO'; 
+              
+              // 1. Etiqueta visual com o nome do cliente, se existir
+              const clienteTag = h.cliente ? `<span style="background:rgba(245,200,0,.15); color:var(--yellow); border:1px solid rgba(245,200,0,.3); padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; margin-right:6px;">👤 ${esc(h.cliente)}</span>` : '';
+              
+              // 2. Etiqueta com o Dinheiro no topo
+              const totalOrcStr = (h.totalOrcamento > 0) ? `<span style="color:var(--green2); font-weight:bold; font-size:14px; margin-left:auto;">💰 R$ ${h.totalOrcamento.toFixed(2).replace('.', ',')}</span>` : '';
+
+              let procsHtml = '';
+              if (h.procsVistos && h.procsVistos.length > 0) {
+                  procsHtml = `<div style="margin-top:10px; padding:10px; background:rgba(245,200,0,.1); border-radius:4px; border-left:3px solid var(--yellow);">
+                    <div style="font-size:10px; color:var(--yellow); text-transform:uppercase; font-weight:bold; margin-bottom:6px;">📋 Procedimentos Consultados:</div>
+                    ${h.procsVistos.map(pv => `<div style="font-size:12px; color:var(--chrome2); margin-bottom:3px;">• ${esc(pv.nome)}</div>`).join('')}
+                  </div>`;
+              }
+              
+              // 3. Monta a listinha do orçamento
+              let orcamentoListHtml = '';
+              if (h.orcamento && h.orcamento.length > 0) {
+                  orcamentoListHtml = `<div style="margin-top:10px; padding:10px; background:rgba(46,204,113,.05); border-radius:4px; border-left:3px solid var(--green2);">
+                    <div style="font-size:10px; color:var(--green2); text-transform:uppercase; font-weight:bold; margin-bottom:6px;">💰 Detalhamento do Orçamento:</div>
+                    ${h.orcamento.map(o => `<div style="display:flex; justify-content:space-between; font-size:12px; color:var(--chrome2); margin-bottom:3px; background:rgba(0,0,0,.1); padding:4px 6px; border-radius:3px;">
+                       <span>• ${esc(o.descricao)}</span><span style="color:var(--green2); font-weight:bold;">R$ ${o.valor.toFixed(2).replace('.', ',')}</span>
+                    </div>`).join('')}
+                    <div style="display:flex; justify-content:flex-end; font-size:14px; color:var(--green2); font-weight:bold; margin-top:8px; border-top:1px dashed rgba(46,204,113,.3); padding-top:6px;">TOTAL: R$ ${h.totalOrcamento.toFixed(2).replace('.', ',')}</div>
+                  </div>`;
+              }
+              
+              detalhesHtml = `
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                <span style="font-family:var(--font-mono); font-size:9px; padding:2px 6px; border-radius:4px; background:rgba(0,0,0,.3); border:1px solid ${statusCor}; color:${statusCor}">${h.status || 'FINALIZADO'}</span>
+                ${clienteTag}
+                <div style="color:${cor}; font-weight:bold; font-size:13px;">${esc(h.diagnostico)}</div>
+                ${totalOrcStr}
+              </div>
+              <div style="display:flex; gap:6px; margin-bottom:10px;">
+                <button class="btn yellow sm" onclick="A.editarClienteHistorico(${h.id})" style="flex:1; padding:6px 12px; font-size:10px;">👤 IDENTIFICAR CLIENTE</button>
+                ${podeRetomar ? `<button class="btn cyan sm" onclick="A.retomarFluxo(${h.id})" style="flex:1; padding:6px 12px; font-size:10px;">▶ RETOMAR EXECUÇÃO</button>` : ''}
+              </div>` +
+              h.historico.map(x => `
+                <div style="font-size: 12px; margin-bottom: 6px; color: var(--chrome); padding-left: 10px; border-left: 2px solid rgba(255,255,255,.1);">
+                   <div style="font-size:10px; color:var(--chrome2); margin-bottom:2px">P: ${esc(x.pergunta)}</div>
+                   <div style="color:${cor};">↳ R: ${esc(x.resposta)}</div>
+                </div>
+              `).join('') + procsHtml + orcamentoListHtml;
+          
+          } else if (isTreino && h.historico) {
+              detalhesHtml = `
+              <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center;">
+                <span style="background:rgba(46,204,113,.1); border:1px solid rgba(46,204,113,.2); color:var(--green2); padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;">✓ ${h.acertos} Certos</span>
+                <span style="background:rgba(192,57,43,.1); border:1px solid rgba(192,57,43,.2); color:#e74c3c; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;">✗ ${h.erros} Erros</span>
+                <span style="background:rgba(255,255,255,.1); color:var(--chrome2); padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:auto;">Nota Final: ${h.taxa}%</span>
+              </div>
+              <div style="font-family:var(--font-mono); font-size:10px; color:var(--chrome); text-transform:uppercase; margin-bottom:6px;">Auditoria de Cliques (Cronológico):</div>
+              ` +
+              h.historico.map((x, index) => `
+                <div style="font-size: 12px; margin-bottom: 6px; padding: 8px 10px; background:rgba(0,0,0,.2); border-radius:4px; border-left: 3px solid ${x.correto ? 'var(--green2)' : '#e74c3c'}; display:flex; align-items:center; gap:8px;">
+                   <span style="font-size:16px; color:${x.correto ? 'var(--green2)' : '#e74c3c'}">${x.correto ? '✓' : '✗'}</span>
+                   <div style="flex:1;">
+                       <div style="color:var(--chrome2); font-weight:bold;"><span style="color:var(--chrome); font-weight:normal; font-size:10px; margin-right:4px;">${index + 1}º Clique:</span> ${esc(x.titulo)}</div>
+                       ${!x.correto ? `<div style="font-size:10px; color:var(--chrome); margin-top:2px;">Tentou colocar na posição #${x.ordemDada} <span style="color:#e74c3c">(A ordem correta era #${x.ordemCorreta})</span></div>` : `<div style="font-size:10px; color:var(--chrome); margin-top:2px;">Encaixou na posição #${x.ordemDada} com sucesso.</div>`}
+                   </div>
+                </div>
+              `).join('');
+          }
+
+          html += `
+          <div style="background: var(--steel2); border: 1px solid rgba(255,255,255,.05); border-left: 3px solid ${corHeader}; border-radius: var(--r); margin-bottom: 8px; overflow: hidden;">
+            <div onclick="const b=document.getElementById('hb_${h.id}'); b.style.display = b.style.display==='block' ? 'none' : 'block';" style="padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: background 0.2s;">
+               <div style="font-size: 14px; font-weight: bold; color: var(--chrome2); display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size:16px;">${icon}</span>
+                  <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${esc(h.nome)}</span>
+               </div>
+               <div style="display:flex; align-items:center;">
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--chrome); background: rgba(0,0,0,.3); padding: 3px 6px; border-radius: 4px;">${horaStr}</span>
+                  <button style="background: rgba(192,57,43,.1); color: #e74c3c; border: 1px solid rgba(192,57,43,.2); border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer; margin-left: 10px;" onclick="event.stopPropagation(); A.apagarItemHistorico(${h.id})">✕</button>
+               </div>
+            </div>
+            <div id="hb_${h.id}" style="padding: 0 12px 12px 12px; display: none; border-top: 1px solid rgba(255,255,255,.05); margin-top: 4px; padding-top: 10px;">
+               ${detalhesHtml}
+            </div>
+          </div>`;
+      });
+    }
+
+    body.innerHTML = `<div style="padding-bottom:80px; padding-top:10px;">${html}</div>`;
 }
 
 /* ══ AÇÕES ══ */
@@ -932,33 +1094,122 @@ procBuscar(val){
     S.execAtiva.stepsDone.push(stepId);const proximo=steps.find(s=>!S.execAtiva.stepsDone.includes(s.id));
     S.execAtiva.stepAtual=proximo?.id||null;render();
   },
-  async finalizarExec(concluido){
-    if(!S.execAtiva)return;const proc=S.procedimentos.find(p=>p.id===S.execAtiva.procId);
-    await DB.put('execucoes',{procId:S.execAtiva.procId,ts:Date.now(),concluido,duracao:Date.now()-S.execAtiva.startTs,stepsTotal:proc?.steps?.length||0,stepsConcluidos:S.execAtiva.stepsDone.length});
-    S.execAtiva=null;toast(concluido?'✅ Salvo no histórico!':'','ok');render();
+async finalizarExec(concluido){
+    if(!S.execAtiva)return;
+    S.execAtiva=null;
+    toast(concluido?'✅ Procedimento concluído!':'Execução encerrada.','ok');
+    render();
+  },
+
+  async salvarFluxoHistorico() {
+    if(!S.fluxoExec) return;
+    const fluxo = S.fluxos.find(f => f.id === S.fluxoExec.fluxoId);
+    const noAtualId = S.fluxoExec.noAtual;
+    const noAtual = fluxo.nos.find(n => n.id === noAtualId);
+    
+    const finalizado = noAtual?.tipo === 'diagnostico';
+    const statusLabel = finalizado ? 'CONCLUÍDO' : 'INTERROMPIDO';
+    const resultadoTexto = finalizado ? (noAtual?.titulo || noAtual?.pergunta) : `Parou em: ${noAtual?.pergunta || noAtual?.titulo}`;
+    
+    // Soma total garantida
+    const totalOrcamento = (S.fluxoExec.orcamento || []).reduce((acc, item) => acc + item.valor, 0);
+
+    const histItem = {
+        tipo: 'fluxo',
+        nome: fluxo?.nome || 'Fluxo Diagnóstico',
+        fluxoId: S.fluxoExec.fluxoId, 
+        noParadaId: noAtualId,       
+        data: Date.now(),
+        status: statusLabel,
+        diagnostico: resultadoTexto,
+        cliente: '', // Nasce vazio, você edita depois na aba histórico
+        orcamento: JSON.parse(JSON.stringify(S.fluxoExec.orcamento || [])),
+        totalOrcamento: totalOrcamento,
+        historico: JSON.parse(JSON.stringify(S.fluxoExec.historico)),
+        procsVistos: JSON.parse(JSON.stringify(S.fluxoExec.procsVistos || []))
+    };
+
+    const id = await DB.put('historico', histItem);
+    histItem.id = id;
+    S.historico.push(histItem);
+    
+    toast(finalizado ? '✅ Diagnóstico concluído!' : '💾 Progresso salvo para retomar depois.', 'ok');
+    A.sairFluxo();
+  },
+  
+  async limparTodoHistorico() {
+    if(!confirm('Apagar todo o histórico?')) return;
+    for(let h of S.historico) await DB.del('historico', h.id);
+    S.historico = [];
+    buildHistorico();
+    toast('🗑 Histórico limpo!', 'ok');
+  },
+  
+  async apagarItemHistorico(id) {
+    if(!confirm('Apagar este registro?')) return;
+    await DB.del('historico', id);
+    S.historico = S.historico.filter(h => h.id !== id);
+    buildHistorico();
+    toast('✅ Registro apagado!', 'ok');
   },
   confirmarAbandonar(){if(!confirm('Abandonar a execução?'))return;S.execAtiva=null;render();},
 
   /* ── Treino ── */
-  iniciarTreino(procId){
+iniciarTreino(procId){
     const proc=S.procedimentos.find(p=>p.id===procId);if(!proc||!proc.steps?.length){toast('⚠ Sem passos!','');return;}
     const steps=proc.steps.slice().sort((a,b)=>a.ordem-b.ordem);
     const embaralhados=[...steps];for(let i=embaralhados.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[embaralhados[i],embaralhados[j]]=[embaralhados[j],embaralhados[i]];}
-    S.treino={procId,steps:embaralhados,respostas:[],stepAtual:0,feedbacks:[],finalizado:false,acertos:0,erros:0};S.tab='treino';render();
+    S.treino={procId,steps:embaralhados,respostas:[],logTentativas:[],stepAtual:0,feedbacks:[],finalizado:false,acertos:0,erros:0};S.tab='treino';render();
   },
-  treinoClicarStep(stepId){
+treinoClicarStep(stepId){
     const tr=S.treino;if(tr.finalizado)return;const proc=S.procedimentos.find(p=>p.id===tr.procId);if(!proc)return;
     const stepsOrdenados=proc.steps.slice().sort((a,b)=>a.ordem-b.ordem);const step=tr.steps.find(s=>s.id===stepId);if(!step)return;
     const posicaoTentando=tr.respostas.length+1;const ordemCorreta=step.ordem;const correto=(ordemCorreta===posicaoTentando);
     const respondidosIds=new Set(tr.respostas.map(r=>r.stepId));const faltavam=stepsOrdenados.filter(s=>s.ordem<ordemCorreta&&!respondidosIds.has(s.id));
-    const resp={stepId,titulo:step.titulo,ordemDada:posicaoTentando,ordemCorreta,correto,faltavam};tr.respostas.push(resp);
-    if(correto)tr.acertos++;else tr.erros++;
-    if(tr.respostas.length>=tr.steps.length){tr.finalizado=true;const taxa=Math.round((tr.acertos/tr.steps.length)*100);DB.put('treino_scores',{procId:tr.procId,ts:Date.now(),acertos:tr.acertos,erros:tr.erros,total:tr.steps.length,taxa}).catch(()=>{});}
+    const resp={stepId,titulo:step.titulo,ordemDada:posicaoTentando,ordemCorreta,correto,faltavam};
+    
+    tr.respostas.push(resp);
+    tr.logTentativas.push(resp); // 👈 MÁGICA 1: Registra TUDO, até os erros que ele tentar desfazer depois!
+    
+    if(correto)tr.acertos++;else tr.erros++; 
+    
+    if(tr.acertos>=tr.steps.length){
+        tr.finalizado=true;
+        const taxa = Math.round((tr.steps.length / (tr.steps.length + tr.erros)) * 100);
+        
+        const histItem = {
+            tipo: 'treino',
+            nome: proc.nome || 'Treinamento',
+            data: Date.now(),
+            acertos: tr.acertos,
+            erros: tr.erros,
+            total: tr.steps.length,
+            taxa: taxa,
+            historico: JSON.parse(JSON.stringify(tr.logTentativas)) // 👈 Salva o raio-X completo das tentativas
+        };
+        DB.put('historico', histItem).then(id => {
+            histItem.id = id;
+            S.historico.push(histItem);
+        }).catch(()=>{});
+    }
     render();
   },
-  treinoDesfazer(){const tr=S.treino;if(!tr.respostas.length)return;const ultima=tr.respostas[tr.respostas.length-1];tr.respostas.pop();if(ultima.correto)tr.acertos=Math.max(0,tr.acertos-1);else tr.erros=Math.max(0,tr.erros-1);tr.finalizado=false;render();},
-  abandonarTreino(){S.treino={procId:null,steps:[],respostas:[],stepAtual:0,feedbacks:[],finalizado:false,acertos:0,erros:0};S.tab='treino';render();},
 
+  treinoDesfazer(){
+    const tr=S.treino;if(!tr.respostas.length)return;
+    const ultima=tr.respostas[tr.respostas.length-1];
+    tr.respostas.pop();
+    
+    // MÁGICA AQUI: Nós retiramos o "acerto" para ele clicar de novo, 
+    // mas o ERRO não é descontado. O erro fica na ficha!
+    if(ultima.correto) tr.acertos = Math.max(0, tr.acertos - 1); 
+    
+    tr.finalizado=false;
+    render();
+  },
+
+  abandonarTreino(){S.treino={procId:null,steps:[],respostas:[],logTentativas:[],stepAtual:0,feedbacks:[],finalizado:false,acertos:0,erros:0};S.tab='treino';render();},
+  
   /* ── FLUXO ── */
   novoFluxo(){S.editandoFluxo=null;abrirModalFluxo(null);},
   editarFluxo(id){const f=S.fluxos.find(x=>x.id===id);if(!f)return;S.editandoFluxo=f;abrirModalFluxo(f);},
@@ -977,10 +1228,29 @@ procBuscar(val){
     S.viewFluxoId=null;fecharModal();toast('🗑 Fluxo excluído.','error');render();
   },
   verFluxo(id){S.viewFluxoId=id;S.tab='fluxo';render();},
-  iniciarFluxo(fluxoId){
+iniciarFluxo(fluxoId){
     const fluxo=S.fluxos.find(f=>f.id===fluxoId);if(!fluxo||!fluxo.nos?.length){toast('⚠ Fluxo sem nós!','');return;}
     const noRaiz=fluxo.nos.find(n=>n.id===fluxo.noRaizId)||fluxo.nos[0];
-    S.fluxoExec={fluxoId,historico:[],noAtual:noRaiz.id};S.tab='fluxo';render();
+    // Adicionamos a array orcamento: [] vazia aqui
+    S.fluxoExec={fluxoId,historico:[],procsVistos:[], orcamento:[], noAtual:noRaiz.id};
+    S.tab='fluxo';render();
+  },
+
+retomarFluxo(histId) {
+    const registro = S.historico.find(h => h.id === histId);
+    if(!registro) { toast('⚠ Registro não encontrado!', 'error'); return; }
+    const fluxo = S.fluxos.find(f => f.id === registro.fluxoId);
+    if(!fluxo) { toast('⚠ O fluxo original foi deletado.', 'error'); return; }
+
+    S.fluxoExec = {
+        fluxoId: registro.fluxoId,
+        historico: JSON.parse(JSON.stringify(registro.historico || [])),
+        procsVistos: JSON.parse(JSON.stringify(registro.procsVistos || [])),
+        orcamento: JSON.parse(JSON.stringify(registro.orcamento || [])), // 👈 MÁGICA: Restaura os valores se pausou
+        noAtual: registro.noParadaId
+    };
+    S.tab = 'fluxo'; render();
+    toast('🔄 Fluxo retomado com orçamento intacto.', 'cyan');
   },
   fluxoResponder(opcaoIdx){
     if(!S.fluxoExec)return;const fluxo=S.fluxos.find(f=>f.id===S.fluxoExec.fluxoId);if(!fluxo)return;
@@ -1002,10 +1272,78 @@ procBuscar(val){
   fluxoReiniciar(){
     if(!S.fluxoExec)return;const fluxo=S.fluxos.find(f=>f.id===S.fluxoExec.fluxoId);if(!fluxo)return;
     const noRaiz=fluxo.nos.find(n=>n.id===fluxo.noRaizId)||fluxo.nos[0];
-    S.fluxoExec={fluxoId:S.fluxoExec.fluxoId,historico:[],noAtual:noRaiz.id};render();
+    S.fluxoExec={fluxoId:S.fluxoExec.fluxoId,historico:[],procsVistos:[],noAtual:noRaiz.id};render();
+  },
+verProcNoFluxo(procId, procNome, valorSugerido = 0) {
+    if(S.fluxoExec) {
+        if(!S.fluxoExec.procsVistos) S.fluxoExec.procsVistos = [];
+        S.fluxoExec.procsVistos.push({ id: procId, nome: procNome, ts: Date.now() }); 
+        
+        // Se tiver valor cobrado, lança na listinha de orçamento automaticamente!
+        if(valorSugerido > 0) {
+            if(!S.fluxoExec.orcamento) S.fluxoExec.orcamento = [];
+            const jaExiste = S.fluxoExec.orcamento.some(o => o.descricao === 'Proc: ' + procNome);
+            if(!jaExiste) {
+                S.fluxoExec.orcamento.push({ descricao: 'Proc: ' + procNome, valor: valorSugerido });
+                toast(`💰 R$ ${valorSugerido.toFixed(2)} adicionados ao orçamento!`, 'ok');
+            }
+        }
+    }
+    abrirModalProcInline(procId);
+    if(valorSugerido > 0) render(); // Atualiza o saldo lá no fundo enquanto o modal abre
   },
   sairFluxo(){S.fluxoExec=null;if(S.viewFluxoId){const f=S.fluxos.find(x=>x.id===S.viewFluxoId);if(f){document.getElementById('body').innerHTML=buildVerFluxo(f);document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));return;}}S.tab='fluxo';render();},
+/* ── ORÇAMENTO & CLIENTE ── */
+  abrirModalOrcamento() {
+    fecharModal();
+    const bg = document.createElement('div'); bg.className = 'modal-bg'; bg.onclick = e => { if(e.target === bg) fecharModal(); };
+    bg.innerHTML = `
+    <div class="modal" style="border-top-color:var(--green2)">
+      <div class="modal-handle"></div>
+      <h2 style="color:var(--green2)">💰 ADICIONAR VALOR</h2>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div><div class="label">Descrição do Serviço / Peça</div><input type="text" id="orcDesc" class="input" placeholder="Ex: 1 hora de mão de obra..."></div>
+        <div><div class="label">Valor (Apenas números)</div><input type="number" id="orcValor" class="input" placeholder="Ex: 90.50" step="0.01"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn steel sm" onclick="fecharModal()">Cancelar</button>
+        <button class="btn green sm" onclick="A.salvarItemOrcamento()" style="flex:2">＋ ADICIONAR AO ORÇAMENTO</button>
+      </div>
+    </div>`;
+    document.body.appendChild(bg);
+    setTimeout(() => document.getElementById('orcDesc')?.focus(), 120);
+  },
 
+  salvarItemOrcamento() {
+    const desc = document.getElementById('orcDesc')?.value?.trim();
+    const valStr = document.getElementById('orcValor')?.value;
+    const valor = parseFloat(valStr);
+    if(!desc || isNaN(valor)) { toast('⚠ Preencha uma descrição e um valor numérico válido!', 'error'); return; }
+    
+    if(!S.fluxoExec.orcamento) S.fluxoExec.orcamento = [];
+    S.fluxoExec.orcamento.push({ descricao: desc, valor: valor });
+    fecharModal();
+    toast('✅ Valor adicionado!', 'ok');
+    render();
+  },
+
+  removerItemOrcamento(idx) {
+    if(!S.fluxoExec || !S.fluxoExec.orcamento) return;
+    S.fluxoExec.orcamento.splice(idx, 1);
+    render();
+  },
+
+  async editarClienteHistorico(histId) {
+    const h = S.historico.find(x => x.id === histId);
+    if(!h) return;
+    const novoNome = prompt('Digite o NOME DO CLIENTE ou PLACA do veículo:', h.cliente || '');
+    if(novoNome !== null) {
+        h.cliente = novoNome.trim();
+        await DB.put('historico', h);
+        buildHistorico(); 
+        toast('✅ Nome do cliente atualizado!', 'ok');
+    }
+  },
   /* ── BIBLIOTECA ── */
 bibBuscar(val){
     S.bibBusca = val; S.bibPagina = 0;
@@ -1146,38 +1484,23 @@ window.salvarFluxoComNos = async () => {
 
     const fotosDoNo = no.fotos || []; 
     const audioDoNo = no.audio || null; 
-    
     const cEl = document.getElementById('no_cod_'+no.id);
     const codigoDoNo = cEl ? cEl.value : (no.codigo || null);
     
+    const procIdFinal = no.procId || null;
+    const procValorFinal = no.procValor || 0;
+    
     if(tipo==='diagnostico'){
       const desc=document.getElementById('no_desc_'+no.id)?.value?.trim()||'';
-      const pEl = document.getElementById('no_proc_'+no.id);
-      const procId = pEl && pEl.value ? parseInt(pEl.value) : null;
       
       await salvarNaBiblioteca({
-        titulo,
-        descricao:desc,
-        codigo:codigoDoNo,
-        categoria:'Diagnóstico',
-        fotos:fotosDoNo,
-        audio:audioDoNo, 
-        alerta:'',
-        origem:'Fluxo',
-        origemId:'fluxo_diag_'+no.id
+        titulo, descricao:desc, codigo:codigoDoNo, categoria:'Diagnóstico',
+        fotos:fotosDoNo, audio:audioDoNo, alerta:'', origem:'Fluxo', origemId:'fluxo_diag_'+no.id
       });
 
       nosColetados.push({
-        id:no.id,
-        tipo:'diagnostico',
-        titulo,
-        pergunta:titulo,
-        descricao:desc,
-        solucao:desc,
-        procId:procId, 
-        fotos: fotosDoNo,
-        audio: audioDoNo,
-        codigo: codigoDoNo
+        id:no.id, tipo:'diagnostico', titulo, pergunta:titulo, descricao:desc,
+        solucao:desc, procId:procIdFinal, procValor:procValorFinal, fotos: fotosDoNo, audio: audioDoNo, codigo: codigoDoNo
       });
     } else {
       const opcoes = [];
@@ -1185,35 +1508,20 @@ window.salvarFluxoComNos = async () => {
         const label=document.getElementById(`opt_label_${no.id}_${oi}`)?.value?.trim()||'';
         const destSel=document.getElementById(`opt_dest_${no.id}_${oi}`);
         const destVal=destSel?.value||'';
-        
         if(label) {
-          // As respostas "sim" ou "não" também passam pelo filtro e não vão poluir a biblioteca!
           await salvarNaBiblioteca({titulo:label,descricao:'',codigo:null,categoria:'Opção de Fluxo',fotos:[],alerta:'',origem:'Fluxo',origemId:'fluxo_opt_'+no.id+'_'+oi});
           opcoes.push({label,destinoId:destVal==='diagnostico_direto'?null:destVal,destino:destVal==='diagnostico_direto'?'diagnostico_direto':''});
         }
       }
       
       await salvarNaBiblioteca({
-        titulo,
-        descricao:'',
-        codigo:codigoDoNo,
-        categoria:'Pergunta de Fluxo',
-        fotos:fotosDoNo,
-        audio:audioDoNo, 
-        alerta:'',
-        origem:'Fluxo',
-        origemId:'fluxo_q_'+no.id
+        titulo, descricao:'', codigo:codigoDoNo, categoria:'Pergunta de Fluxo',
+        fotos:fotosDoNo, audio:audioDoNo, alerta:'', origem:'Fluxo', origemId:'fluxo_q_'+no.id
       });
 
       nosColetados.push({
-        id:no.id,
-        tipo:'pergunta',
-        pergunta:titulo,
-        titulo,
-        opcoes, 
-        fotos: fotosDoNo,
-        audio: audioDoNo,
-        codigo: codigoDoNo
+        id:no.id, tipo:'pergunta', pergunta:titulo, titulo, opcoes, 
+        procId:procIdFinal, procValor:procValorFinal, fotos: fotosDoNo, audio: audioDoNo, codigo: codigoDoNo
       });
     }
   }
@@ -1223,7 +1531,6 @@ window.salvarFluxoComNos = async () => {
   f.nome=nome; f.descricao=v('fDesc'); f.categoria=v('fCat');
   f.nos=nosColetados; f.noRaizId=nosColetados[0]?.id||null; f.atualizadoEm=Date.now();
   
-  // 🐛 AQUI ESTAVA O BUG DO EDITAR: O banco cria um ID, mas não anexávamos de volta no Fluxo na hora.
   const novoId = await DB.put('fluxos',f);
   if(!f.id) f.id = novoId; 
 
@@ -1729,7 +2036,7 @@ window.importarArquivo = async e => {
 /* =======================================================
    MÁQUINA DE ESTADO DO FLUXO (O Cérebro Mágico)
    ======================================================= */
-  window.sincronizarDOMParaMemoria = () => {
+window.sincronizarDOMParaMemoria = () => {
   window._nosEditor.forEach(no => {
     const tEl = document.getElementById('no_titulo_'+no.id);
     if(tEl) { no.pergunta = tEl.value; no.titulo = tEl.value; }
@@ -1737,11 +2044,16 @@ window.importarArquivo = async e => {
     const cEl = document.getElementById('no_cod_'+no.id);
     if(cEl) no.codigo = cEl.value;
 
+    // 👇 Captura o ID do Procedimento e o Valor em TODOS os nós!
+    const pEl = document.getElementById('no_proc_'+no.id);
+    if(pEl) no.procId = pEl.value ? parseInt(pEl.value) : null; 
+    
+    const vEl = document.getElementById('no_val_'+no.id);
+    if(vEl) no.procValor = parseFloat(vEl.value) || 0;
+
     if(no.tipo === 'diagnostico') {
       const dEl = document.getElementById('no_desc_'+no.id);
       if(dEl) { no.descricao = dEl.value; no.solucao = dEl.value; }
-      const pEl = document.getElementById('no_proc_'+no.id);
-      if(pEl) no.procId = pEl.value ? parseInt(pEl.value) : null; 
     } else {
       (no.opcoes || []).forEach((o, oi) => {
         const lEl = document.getElementById(`opt_label_${no.id}_${oi}`);
@@ -1851,7 +2163,7 @@ function abrirModalFluxo(fluxo){
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div class="label" style="margin:0; font-size:14px; color:var(--cyan2)">🧱 CONSTRUTOR DE BLOCOS</div>
-      <button class="btn ghost-cyan sm" style="width:auto;padding:5px 11px;font-size:11px" onclick="adicionarNoEditorMagico()">＋ NOVO BLOCO (NÓ)</button>
+      <button class="btn ghost-cyan sm" style="width:auto;padding:5px 11px;margin-left: 12px; font-size:11px" onclick="adicionarNoEditorMagico()">＋ NOVO BLOCO (NÓ)</button>
     </div>
     <div id="nosEditorContainer" style="display:flex;flex-direction:column;gap:14px">${nosHtml}</div>
     <div style="display:flex;gap:8px;margin-top:14px">
@@ -1892,17 +2204,23 @@ function buildNoEditorCard(no,idx,todos){
            <button onclick="autoCriarNo('${no.id}', ${oi}, 'diagnostico')" style="height:34px; background:rgba(46,204,113,.15); color:var(--green2); border:1px solid rgba(46,204,113,.4); padding:0 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">＋ ✅ Diagnóstico Final</button>
         </div>
       </div>
-    </div>`).join('') : 
-  
-  `<div style="padding:12px">
-    <div class="label">Qual a solução do problema?</div>
-    <textarea class="textarea" id="no_desc_${no.id}" style="min-height:50px" placeholder="Descreva a conclusão para o mecânico executar...">${esc(no.descricao||no.solucao||'')}</textarea>
-    <div class="label" style="margin-top:10px">Vincular a um Procedimento prático (opcional)</div>
-    <select class="input" id="no_proc_${no.id}"><option value="">Nenhum</option>${S.procedimentos.map(p=>`<option value="${p.id}" ${no.procId===p.id?'selected':''}>${esc(p.nome)}</option>`).join('')}</select>
-  </div>`;
+    </div>`).join('') : '';
 
-  const fotosNoHtml = `
+  // 👇 BLOCO UNIFICADO: Procedimento e Valor para qualquer tipo de nó!
+  const procHtml = `
     <div style="margin-top:10px; padding:10px; background:rgba(0,0,0,.2); border-radius:var(--r); border:1px dashed rgba(255,255,255,.1);">
+      <div class="label" style="margin-bottom:6px; color:var(--yellow)">🛠 VINCULAR PROCEDIMENTO & VALOR (Opcional)</div>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <select class="input" id="no_proc_${no.id}" style="flex:2; font-size:12px;">
+          <option value="">Nenhum procedimento...</option>
+          ${S.procedimentos.map(p=>`<option value="${p.id}" ${no.procId==p.id?'selected':''}>📋 ${esc(p.nome)}</option>`).join('')}
+        </select>
+        <div style="flex:1; position:relative;">
+          <span style="position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:10px; color:var(--green2)">R$</span>
+          <input type="number" class="input" id="no_val_${no.id}" value="${no.procValor || ''}" placeholder="0.00" style="padding-left:25px; font-size:12px;">
+        </div>
+      </div>
+
       <div class="label" style="margin-bottom:6px;">Mídia do Passo: 📷 Fotos | 🎙 PC | 📱 Celular</div>
       
       <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
@@ -1950,15 +2268,17 @@ function buildNoEditorCard(no,idx,todos){
       </div>
       <div id="bibResults_${no.id}" style="display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:120px;overflow-y:auto"></div>
       
+      ${!isPerguntar ? `<div style="margin-top:10px;"><div class="label">Qual a solução do problema?</div><textarea class="textarea" id="no_desc_${no.id}" style="min-height:50px" placeholder="Descreva a conclusão para o mecânico executar...">${esc(no.descricao||no.solucao||'')}</textarea></div>` : ''}
+
       <div style="margin-top:10px;">
         <div class="label" style="color:var(--yellow)">💻 CÓDIGO FONTE (Opcional)</div>
         <textarea class="textarea code-input" id="no_cod_${no.id}" placeholder="Cole seu código aqui..." onkeydown="if(event.key==='Tab'){event.preventDefault();const s=this.selectionStart;this.value=this.value.substring(0,s)+'  '+this.value.substring(this.selectionEnd);this.selectionEnd=s+2;}">${esc(no.codigo||'')}</textarea>
       </div>
 
-      ${fotosNoHtml}
+      ${procHtml}
     </div>
 
-    <div id="no_opts_${no.id}" style="padding:10px 12px 0;">${opcoesHtml}</div>
+    <div id="no_opts_${no.id}" style="padding:10px 12px 0;">${isPerguntar ? opcoesHtml : ''}</div>
     ${isPerguntar ? `<div style="padding:4px 12px 14px;"><button onclick="adicionarOpcaoEditorMagico('${no.id}')" style="background:rgba(34,211,238,.1);color:var(--cyan2);border:1px dashed rgba(34,211,238,.4);border-radius:var(--r);padding:12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;cursor:pointer;width:100%; transition:all 0.2s;">＋ ADICIONAR OPÇÃO DE RESPOSTA</button></div>` : ''}
   </div>`;
 }
@@ -2187,7 +2507,12 @@ window.removerFotoBib = (idx) => {
 (async()=>{
   try{
     await DB.open();
-    [S.procedimentos,S.fluxos,S.biblioteca]=await Promise.all([DB.getAll('procedimentos'),DB.getAll('fluxos'),DB.getAll('biblioteca')]);
+    [S.procedimentos,S.fluxos,S.biblioteca,S.historico]=await Promise.all([
+        DB.getAll('procedimentos'),
+        DB.getAll('fluxos'),
+        DB.getAll('biblioteca'),
+        DB.getAll('historico').catch(()=>[]) 
+    ]);
     // Migrar steps existentes para biblioteca
     for(const proc of S.procedimentos){for(const step of proc.steps||[]){const existe=S.biblioteca.find(b=>b.origemId===proc.id+':'+step.id);if(!existe){await salvarNaBiblioteca({titulo:step.titulo,descricao:step.descricao||'',categoria:proc.categoria||'',fotos:step.fotos||[],alerta:step.alerta||'',origem:'Procedimento',origemId:proc.id+':'+step.id});}}}
     S.biblioteca=await DB.getAll('biblioteca');
