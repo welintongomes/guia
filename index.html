@@ -294,7 +294,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 <body>
 <div id="loading">
   <div class="loading-icon">🔧</div>
-  <div class="loading-title">MECÂNICO PRO</div>
+  <div class="loading-title">GUIA PRO</div>
   <div class="loading-bar"><div class="loading-fill"></div></div>
   <div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);letter-spacing:2px">INICIANDO SISTEMA...</div>
 </div>
@@ -303,7 +303,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
     <div class="topbar-logo">
       <div class="logo-icon">🔧</div>
       <div style="min-width:0">
-        <div class="logo-text" id="topTitle">MECÂNICO PRO</div>
+        <div class="logo-text" id="topTitle">GUIA PRO</div>
         <div class="logo-sub" id="topSub">PROCEDIMENTOS TÉCNICOS</div>
       </div>
     </div>
@@ -745,8 +745,7 @@ function buildFluxoExec(){
       ${noAtual.descricao?`<div class="fluxo-diag-desc">${esc(noAtual.descricao)}</div>`:''}
       ${noAtual.codigo?`<pre class="code-block"><code>${esc(noAtual.codigo)}</code></pre>`:''}
       ${noAtual.solucao?`<div style="background:rgba(0,0,0,.3);border-radius:var(--r);padding:10px 12px;border-left:3px solid var(--cyan2);margin-top:4px"><div style="font-family:var(--font-mono);font-size:9px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">SOLUÇÃO RECOMENDADA</div><div style="font-size:13px;color:var(--chrome2);line-height:1.6">${esc(noAtual.solucao)}</div></div>`:''}
-      ${noAtual.procId?`<button class="btn yellow sm" onclick="A.iniciarExecDoFluxo(${noAtual.procId})">▶ EXECUTAR PROCEDIMENTO</button>`:''}
-    </div>
+      ${noAtual.procId?`<button class="btn yellow sm" onclick="abrirModalProcInline(${noAtual.procId})">📋 VER PROCEDIMENTO AQUI</button>`:''}    </div>
     <div style="display:flex;gap:8px">
       ${fe.historico.length?`<button class="btn steel sm" onclick="A.fluxoVoltar()">← VOLTAR</button>`:''}
       <button class="btn ghost-cyan sm" onclick="A.fluxoReiniciar()">🔄 REINICIAR</button>
@@ -1986,6 +1985,66 @@ window.removerFotoNo = (noId, idx) => {
 function lightbox(src){document.querySelectorAll('.lightbox').forEach(e=>e.remove());const lb=document.createElement('div');lb.className='lightbox';lb.onclick=()=>lb.remove();lb.innerHTML=`<img src="${src}" alt="Foto">`;document.body.appendChild(lb);}
 function toast(msg,tipo){if(!msg)return;document.querySelectorAll('.toast').forEach(e=>e.remove());const t=document.createElement('div');t.className='toast'+(tipo==='error'?' error':tipo==='ok'?' ok':tipo==='cyan'?' cyan':tipo==='orange'?' orange':'');t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2800);}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+/* Visualizador de Procedimentos Inline (Sem sair da aba) */
+
+/* Visualizador de Procedimentos Inline (Com efeito Sanfona / Passo a Passo) */
+window.abrirModalProcInline = (procId) => {
+  const proc = S.procedimentos.find(p => p.id === procId);
+  if(!proc) { toast('⚠ Procedimento não encontrado!','error'); return; }
+  
+  fecharModal(); 
+  const steps = (proc.steps||[]).slice().sort((a,b)=>a.ordem-b.ordem);
+
+  // Aqui adicionamos o índice (i) para saber qual é o primeiro passo
+  const stepsHtml = steps.map((s, i) => {
+    const fotosHtml = s.fotos?.length ? `<div class="step-imgs" style="margin-top:8px">${s.fotos.map((f,idx)=>`<div class="step-img" onclick="lightbox('${f}')"><img src="${f}"></div>`).join('')}</div>` : '';
+    const audioHtml = s.audio ? `<div style="margin-top:8px; background:rgba(0,0,0,.2); padding:8px; border-radius:4px; border-left:3px solid var(--yellow)"><div style="font-family:var(--font-mono);font-size:9px;color:var(--yellow);text-transform:uppercase;margin-bottom:4px">🎙 Áudio de Instrução</div><audio controls src="${s.audio}" style="width:100%; height:30px;" onplay="tocarAudioLockScreen('${esc(s.titulo)}')"></audio></div>` : '';
+    const codigoHtml = s.codigo ? `<pre class="code-block"><code>${esc(s.codigo)}</code></pre>` : '';
+
+    return `
+    <div style="background:var(--steel2); border:1px solid rgba(255,255,255,.05); border-radius:var(--r); margin-bottom:10px; overflow:hidden;">
+      
+      <div onclick="const b=document.getElementById('sb_${s.id}'); const isFechado = b.style.display==='none'; document.querySelectorAll('.step-body-inline').forEach(el=>el.style.display='none'); if(isFechado) b.style.display='block';" style="display:flex; gap:10px; align-items:center; padding:12px; cursor:pointer; background:rgba(0,0,0,.15); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,.3)'" onmouseout="this.style.background='rgba(0,0,0,.15)'">
+        <div style="width:26px; height:26px; border-radius:50%; background:var(--yellow); color:var(--ink); font-weight:bold; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;">${s.ordem}</div>
+        <div style="font-family:var(--font-head); font-size:16px; color:var(--chrome2); letter-spacing:0.5px; flex:1;">${esc(s.titulo)}</div>
+        <div style="font-size:14px; color:var(--yellow); opacity:0.8;">▼</div>
+      </div>
+      
+      <div id="sb_${s.id}" class="step-body-inline" style="padding:12px; border-top:1px solid rgba(255,255,255,.05); display:${i === 0 ? 'block' : 'none'};">
+        ${s.descricao ? `<div style="font-size:13px; color:var(--chrome); line-height:1.6; margin-bottom:6px; white-space: pre-wrap; word-wrap: break-word;">${esc(s.descricao)}</div>` : ''}
+        ${codigoHtml}
+        ${audioHtml}
+        ${fotosHtml}
+        ${s.alerta ? `<div class="warn-box" style="margin-top:8px;">⚠ ${esc(s.alerta)}</div>` : ''}
+      </div>
+      
+    </div>
+    `;
+  }).join('');
+
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.onclick = e => { if(e.target === bg) fecharModal(); };
+  
+  bg.innerHTML = `
+  <div class="modal" style="max-height:92vh;">
+    <div class="modal-handle"></div>
+    <h2 style="color:var(--yellow); font-size:20px; border-bottom:1px solid rgba(255,255,255,.1); padding-bottom:10px; margin-bottom:12px;">📋 ${esc(proc.nome)}</h2>
+    
+    <div style="font-size:12px; color:var(--chrome); margin-bottom:14px; background:rgba(0,0,0,.2); padding:8px; border-radius:4px;">
+      ℹ Clique nos títulos para expandir os passos. Feche esta janela quando terminar.
+    </div>
+    
+    <div style="overflow-y:auto; padding-right:4px;">
+      ${stepsHtml || '<div style="color:var(--chrome); font-size:12px; text-align:center; padding:20px;">Nenhum passo cadastrado neste procedimento.</div>'}
+    </div>
+    
+    <button class="btn steel" onclick="fecharModal()" style="margin-top:14px; padding:14px; font-size:14px;">FECHAR E VOLTAR AO FLUXO</button>
+  </div>
+  `;
+  document.body.appendChild(bg);
+};
+
 function v(id){return document.getElementById(id)?.value?.trim()||'';}
 function fmtDate(ts){if(!ts)return'-';const d=new Date(ts);return`${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;}
 function fmtDateFull(ts){if(!ts)return'-';const d=new Date(ts);return`${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;}
@@ -2036,7 +2095,7 @@ window.tocarAudioLockScreen = (titulo) => {
   if ('mediaSession' in navigator) {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: titulo,
-      artist: 'Mecânico Pro',
+      artist: 'Guia Pro',
       album: 'Instruções em Áudio'
     });
   }
