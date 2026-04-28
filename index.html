@@ -971,7 +971,7 @@ function buildHistorico() {
                 ${totalOrcStr}
               </div>
               <div style="display:flex; gap:6px; margin-bottom:10px;">
-                <button class="btn yellow sm" onclick="A.editarClienteHistorico(${h.id})" style="flex:1; padding:6px 12px; font-size:10px;">👤 IDENTIFICAR CLIENTE</button>
+                <button class="btn yellow sm" onclick="A.editarClienteHistorico(${h.id})" style="flex:1; padding:6px 12px; font-size:10px;">👤 IDENTIFICAR</button>
                 ${podeRetomar ? `<button class="btn cyan sm" onclick="A.retomarFluxo(${h.id})" style="flex:1; padding:6px 12px; font-size:10px;">▶ RETOMAR EXECUÇÃO</button>` : ''}
               </div>` +
               h.historico.map(x => `
