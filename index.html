@@ -326,7 +326,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 <script>
 'use strict';
 /* ══ INDEXEDDB ══ */
-const DB={name:'MecanicoPro',ver:8,db:null};
+const DB={name:'GuiaPro',ver:1,db:null};
 DB.open=()=>new Promise((res,rej)=>{
   const req=indexedDB.open(DB.name,DB.ver);
   req.onupgradeneeded=e=>{
@@ -572,22 +572,59 @@ function buildProcedimentos(){
 
 function buildVerProcedimento(proc){
   const steps=(proc.steps||[]).slice().sort((a,b)=>a.ordem-b.ordem);
+  // 👇 Se nada estiver aberto, e houver passos, deixa o primeiro aberto pra você não se sentir perdido.
+  if (window._stepAbertoId === null && steps.length > 0) window._stepAbertoId = steps[0].id;
   const stepsHtml=steps.length===0?`<div style="text-align:center;padding:16px;color:var(--chrome);font-family:var(--font-mono);font-size:11px;text-transform:uppercase">Nenhum passo ainda</div>`:steps.map((s,i)=>buildStepCard(s,proc.id,i)).join('');
   return`<div class="card"><div class="card-head"><div class="card-title">📋 ${esc(proc.nome)}</div><div style="display:flex;gap:5px"><button class="btn ghost sm" style="padding:5px 9px;font-size:11px" onclick="A.editarProc(${proc.id})">✏ EDITAR</button><button class="btn steel sm" style="padding:5px 9px;font-size:11px" onclick="A.fecharProc()">✕</button></div></div><div class="card-body">${proc.descricao?`<div style="font-size:13px;color:var(--chrome);line-height:1.7">${esc(proc.descricao)}</div>`:''}<div style="display:flex;gap:5px;flex-wrap:wrap">${proc.categoria?`<span class="proc-badge pb-gray">📁 ${esc(proc.categoria)}</span>`:''}${proc.veiculoModelo?`<span class="proc-badge pb-green">🚗 ${esc(proc.veiculoModelo)}</span>`:''}<span class="proc-badge pb-yellow">⚙ ${steps.length} passos</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn yellow sm" onclick="A.iniciarExec(${proc.id})" style="flex:2">▶ EXECUTAR</button><button class="btn purple sm" onclick="A.iniciarTreino(${proc.id})">🎓 TREINAR</button></div></div></div>
   <div class="card"><div class="card-head"><div class="card-title">⚙ PASSOS</div><button class="btn yellow sm" style="width:auto;margin: 3px 34px 3px 34px;padding:5px 11px;font-size:11px" onclick="A.novoStep(${proc.id})">＋ PASSO</button></div></div>
   <div style="display:flex;flex-direction:column;gap:8px" id="stepsContainer">${stepsHtml}</div>
   ${steps.length>0?`<div class="info-box">⚠ A ORDEM DOS PASSOS É OBRIGATÓRIA NA EXECUÇÃO E TREINO. PASSOS TAMBÉM SÃO SALVOS NA BIBLIOTECA.</div>`:''}`;
 }
+window._stepAbertoId = null;
 
+window.toggleStepAberto = (stepId, procId) => {
+    window._stepAbertoId = window._stepAbertoId === stepId ? null : stepId;
+    // Força a tela a se desenhar de novo apenas abrindo a sanfona
+    const proc = S.procedimentos.find(p => p.id === procId);
+    if(proc) {
+        document.getElementById('body').innerHTML = buildVerProcedimento(proc);
+    }
+};
 function buildStepCard(step,procId,idx){
-  const fotosHtml=step.fotos?.length?`<div class="step-imgs">${step.fotos.map((f,i)=>`<div class="step-img" onclick="lightbox('${f}')"><img src="${f}" alt="${i+1}" loading="lazy"></div>`).join('')}</div>`:'';
+  const isAberto = window._stepAbertoId === step.id;
   
-  const audioHtml = step.audio ? `<div style="margin-top:8px; background:rgba(0,0,0,.2); padding:8px; border-radius:4px; border-left:3px solid var(--yellow)">
-    <div style="font-family:var(--font-mono);font-size:9px;color:var(--yellow);text-transform:uppercase;margin-bottom:4px">🎙 Áudio de Instrução</div>
-    <audio controls src="${step.audio}" style="width:100%; height:30px;" onplay="tocarAudioLockScreen('${esc(step.titulo)}')"></audio>
-  </div>` : '';
+  const badges = `<div style="display:flex;gap:3px;flex-wrap:wrap">${step.fotos?.length?`<span class="step-tag">📷 ${step.fotos.length}</span>`:''}${step.audio?`<span class="step-tag">🎙 ÁUDIO</span>`:''}${step.alerta?'<span class="step-tag" style="border-color:rgba(192,57,43,.3);color:#e74c3c">⚠</span>':''}</div>`;
+  const actions = `<div class="step-actions"><button class="step-mini-btn up" onclick="event.stopPropagation(); A.moverStep('${step.id}',${procId},-1)">▲</button><button class="step-mini-btn dn" onclick="event.stopPropagation(); A.moverStep('${step.id}',${procId},1)">▼</button><button class="step-mini-btn edit" onclick="event.stopPropagation(); A.editarStep('${step.id}',${procId})">✏</button><button class="step-mini-btn del" onclick="event.stopPropagation(); A.deletarStep('${step.id}',${procId})">✕</button></div>`;
 
-  return`<div class="step-card" id="sc_${step.id}"><div class="step-num-col"><div class="step-num">${step.ordem}</div></div><div class="step-body"><div class="step-title">${esc(step.titulo)}</div>${step.descricao?`<div class="step-desc">${esc(step.descricao)}</div>`:''}${step.codigo?`<pre class="code-block"><code>${esc(step.codigo)}</code></pre>`:''} ${audioHtml} ${fotosHtml}${step.alerta?`<div class="warn-box" style="margin-top:5px">⚠ ${esc(step.alerta)}</div>`:''}<div class="step-footer"><div style="display:flex;gap:3px;flex-wrap:wrap">${step.fotos?.length?`<span class="step-tag">📷 ${step.fotos.length}</span>`:''}${step.audio?`<span class="step-tag">🎙 ÁUDIO</span>`:''}${step.alerta?'<span class="step-tag" style="border-color:rgba(192,57,43,.3);color:#e74c3c">⚠</span>':''}</div><div class="step-actions"><button class="step-mini-btn up" onclick="A.moverStep('${step.id}',${procId},-1)">▲</button><button class="step-mini-btn dn" onclick="A.moverStep('${step.id}',${procId},1)">▼</button><button class="step-mini-btn edit" onclick="A.editarStep('${step.id}',${procId})">✏</button><button class="step-mini-btn del" onclick="A.deletarStep('${step.id}',${procId})">✕</button></div></div></div></div>`;
+  // 🔴 VERSÃO RECOLHIDA (Leve, sem carregar mídia pesada)
+  if (!isAberto) {
+      return `<div class="step-card collapsed" onclick="toggleStepAberto('${step.id}', ${procId})" style="cursor:pointer; display:flex; align-items:center; padding:10px; background:var(--steel); border:1px solid rgba(255,255,255,.05); border-radius:var(--r); margin-bottom:8px; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background='var(--steel)'">
+          <div style="background:var(--yellow); color:var(--ink); width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:12px; margin-right:12px; flex-shrink:0;">${step.ordem}</div>
+          <div style="flex:1; font-weight:bold; color:var(--chrome2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px;">${esc(step.titulo)}</div>
+          ${badges}
+          <div style="margin-left:12px;">${actions}</div>
+      </div>`;
+  }
+
+  // 🟢 VERSÃO EXPANDIDA (Carrega as fotos e áudios só de quem você abriu)
+  const fotosHtml = step.fotos?.length ? `<div class="step-imgs">${step.fotos.map((f,i)=>`<div class="step-img" onclick="event.stopPropagation(); lightbox('${f}')"><img src="${f}" alt="${i+1}" loading="lazy"></div>`).join('')}</div>` : '';
+  const audioHtml = step.audio ? `<div style="margin-top:8px; background:rgba(0,0,0,.2); padding:8px; border-radius:4px; border-left:3px solid var(--yellow)"><div style="font-family:var(--font-mono);font-size:9px;color:var(--yellow);text-transform:uppercase;margin-bottom:4px">🎙 Áudio de Instrução</div><audio controls src="${step.audio}" style="width:100%; height:30px;" onplay="tocarAudioLockScreen('${esc(step.titulo)}')"></audio></div>` : '';
+
+  return `<div class="step-card" id="sc_${step.id}" style="border:1px solid var(--yellow); cursor:pointer;" onclick="toggleStepAberto('${step.id}', ${procId})">
+    <div class="step-num-col"><div class="step-num">${step.ordem}</div></div>
+    <div class="step-body" onclick="event.stopPropagation()">
+      <div class="step-title">${esc(step.titulo)}</div>
+      ${step.descricao?`<div class="step-desc">${esc(step.descricao)}</div>`:''}
+      ${step.codigo?`<pre class="code-block"><code>${esc(step.codigo)}</code></pre>`:''} 
+      ${audioHtml} 
+      ${fotosHtml}
+      ${step.alerta?`<div class="warn-box" style="margin-top:5px">⚠ ${esc(step.alerta)}</div>`:''}
+      <div class="step-footer">
+        ${badges}
+        ${actions}
+      </div>
+    </div>
+  </div>`;
 }
 
 /* ══ ABA EXECUTAR ══ */
@@ -743,7 +780,7 @@ function buildFluxoExec(){
   
   // 👇 BOTÃO DE PROCEDIMENTO APARECE PARA AMBOS AQUI:
   const btnProcHtml = noAtual.procId ? `
-    <button class="btn yellow sm" style="margin-top:10px; border:2px solid var(--yellow); padding:8px 12px; font-size:12px; font-weight:bold; width:88%;" onclick="A.verProcNoFluxo(${noAtual.procId}, '${esc(S.procedimentos.find(x=>x.id===noAtual.procId)?.nome||'Técnico')}', ${noAtual.procValor || 0})">
+    <button class="btn yellow sm" style="margin-top:10px; border:2px solid var(--yellow); padding:8px 12px; font-size:12px; font-weight:bold; width:100%;" onclick="A.verProcNoFluxo(${noAtual.procId}, '${esc(S.procedimentos.find(x=>x.id===noAtual.procId)?.nome||'Técnico')}', ${noAtual.procValor || 0})">
       📋 VER PROCEDIMENTO ${noAtual.procValor > 0 ? `(R$ ${noAtual.procValor.toFixed(2).replace('.', ',')})` : ''}
     </button>` : '';
 
@@ -779,7 +816,7 @@ function buildFluxoExec(){
   <div style="margin-top:16px; background:rgba(46,204,113,.05); border:1px solid rgba(46,204,113,.3); border-radius:var(--r); padding:10px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
       <div style="font-family:var(--font-head); font-size:18px; color:var(--green2); letter-spacing:1px;">💰 TOTAL: R$ ${totalOrcamento.toFixed(2).replace('.', ',')}</div>
-      <button class="btn green sm" style="width:auto; padding:4px 10px; font-size:10px;" onclick="A.abrirModalOrcamento()">＋ ADICIONAR VALOR</button>
+      <button class="btn green sm" style="width:auto; padding:4px 10px; font-size:10px;margin-left: 40px;" onclick="A.abrirModalOrcamento()">＋ ADICIONAR VALOR</button>
     </div>
     ${fe.orcamento.length > 0 ? `<div style="display:flex; flex-direction:column; gap:4px;">
       ${fe.orcamento.map((item, idx) => `
@@ -1472,60 +1509,48 @@ window.adicionarOpcaoEditor=(noId)=>{
 window.salvarFluxoComNos = async () => {
   const nome=v('fNome');if(!nome){toast('⚠ Digite o nome do fluxo!','');return;}
   
+  // 1. Sincroniza a única caixa que está aberta no momento para a memória
   window.sincronizarDOMParaMemoria(); 
   const nosColetados = [];
   
+  // 2. Lê os dados 100% da Memória (ignorando se a tela está aberta ou fechada)
   for(const no of window._nosEditor) {
-    const tituloEl=document.getElementById('no_titulo_'+no.id);
-    let titulo=tituloEl?.value?.trim()||'';
-    const tipo=document.getElementById('no_tipo_'+no.id)?.value||'pergunta';
+    let titulo = no.pergunta || no.titulo || (no.tipo === 'diagnostico' ? 'Diagnóstico' : 'Pergunta');
     
-    if(!titulo) titulo = tipo === 'diagnostico' ? 'Diagnóstico' : 'Pergunta';
-
-    const fotosDoNo = no.fotos || []; 
-    const audioDoNo = no.audio || null; 
-    const cEl = document.getElementById('no_cod_'+no.id);
-    const codigoDoNo = cEl ? cEl.value : (no.codigo || null);
-    
-    const procIdFinal = no.procId || null;
-    const procValorFinal = no.procValor || 0;
-    
-    if(tipo==='diagnostico'){
-      const desc=document.getElementById('no_desc_'+no.id)?.value?.trim()||'';
-      
+    if(no.tipo === 'diagnostico'){
       await salvarNaBiblioteca({
-        titulo, descricao:desc, codigo:codigoDoNo, categoria:'Diagnóstico',
-        fotos:fotosDoNo, audio:audioDoNo, alerta:'', origem:'Fluxo', origemId:'fluxo_diag_'+no.id
+        titulo, descricao: no.descricao || '', codigo: no.codigo || '', categoria:'Diagnóstico',
+        fotos: no.fotos || [], audio: no.audio || null, alerta:'', origem:'Fluxo', origemId:'fluxo_diag_'+no.id
       });
-
+      
       nosColetados.push({
-        id:no.id, tipo:'diagnostico', titulo, pergunta:titulo, descricao:desc,
-        solucao:desc, procId:procIdFinal, procValor:procValorFinal, fotos: fotosDoNo, audio: audioDoNo, codigo: codigoDoNo
+        id: no.id, tipo: 'diagnostico', titulo, pergunta: titulo, descricao: no.descricao || '',
+        solucao: no.solucao || '', procId: no.procId || null, procValor: no.procValor || 0, fotos: no.fotos || [], audio: no.audio || null, codigo: no.codigo || ''
       });
     } else {
       const opcoes = [];
       for(let oi=0; oi<(no.opcoes||[]).length; oi++){
-        const label=document.getElementById(`opt_label_${no.id}_${oi}`)?.value?.trim()||'';
-        const destSel=document.getElementById(`opt_dest_${no.id}_${oi}`);
-        const destVal=destSel?.value||'';
-        if(label) {
-          await salvarNaBiblioteca({titulo:label,descricao:'',codigo:null,categoria:'Opção de Fluxo',fotos:[],alerta:'',origem:'Fluxo',origemId:'fluxo_opt_'+no.id+'_'+oi});
-          opcoes.push({label,destinoId:destVal==='diagnostico_direto'?null:destVal,destino:destVal==='diagnostico_direto'?'diagnostico_direto':''});
+        const opt = no.opcoes[oi];
+        // Recupera o destino sem perder nada!
+        if(opt.label) {
+          await salvarNaBiblioteca({titulo:opt.label, descricao:'', codigo:null, categoria:'Opção de Fluxo', fotos:[], alerta:'', origem:'Fluxo', origemId:'fluxo_opt_'+no.id+'_'+oi});
+          opcoes.push({label: opt.label, destinoId: opt.destinoId || null, destino: opt.destino || ''});
         }
       }
       
       await salvarNaBiblioteca({
-        titulo, descricao:'', codigo:codigoDoNo, categoria:'Pergunta de Fluxo',
-        fotos:fotosDoNo, audio:audioDoNo, alerta:'', origem:'Fluxo', origemId:'fluxo_q_'+no.id
+        titulo, descricao:'', codigo: no.codigo || '', categoria:'Pergunta de Fluxo',
+        fotos: no.fotos || [], audio: no.audio || null, alerta:'', origem:'Fluxo', origemId:'fluxo_q_'+no.id
       });
-
+      
       nosColetados.push({
-        id:no.id, tipo:'pergunta', pergunta:titulo, titulo, opcoes, 
-        procId:procIdFinal, procValor:procValorFinal, fotos: fotosDoNo, audio: audioDoNo, codigo: codigoDoNo
+        id: no.id, tipo: 'pergunta', pergunta: titulo, titulo, opcoes, 
+        procId: no.procId || null, procValor: no.procValor || 0, fotos: no.fotos || [], audio: no.audio || null, codigo: no.codigo || ''
       });
     }
   }
 
+  // 3. Finaliza o salvamento no Banco de Dados
   S.biblioteca = await DB.getAll('biblioteca');
   const f=S.editandoFluxo||{criadoEm:Date.now()};
   f.nome=nome; f.descricao=v('fDesc'); f.categoria=v('fCat');
@@ -1537,7 +1562,7 @@ window.salvarFluxoComNos = async () => {
   const fluxosAtualizados = await DB.getAll('fluxos');
   S.fluxos = fluxosAtualizados;
   
-  fecharModal(); S.viewFluxoId=f.id; toast('✅ Fluxo salvo!','cyan'); S.editandoFluxo=null;
+  fecharModal(); S.viewFluxoId=f.id; toast('✅ Fluxo salvo sem perder conexões!','cyan'); S.editandoFluxo=null;
   document.getElementById('body').innerHTML=buildVerFluxo(f); document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
 };
 
@@ -1932,7 +1957,7 @@ window.executarExport = () => {
   const bib = _exportBibCompleta ? S.biblioteca.map(b=>{const{id,...rest}=b;return{...rest,_exportId:id};}) : [];
 
   const json = JSON.stringify({
-    mecanicoPro: true, 
+    guiaPro: true, 
     versao: '3.0', 
     exportadoEm: Date.now(),
     procedimentos: procs,
@@ -1967,8 +1992,8 @@ window.importarArquivo = async e => {
     const txt = await file.text();
     const dados = JSON.parse(txt);
     
-    if(!dados.mecanicoPro){
-      toast('❌ O arquivo selecionado não é um backup do MecânicoPro!', 'error');
+    if(!dados.guiaPro){
+      toast('❌ O arquivo selecionado não é um backup do GuiaPro!', 'error');
       if(loading) loading.style.display = 'none';
       return;
     }
@@ -2067,53 +2092,14 @@ window.sincronizarDOMParaMemoria = () => {
     }
   });
 };
-   
-window.autoCriarNo = (origemId, opcaoIdx, tipo) => {
-    window.sincronizarDOMParaMemoria(); // Salva tudo que já foi digitado para não perder!
-    
-    const novoId = 'n' + Date.now();
-    window._nosEditor.push({id: novoId, tipo: tipo, pergunta: '', opcoes: []});
-    
-    const noOrigem = window._nosEditor.find(n => n.id === origemId);
-    if(noOrigem && noOrigem.opcoes[opcaoIdx]) {
-        noOrigem.opcoes[opcaoIdx].destinoId = novoId; // Liga automaticamente!
-        noOrigem.opcoes[opcaoIdx].destino = '';
-    }
-    
-    // Atualiza a tela toda
-    document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor, null);
-    
-    // Desce a tela direto para o nó recém-criado com um flash de luz
-    setTimeout(() => {
-        const novoEl = document.getElementById('noeditor_' + novoId);
-        if(novoEl) {
-            novoEl.scrollIntoView({behavior: 'smooth', block: 'center'});
-            novoEl.style.boxShadow = '0 0 20px var(--yellow)';
-            setTimeout(() => novoEl.style.transition = 'box-shadow 1s', 100);
-            setTimeout(() => novoEl.style.boxShadow = 'none', 1500);
-        }
-    }, 100);
-};
+window._noAbertoId = null; // Guarda quem está aberto
 
-window.adicionarNoEditorMagico = () => {
+window.toggleNoAberto = (id) => {
     window.sincronizarDOMParaMemoria();
-    window._nosEditor.push({id: 'n'+Date.now(), tipo: 'pergunta', pergunta: '', opcoes: []});
+    // Se clicar no mesmo que está aberto, ele fecha. Se clicar em outro, ele abre o outro.
+    window._noAbertoId = window._noAbertoId === id ? null : id;
     document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor, null);
-    setTimeout(() => {
-        const container = document.getElementById('nosEditorContainer');
-        if(container.lastElementChild) container.lastElementChild.scrollIntoView({behavior: 'smooth', block: 'center'});
-    }, 100);
-};
-
-window.adicionarOpcaoEditorMagico = (noId) => {
-    window.sincronizarDOMParaMemoria();
-    const no = window._nosEditor.find(n => n.id === noId);
-    if(no) {
-        if(!no.opcoes) no.opcoes = [];
-        no.opcoes.push({label:'', destinoId:'', destino:''});
-        document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor, null);
-    }
-};
+};   
 
 window.trocarTipoNoMagico = (noId, tipo) => {
     window.sincronizarDOMParaMemoria();
@@ -2141,6 +2127,9 @@ function abrirModalFluxo(fluxo){
   fecharModal();
   window._nosEditor = fluxo && fluxo.nos ? JSON.parse(JSON.stringify(fluxo.nos)) : [];
   
+  // 👈 Define que o primeiro bloco já vem aberto por padrão
+  window._noAbertoId = window._nosEditor.length > 0 ? window._nosEditor[0].id : null;
+  
   const bg=document.createElement('div');bg.className='modal-bg';bg.onclick=e=>{if(e.target===bg)fecharModal();};
   const nosHtml=buildNosEditor(window._nosEditor,fluxo);
   
@@ -2157,15 +2146,13 @@ function abrirModalFluxo(fluxo){
     <div class="sep" style="margin:12px 0"></div>
     <div class="info-box" style="margin-bottom:10px; background:rgba(245,200,0,.05); border-color:var(--yellow); color:var(--chrome2);">
       <strong style="color:var(--yellow);">👨‍🏫 COMO FUNCIONA O FLUXOGRAMA?</strong><br>
-      Cada etapa aqui é chamada de <b>Bloco (ou Nó)</b>. Um bloco pode ser:<br>
-      <b>1. Uma Pergunta:</b> Onde você dá opções de resposta que levam o usuário para outro Bloco.<br>
-      <b>2. Um Diagnóstico Final:</b> É a conclusão do fluxo (ex: "O bolo está pronto!" ou "Troque a bateria").
+      Cada etapa aqui é chamada de <b>Bloco (ou Nó)</b>. Clique em um bloco fechado para expandi-lo e editá-lo.
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div class="label" style="margin:0; font-size:14px; color:var(--cyan2)">🧱 CONSTRUTOR DE BLOCOS</div>
       <button class="btn ghost-cyan sm" style="width:auto;padding:5px 11px;margin-left: 12px; font-size:11px" onclick="adicionarNoEditorMagico()">＋ NOVO BLOCO (NÓ)</button>
     </div>
-    <div id="nosEditorContainer" style="display:flex;flex-direction:column;gap:14px">${nosHtml}</div>
+    <div id="nosEditorContainer" style="display:flex;flex-direction:column;gap:10px; margin-top:10px;">${nosHtml}</div>
     <div style="display:flex;gap:8px;margin-top:14px">
       ${fluxo?`<button class="btn red sm" onclick="A.deletarFluxo(${fluxo.id})">🗑</button>`:''}
       <button class="btn steel sm" onclick="fecharModal()">Cancelar</button>
@@ -2176,110 +2163,228 @@ function abrirModalFluxo(fluxo){
   setTimeout(()=>document.getElementById('fNome')?.focus(),120);
 }
 
+window.autoCriarNo = (origemId, opcaoIdx, tipo) => {
+    window.sincronizarDOMParaMemoria(); 
+    const novoId = 'n' + Date.now();
+    window._noAbertoId = novoId; 
+    
+    // 👇 NOME INTELIGENTE: Pega o texto da resposta que gerou este bloco
+    const num = window._nosEditor.length + 1;
+    let nomePadrao = tipo === 'diagnostico' ? 'D' + num : 'P' + num;
+    
+    const noOrigem = window._nosEditor.find(n => n.id === origemId);
+    if (noOrigem && noOrigem.opcoes && noOrigem.opcoes[opcaoIdx]) {
+        const respTexto = noOrigem.opcoes[opcaoIdx].label || ('Opção ' + String.fromCharCode(65 + opcaoIdx));
+        nomePadrao = tipo === 'diagnostico' ? `Se "${respTexto}" (Diagnóstico)` : `Se "${respTexto}"`;
+    }
+
+    window._nosEditor.push({id: novoId, tipo: tipo, pergunta: nomePadrao, opcoes: []});
+    
+    // Liga automaticamente o destino da opção ao novo bloco
+    if(noOrigem && noOrigem.opcoes[opcaoIdx]) {
+        noOrigem.opcoes[opcaoIdx].destinoId = novoId; 
+        noOrigem.opcoes[opcaoIdx].destino = '';
+    }
+    
+    document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor, null);
+    
+    setTimeout(() => {
+        const novoEl = document.getElementById('noeditor_' + novoId);
+        if(novoEl) {
+            novoEl.scrollIntoView({behavior: 'smooth', block: 'center'});
+            novoEl.style.boxShadow = '0 0 20px var(--yellow)';
+            setTimeout(() => novoEl.style.transition = 'box-shadow 1s', 100);
+            setTimeout(() => novoEl.style.boxShadow = 'none', 1500);
+        }
+    }, 100);
+};
+
+// 👇 NOVA FUNÇÃO (O RADAR): Descobre quem é o "Pai" deste bloco
+window.encontrarOrigemDoNo = (noId, todosNos) => {
+    if (todosNos.length > 0 && todosNos[0].id === noId) return { tipo: 'raiz' }; // É o primeiro de todos
+    
+    // Procura em todos os nós se alguma opção aponta pra este ID
+    for (let i = 0; i < todosNos.length; i++) {
+        const pai = todosNos[i];
+        if (pai.opcoes) {
+            const opIdx = pai.opcoes.findIndex(o => o.destinoId === noId);
+            if (opIdx !== -1) {
+                const letra = String.fromCharCode(65 + opIdx);
+                return { 
+                    tipo: 'filho', 
+                    paiNum: i + 1, 
+                    paiTitulo: pai.pergunta || pai.titulo, 
+                    respostaLetra: letra, 
+                    respostaTexto: pai.opcoes[opIdx].label 
+                };
+            }
+        }
+    }
+    return { tipo: 'orfao' }; // Ninguém aponta pra ele!
+};
+
+window.adicionarNoEditorMagico = () => {
+    window.sincronizarDOMParaMemoria();
+    const novoId = 'n'+Date.now();
+    window._noAbertoId = novoId; 
+    
+    // 👇 Gera nome automático
+    const num = window._nosEditor.length + 1;
+    window._nosEditor.push({id: novoId, tipo: 'pergunta', pergunta: 'P' + num, opcoes: []});
+    
+    document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor, null);
+    setTimeout(() => {
+        const container = document.getElementById('nosEditorContainer');
+        if(container.lastElementChild) container.lastElementChild.scrollIntoView({behavior: 'smooth', block: 'center'});
+    }, 100);
+};
+
+window.adicionarOpcaoEditorMagico = (noId) => {
+    window.sincronizarDOMParaMemoria();
+    const no = window._nosEditor.find(n => n.id === noId);
+    if(no) {
+        if(!no.opcoes) no.opcoes = [];
+        // 👇 Gera Resposta Automática (R1, R2, etc)
+        const numResp = no.opcoes.length + 1;
+        no.opcoes.push({label:'R' + numResp, destinoId:'', destino:''});
+        
+        document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor, null);
+    }
+};
+
 function buildNoEditorCard(no,idx,todos){
+  const isAberto = window._noAbertoId === no.id;
   const isPerguntar = no.tipo !== 'diagnostico';
+  const tituloExibicao = esc(no.pergunta||no.titulo||(isPerguntar?'P'+(idx+1):'D'+(idx+1)));
+
+  const origem = window.encontrarOrigemDoNo(no.id, todos);
+  
+  let badgeOrigem = '';
+  if (origem.tipo === 'raiz') {
+      badgeOrigem = `<div style="font-size:10px; background:var(--yellow); color:#000; padding:3px 8px; border-radius:4px; font-weight:bold; margin-right:10px;">🌟 INÍCIO DO FLUXO</div>`;
+  } else if (origem.tipo === 'filho') {
+      badgeOrigem = `<div style="font-size:10px; background:rgba(255,255,255,.1); color:var(--chrome2); padding:3px 8px; border-radius:4px; border:1px dashed rgba(255,255,255,.3); margin-right:10px; display:flex; align-items:center; gap:4px;"><span>🔗 Vem do Bloco #${origem.paiNum}:</span> <b style="color:white">"${origem.respostaTexto || origem.respostaLetra}"</b></div>`;
+  } else {
+      badgeOrigem = `<div style="font-size:10px; background:rgba(192,57,43,.2); color:#e74c3c; padding:3px 8px; border-radius:4px; border:1px solid #e74c3c; margin-right:10px;">⚠ DESCONECTADO (Invisível)</div>`;
+  }
+
+  const paleta = ['#3498db', '#e74c3c', '#9b59b6', '#e67e22', '#1abc9c', '#fd79a8', '#f1c40f'];
+  const corGrupo = isPerguntar ? paleta[idx % paleta.length] : 'var(--green2)'; 
+
+  if (!isAberto) {
+      return `
+      <div class="no-card-editor collapsed" style="border:1px solid ${origem.tipo==='orfao'?'#e74c3c':corGrupo}66; background:rgba(0,0,0,.3); border-radius:var(--r); cursor:pointer; display:flex; align-items:center; padding:10px; transition:background 0.2s; margin-bottom:8px;" onclick="toggleNoAberto('${no.id}')" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background='rgba(0,0,0,.3)'">
+        <div style="background:${origem.tipo==='orfao'?'#e74c3c':corGrupo}; color:${isPerguntar||origem.tipo==='orfao'?'#fff':'#000'}; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:14px; margin-right:12px; flex-shrink:0;">${idx+1}</div>
+        <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+            <div style="display:flex; align-items:center;">${badgeOrigem}</div>
+            <div style="font-weight:bold; color:var(--chrome2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:15px; margin-top:4px;">${tituloExibicao}</div>
+        </div>
+        <div style="font-family:var(--font-mono); font-size:9px; color:${corGrupo}; border:1px solid ${corGrupo}66; padding:4px 8px; border-radius:4px; margin-right:12px; letter-spacing:1px; background:rgba(0,0,0,.3);">
+          ${isPerguntar ? '❓ PERGUNTA' : '✅ DIAGNÓSTICO'}
+        </div>
+        <button onclick="event.stopPropagation(); removerNoMagico('${no.id}')" style="background:rgba(192,57,43,.1); color:#e74c3c; border:none; border-radius:4px; padding:8px 14px; cursor:pointer; font-weight:bold; font-size:14px;">✕</button>
+      </div>`;
+  }
+
+  let boxOrigemExpandido = '';
+  if (origem.tipo === 'raiz') {
+      boxOrigemExpandido = `<div style="background:rgba(245,200,0,.1); border-left:4px solid var(--yellow); padding:12px; margin-bottom:12px; border-radius:0 4px 4px 0; color:var(--yellow); font-size:13px;"><b>🌟 PONTO DE PARTIDA:</b> Este bloco é a primeira coisa que o cliente verá.</div>`;
+  } else if (origem.tipo === 'filho') {
+      boxOrigemExpandido = `<div style="background:rgba(255,255,255,.05); border-left:4px solid var(--cyan2); padding:12px; margin-bottom:12px; border-radius:0 4px 4px 0; color:var(--chrome2); font-size:13px; display:flex; flex-direction:column; gap:4px;">
+        <div><b>🔗 CAMINHO ATÉ AQUI:</b> O cliente chegará neste bloco se...</div>
+        <div style="padding-left:10px; border-left:2px solid rgba(255,255,255,.2); color:white;">No Bloco <b>#${origem.paiNum} (${origem.paiTitulo})</b> ➔ Escolher a resposta: <b style="color:var(--cyan2)">"${origem.respostaTexto}"</b></div>
+      </div>`;
+  } else {
+      boxOrigemExpandido = `<div style="background:rgba(192,57,43,.1); border-left:4px solid #e74c3c; padding:12px; margin-bottom:12px; border-radius:0 4px 4px 0; color:#e74c3c; font-size:13px;"><b>⚠ ALERTA DE BLOCO PERDIDO:</b> Nenhuma resposta leva a este bloco! Volte em uma pergunta e aponte o "Destino" para cá.</div>`;
+  }
+
   const outrosNos = todos.filter(x => x.id !== no.id);
   
   const opcoesHtml = isPerguntar ? (no.opcoes||[]).map((o,oi) => `
-    <div class="opt-editor-row" id="optrow_${no.id}_${oi}" style="flex-direction:column; align-items:stretch; gap:6px; background:rgba(0,0,0,.2); border-radius:var(--r); padding:12px; margin-bottom:10px; border:1px solid rgba(255,255,255,.05);">
+    <div class="opt-editor-row" id="optrow_${no.id}_${oi}" style="flex-direction:column; align-items:stretch; gap:6px; background:rgba(0,0,0,.2); border-radius:var(--r); padding:12px; margin-bottom:10px; border:1px solid ${corGrupo}33;">
       <div style="display:flex;align-items:center;gap:8px">
-        <div style="background:var(--cyan);color:var(--ink);width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold; flex-shrink:0;">${String.fromCharCode(65+oi)}</div>
+        <div style="background:${corGrupo};color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold; flex-shrink:0;">${String.fromCharCode(65+oi)}</div>
         <span style="font-size:14px;opacity:0.7">🔍</span>
-        <input type="text" placeholder="Importe uma resposta da biblioteca..." oninput="filtrarBibModal(this.value, 'fluxo_opt', '${no.id}_${oi}')" style="flex:1; background:rgba(0,0,0,.3); border:1px solid rgba(34,211,238,.3); color:var(--cyan2); font-size:12px; padding:8px; border-radius:4px; outline:none;">
+        <input type="text" placeholder="Puxar texto da biblioteca..." oninput="filtrarBibModal(this.value, 'fluxo_opt', '${no.id}_${oi}')" style="flex:1; background:rgba(0,0,0,.3); border:1px solid ${corGrupo}66; color:${corGrupo}; font-size:12px; padding:8px; border-radius:4px; outline:none;">
         <button onclick="removerOpcaoEditor('${no.id}',${oi})" style="background:rgba(192,57,43,.15);color:#e74c3c;border:1px solid rgba(192,57,43,.2);border-radius:4px;padding:8px 12px;cursor:pointer;font-size:12px">✕</button>
       </div>
       <div id="bibResults_${no.id}_${oi}" style="display:flex; flex-direction:column; gap:2px; padding-left:42px;"></div>
+      
       <div style="display:flex;align-items:center;gap:8px; padding-left:42px;">
-        <input class="opt-input" id="opt_label_${no.id}_${oi}" value="${esc(o.label||'')}" placeholder="Ou digite o texto da resposta manualmente aqui..." style="font-size:14px; padding:10px; border-color:rgba(255,255,255,.1);">
+        <input class="opt-input" id="opt_label_${no.id}_${oi}" value="${esc(o.label||'')}" placeholder="Texto da resposta (Ex: Sim, Não, Faz barulho...)" style="font-size:15px; padding:10px; border-color:rgba(255,255,255,.2); background:rgba(255,255,255,.05); color:white;" oninput="const lbl = document.getElementById('lbl_dest_${no.id}_${oi}'); if(lbl) lbl.innerText = '↳ O QUE ACONTECE SE ESCOLHER \\'' + (this.value || 'VAZIO') + '\\'?'">
       </div>
-      <div style="margin-left:10px; display:flex; flex-direction:column; gap:8px; margin-top:8px; background:rgba(34,211,238,0.05); padding:10px; border-radius:6px; border-left:3px solid var(--cyan2);">
-        <div style="font-size:10px; color:var(--cyan2); text-transform:uppercase; font-weight:bold; letter-spacing:0.5px;">↳ O que acontece se o cliente escolher esta resposta?</div>
+      
+      <div style="margin-left:10px; display:flex; flex-direction:column; gap:8px; margin-top:8px; background:${corGrupo}11; padding:12px; border-radius:6px; border-left:4px solid ${corGrupo};">
+        <div id="lbl_dest_${no.id}_${oi}" style="font-size:11px; color:${corGrupo}; text-transform:uppercase; font-weight:bold; letter-spacing:0.5px;">↳ O QUE ACONTECE SE ESCOLHER "${esc(o.label||'vazio')}"?</div>
         <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-           <select class="opt-dest-sel" id="opt_dest_${no.id}_${oi}" style="flex:1; min-width:70%; padding:8px; font-size:12px; height:34px;">
+           <select class="opt-dest-sel" id="opt_dest_${no.id}_${oi}" style="flex:1; min-width:60%; padding:10px; font-size:13px; height:auto;">
              <option value="">Ainda não decidi...</option>
-             ${outrosNos.map(x=>`<option value="${x.id}" ${o.destinoId===x.id?'selected':''}>${x.tipo==='diagnostico'?'✅':'❓'} ${esc((x.pergunta||x.titulo||'').slice(0,30))}</option>`).join('')}
+             ${outrosNos.map(x=>`<option value="${x.id}" ${o.destinoId===x.id?'selected':''}>Vincular ao Bloco #${todos.indexOf(x)+1} ➔ ${esc((x.pergunta||x.titulo||'').slice(0,30))}</option>`).join('')}
              <option value="diagnostico_direto" ${o.destino==='diagnostico_direto'?'selected':''}>✓ Dar diagnóstico final (Sair)</option>
            </select>
-           <button onclick="autoCriarNo('${no.id}', ${oi}, 'pergunta')" style="height:34px; background:rgba(34,211,238,.15); color:var(--cyan2); border:1px solid rgba(34,211,238,.4); padding:0 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">＋ ❓ Nova Pergunta</button>
-           <button onclick="autoCriarNo('${no.id}', ${oi}, 'diagnostico')" style="height:34px; background:rgba(46,204,113,.15); color:var(--green2); border:1px solid rgba(46,204,113,.4); padding:0 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">＋ ✅ Diagnóstico Final</button>
+           <button onclick="autoCriarNo('${no.id}', ${oi}, 'pergunta')" style="height:39px; background:${corGrupo}22; color:${corGrupo}; border:1px solid ${corGrupo}66; padding:0 12px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center;">＋ ❓ Nova Pergunta</button>
+           <button onclick="autoCriarNo('${no.id}', ${oi}, 'diagnostico')" style="height:39px; background:rgba(46,204,113,.15); color:var(--green2); border:1px solid rgba(46,204,113,.4); padding:0 12px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center;">＋ ✅ Diagnóstico</button>
         </div>
       </div>
     </div>`).join('') : '';
 
-  // 👇 BLOCO UNIFICADO: Procedimento e Valor para qualquer tipo de nó!
   const procHtml = `
     <div style="margin-top:10px; padding:10px; background:rgba(0,0,0,.2); border-radius:var(--r); border:1px dashed rgba(255,255,255,.1);">
       <div class="label" style="margin-bottom:6px; color:var(--yellow)">🛠 VINCULAR PROCEDIMENTO & VALOR (Opcional)</div>
       <div style="display:flex; gap:8px; margin-bottom:10px;">
-        <select class="input" id="no_proc_${no.id}" style="flex:2; font-size:12px;">
-          <option value="">Nenhum procedimento...</option>
-          ${S.procedimentos.map(p=>`<option value="${p.id}" ${no.procId==p.id?'selected':''}>📋 ${esc(p.nome)}</option>`).join('')}
-        </select>
+        <select class="input" id="no_proc_${no.id}" style="flex:2; font-size:12px;"><option value="">Nenhum procedimento...</option>${S.procedimentos.map(p=>`<option value="${p.id}" ${no.procId==p.id?'selected':''}>📋 ${esc(p.nome)}</option>`).join('')}</select>
         <div style="flex:1; position:relative;">
           <span style="position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:10px; color:var(--green2)">R$</span>
           <input type="number" class="input" id="no_val_${no.id}" value="${no.procValor || ''}" placeholder="0.00" style="padding-left:25px; font-size:12px;">
         </div>
       </div>
-
       <div class="label" style="margin-bottom:6px;">Mídia do Passo: 📷 Fotos | 🎙 PC | 📱 Celular</div>
-      
       <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-        <div class="photo-drop" style="width:45px; height:45px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="document.getElementById('file_${no.id}').click()" title="Adicionar Fotos">
-           <span style="font-size:18px; opacity:0.6">📷</span>
-        </div>
-        <div id="btnGravar_${no.id}" class="photo-drop" style="width:45px; height:45px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer; border-color:rgba(34,211,238,.3); background:rgba(34,211,238,.02); transition:all 0.3s;" onclick="toggleGravacaoNativa('fluxo', '${no.id}')" title="Gravar direto no navegador">
-           <span style="font-size:18px; opacity:0.6">🎙</span>
-        </div>
-        <div class="photo-drop" style="width:45px; height:45px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer; border-color:rgba(245,200,0,.3); background:rgba(245,200,0,.02);" onclick="document.getElementById('audioFile_${no.id}').click()" title="Gravar com o App do Celular">
-           <span style="font-size:18px; opacity:0.6">📱</span>
-        </div>
+        <div class="photo-drop" style="width:45px; height:45px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="document.getElementById('file_${no.id}').click()" title="Fotos"><span style="font-size:18px; opacity:0.6">📷</span></div>
+        <div id="btnGravar_${no.id}" class="photo-drop" style="width:45px; height:45px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer; border-color:rgba(34,211,238,.3); background:rgba(34,211,238,.02);" onclick="toggleGravacaoNativa('fluxo', '${no.id}')" title="Microfone PC"><span style="font-size:18px; opacity:0.6">🎙</span></div>
+        <div class="photo-drop" style="width:45px; height:45px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer; border-color:rgba(245,200,0,.3); background:rgba(245,200,0,.02);" onclick="document.getElementById('audioFile_${no.id}').click()" title="Celular"><span style="font-size:18px; opacity:0.6">📱</span></div>
         <input type="file" id="audioFile_${no.id}" accept="audio/*" capture="microphone" style="display:none" onchange="adicionarAudioTemp(event, 'fluxo', '${no.id}')">
-
-        ${(no.fotos||[]).map((f,i)=>`
-          <div class="photo-thumb" style="width:45px;height:45px"><img src="${f}"><div class="photo-del" style="width:16px;height:16px;font-size:10px;top:2px;right:2px;" onclick="removerFotoNo('${no.id}',${i})">✕</div></div>
-        `).join('')}
+        ${(no.fotos||[]).map((f,i)=>`<div class="photo-thumb" style="width:45px;height:45px"><img src="${f}"><div class="photo-del" style="width:16px;height:16px;font-size:10px;top:2px;right:2px;" onclick="removerFotoNo('${no.id}',${i})">✕</div></div>`).join('')}
       </div>
-      
-      ${no.audio ? `<div style="display:flex;align-items:center;gap:10px;background:rgba(245,200,0,.1);padding:6px;border-radius:4px;border:1px solid rgba(245,200,0,.3);margin-top:8px;">
-         <audio controls src="${no.audio}" style="height:30px;flex:1"></audio>
-         <button onclick="removerAudioTemp('fluxo', '${no.id}')" style="background:rgba(192,57,43,.8);color:white;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:10px;font-weight:bold">✕</button>
-      </div>` : ''}
+      ${no.audio ? `<div style="display:flex;align-items:center;gap:10px;background:rgba(245,200,0,.1);padding:6px;border-radius:4px;border:1px solid rgba(245,200,0,.3);margin-top:8px;"><audio controls src="${no.audio}" style="height:30px;flex:1"></audio><button onclick="removerAudioTemp('fluxo', '${no.id}')" style="background:rgba(192,57,43,.8);color:white;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:10px;font-weight:bold">✕</button></div>` : ''}
       <input type="file" id="file_${no.id}" accept="image/*" multiple capture="environment" style="display:none" onchange="adicionarFotoNo(event, '${no.id}')">
     </div>
   `;
 
   return `
-  <div class="no-card-editor" id="noeditor_${no.id}" style="border:2px solid ${isPerguntar ? 'rgba(34,211,238,.4)' : 'rgba(46,204,113,.4)'}; background:var(--steel);">
-    <div class="no-card-header" style="background:${isPerguntar ? 'rgba(34,211,238,.08)' : 'rgba(46,204,113,.08)'}; border-bottom:1px solid ${isPerguntar ? 'rgba(34,211,238,.2)' : 'rgba(46,204,113,.2)'};">
-      <div class="no-card-num" style="color:${isPerguntar ? 'var(--cyan2)' : 'var(--green2)'}; font-size:18px;">${idx+1}</div>
-      <input class="opt-input" id="no_titulo_${no.id}" value="${esc(no.pergunta||no.titulo||'')}" placeholder="${isPerguntar?'Digite a pergunta principal…':'Qual o nome do defeito encontrado?…'}" style="flex:1;margin:0 8px;font-size:16px; font-weight:bold; border-color:rgba(255,255,255,.1);">
-      <select class="opt-dest-sel" id="no_tipo_${no.id}" style="width:123px; border-color:${isPerguntar ? 'rgba(34,211,238,.4)' : 'rgba(46,204,113,.4)'}; color:${isPerguntar ? 'var(--cyan2)' : 'var(--green2)'}; font-weight:bold;" onchange="trocarTipoNoMagico('${no.id}',this.value)">
+  <div class="no-card-editor" id="noeditor_${no.id}" style="border:2px solid ${origem.tipo==='orfao'?'#e74c3c':corGrupo}88; background:var(--steel); border-radius:var(--r); overflow:hidden; margin-bottom:12px; box-shadow:0 4px 15px rgba(0,0,0,.2);">
+    <div class="no-card-header" style="background:${origem.tipo==='orfao'?'rgba(192,57,43,.15)':corGrupo+'22'}; border-bottom:1px solid ${corGrupo}44; cursor:pointer; display:flex; align-items:center; padding:12px;" onclick="toggleNoAberto('${no.id}')" title="Clique para fechar">
+      <div class="no-card-num" style="background:${origem.tipo==='orfao'?'#e74c3c':corGrupo}; color:${isPerguntar||origem.tipo==='orfao'?'#fff':'#000'}; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:bold; margin-right:8px;">${idx+1}</div>
+      <input class="opt-input" id="no_titulo_${no.id}" value="${tituloExibicao}" style="flex:1;margin:0 8px;font-size:18px; font-weight:bold; border-color:rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:white;" onclick="event.stopPropagation()">
+      <select class="opt-dest-sel" id="no_tipo_${no.id}" style="width:130px; border-color:${corGrupo}66; color:${corGrupo}; font-weight:bold; padding:8px; font-size:13px;" onchange="trocarTipoNoMagico('${no.id}',this.value)" onclick="event.stopPropagation()">
         <option value="pergunta" ${isPerguntar?'selected':''}>❓ Pergunta</option>
         <option value="diagnostico" ${!isPerguntar?'selected':''}>✅ Diagnóstico</option>
       </select>
-      <button onclick="removerNoMagico('${no.id}')" style="background:rgba(192,57,43,.15);color:#e74c3c;border:1px solid rgba(192,57,43,.3);border-radius:4px;padding:6px 10px;cursor:pointer;font-size:12px;margin-left:8px; font-weight:bold;">✕</button>
+      <button onclick="event.stopPropagation(); removerNoMagico('${no.id}')" style="background:rgba(192,57,43,.15);color:#e74c3c;border:1px solid rgba(192,57,43,.3);border-radius:4px;padding:8px 12px;cursor:pointer;font-size:14px;margin-left:10px; font-weight:bold;">✕</button>
     </div>
     
-    <div style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.05); background:rgba(0,0,0,.15)">
+    <div style="padding:15px 12px; border-bottom:1px solid rgba(255,255,255,.05); background:rgba(0,0,0,.15)">
+      
+      ${boxOrigemExpandido}
+
       <div class="label" style="color:var(--yellow)">🔍 PUXAR DA BIBLIOTECA (Título e Fotos)</div>
       <div style="display:flex;align-items:center;gap:6px">
         <span style="font-size:14px;opacity:0.7">🔍</span>
-        <input type="text" class="input" placeholder="Buscar pergunta ou diagnóstico salvo..." oninput="filtrarBibModal(this.value, 'fluxo', '${no.id}')" style="font-size:13px; padding:8px 10px; flex:1;">
+        <input type="text" class="input" placeholder="Buscar pergunta ou diagnóstico..." oninput="filtrarBibModal(this.value, 'fluxo', '${no.id}')" style="font-size:13px; padding:10px; flex:1; background:rgba(255,255,255,.05);">
       </div>
       <div id="bibResults_${no.id}" style="display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:120px;overflow-y:auto"></div>
       
-      ${!isPerguntar ? `<div style="margin-top:10px;"><div class="label">Qual a solução do problema?</div><textarea class="textarea" id="no_desc_${no.id}" style="min-height:50px" placeholder="Descreva a conclusão para o mecânico executar...">${esc(no.descricao||no.solucao||'')}</textarea></div>` : ''}
+      ${!isPerguntar ? `<div style="margin-top:10px;"><div class="label">Qual a solução do problema?</div><textarea class="textarea" id="no_desc_${no.id}" style="min-height:50px" placeholder="Descreva a conclusão...">${esc(no.descricao||no.solucao||'')}</textarea></div>` : ''}
 
       <div style="margin-top:10px;">
         <div class="label" style="color:var(--yellow)">💻 CÓDIGO FONTE (Opcional)</div>
-        <textarea class="textarea code-input" id="no_cod_${no.id}" placeholder="Cole seu código aqui..." onkeydown="if(event.key==='Tab'){event.preventDefault();const s=this.selectionStart;this.value=this.value.substring(0,s)+'  '+this.value.substring(this.selectionEnd);this.selectionEnd=s+2;}">${esc(no.codigo||'')}</textarea>
+        <textarea class="textarea code-input" id="no_cod_${no.id}" placeholder="Cole seu código aqui...">${esc(no.codigo||'')}</textarea>
       </div>
-
       ${procHtml}
     </div>
 
     <div id="no_opts_${no.id}" style="padding:10px 12px 0;">${isPerguntar ? opcoesHtml : ''}</div>
-    ${isPerguntar ? `<div style="padding:4px 12px 14px;"><button onclick="adicionarOpcaoEditorMagico('${no.id}')" style="background:rgba(34,211,238,.1);color:var(--cyan2);border:1px dashed rgba(34,211,238,.4);border-radius:var(--r);padding:12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;cursor:pointer;width:100%; transition:all 0.2s;">＋ ADICIONAR OPÇÃO DE RESPOSTA</button></div>` : ''}
+    ${isPerguntar ? `<div style="padding:10px 12px 14px;"><button onclick="adicionarOpcaoEditorMagico('${no.id}')" style="background:${corGrupo}11;color:${corGrupo};border:1px dashed ${corGrupo}66;border-radius:var(--r);padding:14px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;cursor:pointer;width:100%; transition:background 0.2s;" onmouseover="this.style.background='${corGrupo}33'" onmouseout="this.style.background='${corGrupo}11'">＋ ADICIONAR OUTRA OPÇÃO DE RESPOSTA</button></div>` : ''}
   </div>`;
 }
 
