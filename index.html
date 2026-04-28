@@ -726,7 +726,7 @@ function buildFluxosLista() {
 }
 
 function buildFluxos(){
-  const introHtml = `<div class="card" style="border-color:rgba(34,211,238,.12); margin-bottom:12px;"><div class="card-head"><div class="card-title" style="color:var(--cyan2)">🔀 FLUXO DIAGNÓSTICO</div></div><div class="card-body"><div class="info-box cyan">Crie árvores de decisão. Cada nó tem uma pergunta e opções que levam ao próximo nó ou ao diagnóstico final.</div></div></div>`;
+  const introHtml = `<div class="card" style="border-color:rgba(34,211,238,.12); margin-bottom:12px;"><div class="card-head"><div class="card-title" style="color:var(--cyan2)">🔀 FLUXO DIAGNÓSTICO</div></div><div class="card-body"><div class="info-box cyan">Crie árvores de decisão. Cada nó tem uma pergunta e opções que levam ao próximo nó ou ao final do fluxo.</div></div></div>`;
 
   if(!S.fluxos.length) return introHtml + `<div class="empty"><div class="empty-icon">🔀</div><div class="empty-title">SEM FLUXOS</div><div class="empty-desc">Crie seu primeiro fluxo de diagnóstico.</div><button class="btn cyan" style="max-width:240px;margin-top:8px" onclick="A.novoFluxo()">＋ NOVO FLUXO</button></div>`;
 
@@ -747,7 +747,7 @@ function buildVerFluxo(fluxo){
     <div style="display:flex;gap:5px"><button class="btn ghost-cyan sm" style="padding:5px 9px;font-size:11px" onclick="A.editarFluxo(${fluxo.id})">✏ EDITAR</button><button class="btn steel sm" style="padding:5px 9px;font-size:11px" onclick="A.fecharFluxo()">✕</button></div></div>
     <div class="card-body">${fluxo.descricao?`<div style="font-size:13px;color:var(--chrome);line-height:1.6">${esc(fluxo.descricao)}</div>`:''}
     <div style="display:flex;gap:5px;flex-wrap:wrap"><span class="proc-badge pb-cyan">🔀 ${nos.length} nós</span>${fluxo.categoria?`<span class="proc-badge pb-gray">${esc(fluxo.categoria)}</span>`:''}</div>
-    <div style="display:flex;gap:8px"><button class="btn cyan sm" onclick="A.iniciarFluxo(${fluxo.id})" style="flex:2">▶ INICIAR DIAGNÓSTICO</button><button class="btn red sm" onclick="A.deletarFluxo(${fluxo.id})">🗑</button></div></div></div>
+    <div style="display:flex;gap:8px"><button class="btn cyan sm" onclick="A.iniciarFluxo(${fluxo.id})" style="flex:2">▶ INICIAR FLUXO</button><button class="btn red sm" onclick="A.deletarFluxo(${fluxo.id})">🗑</button></div></div></div>
   ${buildFluxoNosPreview(fluxo)}`;
 }
 
@@ -788,7 +788,7 @@ function buildFluxoExec(){
   if(isDiag){
     conteudoPrincipal = `
     <div class="fluxo-diag-card">
-      <div style="font-family:var(--font-mono);font-size:10px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">✅ DIAGNÓSTICO FINAL</div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">✅ FINAL DO FLUXO</div>
       <div class="fluxo-diag-title">${esc(noAtual.titulo||noAtual.pergunta||'')}</div>
       ${audioExecHtml} ${fotosExecHtml}
       ${noAtual.descricao?`<div class="fluxo-diag-desc">${esc(noAtual.descricao)}</div>`:''}
@@ -1494,7 +1494,7 @@ window.adicionarOpcaoEditor=(noId)=>{
     <div style="display:flex;align-items:center;gap:8px">
       <span class="opt-label">${String.fromCharCode(65+oi)}</span>
       <input class="opt-input" id="opt_label_${noId}_${oi}" value="" placeholder="Texto da opção…">
-      <select class="opt-dest-sel" id="opt_dest_${noId}_${oi}"><option value="">Destino…</option>${outrosNos.map(x=>`<option value="${x.id}">${x.tipo==='diagnostico'?'✓ ':''}${esc((x.pergunta||x.titulo||'').slice(0,20))}</option>`).join('')}<option value="diagnostico_direto">✓ Diagnóstico final</option></select>
+      <select class="opt-dest-sel" id="opt_dest_${noId}_${oi}"><option value="">Destino…</option>${outrosNos.map(x=>`<option value="${x.id}">${x.tipo==='diagnostico'?'✓ ':''}${esc((x.pergunta||x.titulo||'').slice(0,20))}</option>`).join('')}<option value="diagnostico_direto">✓ final do fluxo</option></select>
       <button onclick="removerOpcaoEditor('${noId}',${oi})" style="background:rgba(192,57,43,.15);color:#e74c3c;border:1px solid rgba(192,57,43,.2);border-radius:4px;padding:4px 7px;cursor:pointer;font-size:11px">✕</button>
     </div>
     <div style="display:flex;align-items:center;gap:8px;padding-left:36px">
@@ -2320,7 +2320,7 @@ function buildNoEditorCard(no,idx,todos){
            <select class="opt-dest-sel" id="opt_dest_${no.id}_${oi}" style="flex:1; min-width:60%; padding:10px; font-size:13px; height:auto;">
              <option value="">Ainda não decidi...</option>
              ${outrosNos.map(x=>`<option value="${x.id}" ${o.destinoId===x.id?'selected':''}>Vincular ao Bloco #${todos.indexOf(x)+1} ➔ ${esc((x.pergunta||x.titulo||'').slice(0,30))}</option>`).join('')}
-             <option value="diagnostico_direto" ${o.destino==='diagnostico_direto'?'selected':''}>✓ Dar diagnóstico final (Sair)</option>
+             <option value="diagnostico_direto" ${o.destino==='diagnostico_direto'?'selected':''}>✓ final do fluxo (Sair)</option>
            </select>
            <button onclick="autoCriarNo('${no.id}', ${oi}, 'pergunta')" style="height:39px; background:${corGrupo}22; color:${corGrupo}; border:1px solid ${corGrupo}66; padding:0 12px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center;">＋ ❓ Nova Pergunta</button>
            <button onclick="autoCriarNo('${no.id}', ${oi}, 'diagnostico')" style="height:39px; background:rgba(46,204,113,.15); color:var(--green2); border:1px solid rgba(46,204,113,.4); padding:0 12px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center;">＋ ✅ Diagnóstico</button>
