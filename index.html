@@ -800,7 +800,7 @@ function buildFluxoExec(){
     const opcoesHtml=(noAtual.opcoes||[]).map((o,i)=>`<button class="fluxo-opt-btn" onclick="A.fluxoResponder(${i})"><span style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.5px;min-width:20px;color:rgba(34,211,238,.5)">${String.fromCharCode(65+i)}</span> ${esc(o.label)}<span class="fluxo-opt-arrow">›</span></button>`).join('');
     conteudoPrincipal = `
     <div class="fluxo-node-card">
-      <div class="fluxo-node-head"><div class="fluxo-q-badge">PERGUNTA</div><div class="fluxo-question">${esc(noAtual.pergunta||noAtual.titulo||'')}</div></div>
+      <div class="fluxo-node-head"><div class="fluxo-q-badge">  </div><div class="fluxo-question">${esc(noAtual.pergunta||noAtual.titulo||'')}</div></div>
       <div style="padding: 0 16px;">${audioExecHtml} ${fotosExecHtml}</div>
       ${noAtual.descricao?`<div class="fluxo-desc" style="padding-top:0">${esc(noAtual.descricao)}</div>`:''}
       ${noAtual.codigo?`<div style="padding:0 16px"><pre class="code-block" style="margin-top:0"><code>${esc(noAtual.codigo)}</code></pre></div>`:''}
