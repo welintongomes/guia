@@ -1567,38 +1567,68 @@ window.salvarFluxoComNos = async () => {
 };
 
 /* ══ MODAL BIBLIOTECA ══ */
-
-function abrirModalBibItem(item){
+function abrirModalBibItem(item){ 
   fecharModal();
   window._editandoBibId = item?.id || null;
   window._bibFotosTemp = item ? [...(item.fotos || [])] : [];
   window._bibAudioTemp = item?.audio || null;
 
-  const bg=document.createElement('div');bg.className='modal-bg';bg.onclick=e=>{if(e.target===bg)fecharModal();};
+  const bg=document.createElement('div');
+  bg.className='modal-bg';
+  bg.onclick=e=>{if(e.target===bg)fecharModal();};
   
   bg.innerHTML=`<div class="modal orange-top" style="max-height:95vh">
     <div class="modal-handle"></div>
     <h2>${item?'✏ EDITAR':'＋ NOVO'} ITEM DA BIBLIOTECA</h2>
     
     <div style="display:flex;flex-direction:column;gap:10px">
-      <div><div class="label">Título / Pergunta *</div><input type="text" id="bTitulo" class="input" value="${esc(item?.titulo||'')}" placeholder="Ex: Pressão dos Pneus…"></div>
-      <div><div class="label">Descrição / Solução</div><textarea id="bDesc" class="textarea" style="min-height:80px" placeholder="Detalhes…">${esc(item?.descricao||'')}</textarea></div>
-      <div><div class="label" style="color:var(--yellow)">💻 CÓDIGO FONTE (Opcional)</div><textarea id="bCodigo" class="textarea code-input" placeholder="Cole seu código aqui..." onkeydown="if(event.key==='Tab'){event.preventDefault();const s=this.selectionStart;this.value=this.value.substring(0,s)+'  '+this.value.substring(this.selectionEnd);this.selectionEnd=s+2;}">${esc(item?.codigo||'')}</textarea></div>
       
-      <div style="display:flex;gap:10px">
-        <div style="flex:1"><div class="label">Categoria</div><input type="text" id="bCat" class="input" value="${esc(item?.categoria||'')}" placeholder="Motor, Suspensão…"></div>
-        <div style="flex:1"><div class="label">Alerta</div><input type="text" id="bAlerta" class="input" value="${esc(item?.alerta||'')}" placeholder="⚠ Cuidado com…"></div>
+      <div>
+        <div class="label">Título / Pergunta *</div>
+        <input type="text" id="bTitulo" class="input" value="${esc(item?.titulo||'')}" placeholder="Ex: Pressão dos Pneus…">
       </div>
 
+      <div>
+        <div class="label">Descrição / Solução</div>
+        <textarea id="bDesc" class="textarea" style="min-height:80px" placeholder="Detalhes…">${esc(item?.descricao||'')}</textarea>
+      </div>
+
+      <div>
+        <div class="label" style="color:var(--yellow)">💻 CÓDIGO FONTE (Opcional)</div>
+        <textarea id="bCodigo" class="textarea code-input" placeholder="Cole seu código aqui..."
+        onkeydown="if(event.key==='Tab'){event.preventDefault();const s=this.selectionStart;this.value=this.value.substring(0,s)+'  '+this.value.substring(this.selectionEnd);this.selectionEnd=s+2;}">${esc(item?.codigo||'')}</textarea>
+      </div>
+      
+      <div style="display:flex;gap:10px">
+        <div style="flex:1">
+          <div class="label">Categoria</div>
+          <input type="text" id="bCat" class="input" value="${esc(item?.categoria||'')}" placeholder="Motor, Suspensão…">
+        </div>
+
+        <div style="flex:1">
+          <div class="label">Alerta</div>
+          <input type="text" id="bAlerta" class="input" value="${esc(item?.alerta||'')}" placeholder="⚠ Cuidado com…">
+        </div>
+      </div>
+
+      <!-- ===== FOTO ===== -->
       <div style="display:flex;gap:6px">
         <div style="flex:1">
           <div class="label" style="font-size:10px">📷 FOTOS</div>
-          <div class="photo-drop" onclick="document.getElementById('bibPhotoInput').click()">
+
+          <!-- BOTÃO PRINCIPAL -->
+          <div class="photo-drop" onclick="abrirEscolhaFotoBib()">
             <div style="font-size:20px;opacity:.6">📷</div>
           </div>
-          <input type="file" id="bibPhotoInput" accept="image/*" multiple capture="environment" style="display:none" onchange="adicionarFotosBib(event)">
-          </div>
+
+          <!-- INPUT GALERIA -->
+          <input type="file" id="bibPhotoInputGaleria" accept="image/*" multiple style="display:none" onchange="adicionarFotosBib(event)">
+
+          <!-- INPUT CAMERA -->
+          <input type="file" id="bibPhotoInputCamera" accept="image/*" capture="environment" style="display:none" onchange="adicionarFotosBib(event)">
+        </div>
         
+        <!-- AUDIO PC -->
         <div style="flex:1">
           <div class="label" style="font-size:10px; color:var(--cyan2)">🎙 PC / NATIVO</div>
           <div id="btnGravar_bib" class="photo-drop" style="border-color:rgba(34,211,238,.3); background:rgba(34,211,238,.02)" onclick="toggleGravacaoNativa('bib')">
@@ -1606,6 +1636,7 @@ function abrirModalBibItem(item){
           </div>
         </div>
 
+        <!-- AUDIO CEL -->
         <div style="flex:1">
           <div class="label" style="font-size:10px; color:var(--yellow)">📱 CELULAR</div>
           <div class="photo-drop" style="border-color:rgba(245,200,0,.3); background:rgba(245,200,0,.02)" onclick="document.getElementById('bibAudioInput').click()">
@@ -1622,9 +1653,10 @@ function abrirModalBibItem(item){
     <div style="display:flex;gap:8px;margin-top:14px">
       ${item?`<button class="btn red sm" onclick="A.deletarBibItem(${item.id})">🗑</button>`:''}
       <button class="btn steel sm" onclick="fecharModal()">Cancelar</button>
-      <button class="btn orange sm" onclick="A.salvarBibItem()" style="flex:2">💾 SALVAR NA BIBLIOTECA</button>
+      <button class="btn orange sm" onclick="A.salvarBibItem()" style="flex:2">💾 SALVAR</button>
     </div>
   </div>`;
+
   document.body.appendChild(bg);
   renderFotosBibPreviews();
   renderAudioPreview('bib');
@@ -2607,7 +2639,42 @@ window.removerFotoBib = (idx) => {
   window._bibFotosTemp.splice(idx, 1);
   renderFotosBibPreviews();
 };
+//nova funçao para escolher se quer da galeria ou capturar a foto
+window.abrirEscolhaFotoBib = () => {
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.onclick = e => { if(e.target === bg) bg.remove(); };
 
+  bg.innerHTML = `
+    <div class="modal" style="max-width:300px">
+      <h3 style="text-align:center">📷 Escolher Foto</h3>
+
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+        
+        <button class="btn orange" onclick="
+          document.getElementById('bibPhotoInputCamera').click();
+          this.closest('.modal-bg').remove();
+        ">
+          📸 Tirar Foto
+        </button>
+
+        <button class="btn steel" onclick="
+          document.getElementById('bibPhotoInputGaleria').click();
+          this.closest('.modal-bg').remove();
+        ">
+          🖼 Galeria
+        </button>
+
+        <button class="btn" onclick="this.closest('.modal-bg').remove()">
+          Cancelar
+        </button>
+
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(bg);
+};
 /* ══ INIT ══ */
 (async()=>{
   try{
