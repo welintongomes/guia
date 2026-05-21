@@ -1623,7 +1623,7 @@ function buildNosEditor(nos) {
       const noAlvo = nosMap.get(id);
       htmlFlatList.push(`
         <div style="background: rgba(34, 211, 238, 0.03); border: 1px dashed rgba(34, 211, 238, 0.3); padding: 10px; border-radius: var(--r); font-size: 12px; color: var(--cyan2); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
-           <span>🔄 <b>RECONEXÃO DE ESCOPO:</b> As decisões acima direcionam o cliente de volta ao Bloco: <b>"${esc(noAlvo?.pergunta || noAlvo?.titulo)}"</b></span>
+           <span>🔄 <b>RECONEXÃO DE ESCOPO:</b> As decisões acima direcionam o usuário de volta ao Bloco: <b>"${esc(noAlvo?.pergunta || noAlvo?.titulo)}"</b></span>
            <button class="step-mini-btn edit" onclick="window.scrollParaNo('${id}')">Subir para o Bloco ↑</button>
         </div>`);
       return;
@@ -2597,7 +2597,7 @@ window.adicionarNoEditorMagico = () => {
     
     // 👇 Gera nome automático
     const num = window._nosEditor.length + 1;
-    window._nosEditor.push({id: novoId, tipo: 'pergunta', pergunta: 'P' + num, opcoes: []});
+    window._nosEditor.push({id: novoId, tipo: 'pergunta', pergunta: 'Pergunta' + num, opcoes: []});
     
     document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor, null);
     setTimeout(() => {
@@ -2613,7 +2613,7 @@ window.adicionarOpcaoEditorMagico = (noId) => {
         if(!no.opcoes) no.opcoes = [];
         // 👇 Gera Resposta Automática (R1, R2, etc)
         const numResp = no.opcoes.length + 1;
-        no.opcoes.push({label:'R' + numResp, destinoId:'', destino:''});
+        no.opcoes.push({label:'Resposta ' + numResp, destinoId:'', destino:''});
         
         document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor, null);
     }
