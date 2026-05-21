@@ -728,12 +728,19 @@ function buildSelecionarExec(){
   return`<div class="card"><div class="card-head"><div class="card-title">▶ SELECIONAR PROCEDIMENTO</div></div><div class="card-body"><div class="info-box">Escolha um procedimento para execução guiada.</div></div></div>
   <div style="display:flex;flex-direction:column;gap:8px">${S.procedimentos.map(p=>`<div class="proc-card" onclick="A.iniciarExec(${p.id})"><div class="proc-card-body"><div class="proc-title">▶ ${esc(p.nome)}</div><div class="proc-meta">${(p.steps||[]).length} passos · ${p.categoria||'Geral'}</div></div></div>`).join('')}</div>`;
 }
+
 function buildExecAtiva(){
   const exec=S.execAtiva;const proc=S.procedimentos.find(p=>p.id===exec.procId);if(!proc)return buildSelecionarExec();
   const steps=(proc.steps||[]).slice().sort((a,b)=>a.ordem-b.ordem);if(!steps.length)return`<div class="empty"><div class="empty-desc">Este procedimento não tem passos.</div></div>`;
   const done=new Set(exec.stepsDone||[]);const total=steps.length,ndone=done.size;
+  
+  // 👇 MUDANÇA AQUI: Adicionado onclick, cursor:pointer e efeito hover
   const dotRow=steps.map((s,i)=>`${i>0?`<div class="exec-line${done.has(s.id)?' done':''}"></div>`:''}
-    <div class="exec-dot${done.has(s.id)?' done':exec.stepAtual===s.id?' active':''}">${s.ordem}</div>`).join('');
+    <div class="exec-dot${done.has(s.id)?' done':exec.stepAtual===s.id?' active':''}" 
+         onclick="window.voltarPassoProcedimento('${s.id}')" 
+         style="cursor:pointer;" 
+         title="Ir/Voltar para a Etapa #${s.ordem}">${s.ordem}</div>`).join('');
+         
   const proximo=steps.find(s=>!done.has(s.id));
   let conteudo='';
   if(!proximo){
@@ -746,6 +753,29 @@ function buildExecAtiva(){
   return`<div class="card"><div class="card-head"><div class="card-title">⚙ ${esc(proc.nome)}</div><span style="font-family:var(--font-mono);font-size:10px;color:var(--chrome)">${ndone}/${total}</span></div><div style="padding:8px 14px 5px"><div class="exec-progress">${dotRow}</div><div style="display:flex;justify-content:space-between;padding:0 2px;margin-top:3px"><span style="font-family:var(--font-mono);font-size:9px;color:var(--chrome)">PROGRESSO</span><span style="font-family:var(--font-mono);font-size:9px;color:var(--yellow)">${Math.round((ndone/total)*100)}%</span></div></div></div>
   <div style="display:flex;flex-direction:column;gap:8px;padding-bottom:20px">${conteudo}<button class="btn ghost sm" onclick="A.confirmarAbandonar()">✕ Abandonar</button></div>`;
 }
+
+window.voltarPassoProcedimento = (stepId) => {
+  if (!S.execAtiva) return;
+  const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
+  if (!proc) return;
+
+  const steps = (proc.steps || []).slice().sort((a, b) => a.ordem - b.ordem);
+  const targetStep = steps.find(s => s.id === stepId);
+  if (!targetStep) return;
+
+  // Filtra o array de concluídos: mantém APENAS os passos que vêm ANTES do passo clicado.
+  // Isso efetivamente "rebobina" a execução até a bolinha que você clicou.
+  S.execAtiva.stepsDone = (S.execAtiva.stepsDone || []).filter(doneId => {
+    const s = steps.find(x => x.id === doneId);
+    return s && s.ordem < targetStep.ordem;
+  });
+
+  // Atualiza o ponteiro atual e reseta o marcador de tempo do Analytics (se você instalou aquela melhoria de métricas)
+  S.execAtiva.stepAtual = stepId;
+  if(S.execAtiva.ultimoTimestamp) S.execAtiva.ultimoTimestamp = Date.now();
+
+  render(); // Atualiza a tela imediatamente
+};
 
 function buildExecStepCard(step,faltando){
   if(faltando.length>0)return`<div class="seq-error-box"><div class="seq-error-title">⛔ ERRO DE SEQUÊNCIA</div><div style="font-size:12px;color:var(--chrome);line-height:1.5">Passo <strong style="color:white">#${step.ordem} ${esc(step.titulo)}</strong> — conclua antes:</div><div class="seq-missing-list">${faltando.map(s=>`<div class="seq-missing-item"><div class="seq-missing-num">${s.ordem}</div><div class="seq-missing-name">${esc(s.titulo)}</div></div>`).join('')}</div></div>`;
@@ -1484,10 +1514,22 @@ verProcNoFluxo(procId, procNome, valorSugerido = 0) {
   },
 
   salvarItemOrcamento() {
-    const desc = document.getElementById('orcDesc')?.value?.trim();
+    let desc = document.getElementById('orcDesc')?.value?.trim();
     const valStr = document.getElementById('orcValor')?.value;
     const valor = parseFloat(valStr);
-    if(!desc || isNaN(valor)) { toast('⚠ Preencha uma descrição e um valor numérico válido!', 'error'); return; }
+    
+    // Bloqueia apenas se o valor estiver em branco ou incorreto
+    if (isNaN(valor)) { 
+      toast('⚠ Preencha um valor numérico válido!', 'error'); 
+      return; 
+    }
+    
+    // 🟢 REGRA AUTOMÁTICA: Se a descrição estiver vazia, puxa o nome do passo atual
+    if (!desc) {
+      const fluxo = S.fluxos.find(f => f.id === S.fluxoExec.fluxoId);
+      const noAtual = fluxo?.nos?.find(n => n.id === S.fluxoExec.noAtual);
+      desc = noAtual ? (noAtual.pergunta || noAtual.titulo) : 'Item sem descrição';
+    }
     
     if(!S.fluxoExec.orcamento) S.fluxoExec.orcamento = [];
     S.fluxoExec.orcamento.push({ descricao: desc, valor: valor });
