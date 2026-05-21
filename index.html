@@ -2693,7 +2693,7 @@ window.adicionarOpcaoEditorMagico = (noId) => {
         if(!no.opcoes) no.opcoes = [];
         // 👇 Gera Resposta Automática (R1, R2, etc)
         const numResp = no.opcoes.length + 1;
-        no.opcoes.push({label:'Resposta ' + numResp, destinoId:'', destino:''});
+        no.opcoes.push({label:'Resposta' + numResp, destinoId:'', destino:''});
         
         document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor, null);
     }
