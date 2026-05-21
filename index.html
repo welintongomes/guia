@@ -732,51 +732,70 @@ function buildSelecionarExec(){
 function buildExecAtiva(){
   const exec=S.execAtiva;const proc=S.procedimentos.find(p=>p.id===exec.procId);if(!proc)return buildSelecionarExec();
   const steps=(proc.steps||[]).slice().sort((a,b)=>a.ordem-b.ordem);if(!steps.length)return`<div class="empty"><div class="empty-desc">Este procedimento não tem passos.</div></div>`;
-  const done=new Set(exec.stepsDone||[]);const total=steps.length,ndone=done.size;
   
-  // 👇 MUDANÇA AQUI: Adicionado onclick, cursor:pointer e efeito hover
+  const done=new Set(exec.stepsDone||[]);const total=steps.length,ndone=done.size;
+
+  // Garante que existe um passo ativo selecionado no início
+  if (!exec.stepAtual) {
+    const primeiroIncompleto = steps.find(s => !done.has(s.id));
+    exec.stepAtual = primeiroIncompleto ? primeiroIncompleto.id : steps[0].id;
+  }
+
+  // 🔀 NAVEGAÇÃO LIVRE NAS BOLINHAS: Chama a função irParaPassoProcedimento ao clicar
   const dotRow=steps.map((s,i)=>`${i>0?`<div class="exec-line${done.has(s.id)?' done':''}"></div>`:''}
     <div class="exec-dot${done.has(s.id)?' done':exec.stepAtual===s.id?' active':''}" 
-         onclick="window.voltarPassoProcedimento('${s.id}')" 
+         onclick="window.irParaPassoProcedimento('${s.id}')" 
          style="cursor:pointer;" 
-         title="Ir/Voltar para a Etapa #${s.ordem}">${s.ordem}</div>`).join('');
-         
-  const proximo=steps.find(s=>!done.has(s.id));
+         title="Ir para o Passo #${s.ordem}">${s.ordem}</div>`).join('');
+
   let conteudo='';
-  if(!proximo){
+  
+  // Se o usuário concluiu o último passo ou marcou todos como feito
+  if (exec.stepAtual === 'concluido' || (done.size === total && exec.mostrarConcluido)) {
     conteudo=`<div style="text-align:center;padding:28px 16px;display:flex;flex-direction:column;align-items:center;gap:14px"><div style="font-size:52px">✅</div><div style="font-family:var(--font-head);font-size:26px;letter-spacing:2px;color:var(--green2)">TRABALHO CONCLUÍDO!</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;letter-spacing:1px">${total} passos executados</div><button class="btn green" style="max-width:240px" onclick="A.finalizarExec(true)">✔ FINALIZAR EXECUÇÃO</button></div>`;
-  }else{
-    const idxAtual=steps.indexOf(proximo);const faltando=steps.slice(0,idxAtual).filter(s=>!done.has(s.id));
-    const doneCards=steps.filter(s=>done.has(s.id)).map(s=>`<div class="step-done-card"><div class="done-check">✓</div><div class="done-num">#${s.ordem}</div><div class="done-name">${esc(s.titulo)}</div></div>`).join('');
-    conteudo=doneCards+buildExecStepCard(proximo,faltando);
+  } else {
+    // Busca o passo exato correspondente à bolinha ativa para renderizar na tela
+    const passoVisivel = steps.find(s => s.id === exec.stepAtual) || steps[0];
+    
+    // Passa uma lista vazia [] no segundo parâmetro para eliminar bloqueios de sequência
+    conteudo = buildExecStepCard(passoVisivel, []);
   }
+
   return`<div class="card"><div class="card-head"><div class="card-title">⚙ ${esc(proc.nome)}</div><span style="font-family:var(--font-mono);font-size:10px;color:var(--chrome)">${ndone}/${total}</span></div><div style="padding:8px 14px 5px"><div class="exec-progress">${dotRow}</div><div style="display:flex;justify-content:space-between;padding:0 2px;margin-top:3px"><span style="font-family:var(--font-mono);font-size:9px;color:var(--chrome)">PROGRESSO</span><span style="font-family:var(--font-mono);font-size:9px;color:var(--yellow)">${Math.round((ndone/total)*100)}%</span></div></div></div>
   <div style="display:flex;flex-direction:column;gap:8px;padding-bottom:20px">${conteudo}<button class="btn ghost sm" onclick="A.confirmarAbandonar()">✕ Abandonar</button></div>`;
 }
 
-window.voltarPassoProcedimento = (stepId) => {
+// window.voltarPassoProcedimento = (stepId) => {
+//   if (!S.execAtiva) return;
+//   const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
+//   if (!proc) return;
+
+//   const steps = (proc.steps || []).slice().sort((a, b) => a.ordem - b.ordem);
+//   const targetStep = steps.find(s => s.id === stepId);
+//   if (!targetStep) return;
+
+//   // Filtra o array de concluídos: mantém APENAS os passos que vêm ANTES do passo clicado.
+//   // Isso efetivamente "rebobina" a execução até a bolinha que você clicou.
+//   S.execAtiva.stepsDone = (S.execAtiva.stepsDone || []).filter(doneId => {
+//     const s = steps.find(x => x.id === doneId);
+//     return s && s.ordem < targetStep.ordem;
+//   });
+
+//   // Atualiza o ponteiro atual e reseta o marcador de tempo do Analytics (se você instalou aquela melhoria de métricas)
+//   S.execAtiva.stepAtual = stepId;
+//   if(S.execAtiva.ultimoTimestamp) S.execAtiva.ultimoTimestamp = Date.now();
+
+//   render(); // Atualiza a tela imediatamente
+// };
+window.irParaPassoProcedimento = (stepId) => {
   if (!S.execAtiva) return;
-  const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
-  if (!proc) return;
-
-  const steps = (proc.steps || []).slice().sort((a, b) => a.ordem - b.ordem);
-  const targetStep = steps.find(s => s.id === stepId);
-  if (!targetStep) return;
-
-  // Filtra o array de concluídos: mantém APENAS os passos que vêm ANTES do passo clicado.
-  // Isso efetivamente "rebobina" a execução até a bolinha que você clicou.
-  S.execAtiva.stepsDone = (S.execAtiva.stepsDone || []).filter(doneId => {
-    const s = steps.find(x => x.id === doneId);
-    return s && s.ordem < targetStep.ordem;
-  });
-
-  // Atualiza o ponteiro atual e reseta o marcador de tempo do Analytics (se você instalou aquela melhoria de métricas)
+  
+  // Altera o foco da tela para a bolinha clicada (seja ela no passado ou no futuro)
   S.execAtiva.stepAtual = stepId;
-  if(S.execAtiva.ultimoTimestamp) S.execAtiva.ultimoTimestamp = Date.now();
-
-  render(); // Atualiza a tela imediatamente
+  S.execAtiva.mostrarConcluido = false;
+  
+  render(); // Atualiza a renderização do cartão imediatamente
 };
-
 function buildExecStepCard(step,faltando){
   if(faltando.length>0)return`<div class="seq-error-box"><div class="seq-error-title">⛔ ERRO DE SEQUÊNCIA</div><div style="font-size:12px;color:var(--chrome);line-height:1.5">Passo <strong style="color:white">#${step.ordem} ${esc(step.titulo)}</strong> — conclua antes:</div><div class="seq-missing-list">${faltando.map(s=>`<div class="seq-missing-item"><div class="seq-missing-num">${s.ordem}</div><div class="seq-missing-name">${esc(s.titulo)}</div></div>`).join('')}</div></div>`;
   const fotosHtml=step.fotos?.length?`<div class="exec-imgs">${step.fotos.map((f,i)=>`<div class="exec-img" onclick="lightbox('${f}')"><img src="${f}" alt="${i+1}" loading="lazy"></div>`).join('')}</div>`:'';
@@ -1277,23 +1296,42 @@ procBuscar(val){
     S.execAtiva={procId,stepsDone:[],stepAtual:steps[0]?.id||null,startTs:Date.now(),ultimoTimestamp:Date.now(),tempos:{}};S.tab='executar';render();
   },
   iniciarExecDoFluxo(procId){S.fluxoExec=null;A.iniciarExec(procId);},
+  
   marcarStepDone(stepId){
-    if(!S.execAtiva)return;const proc=S.procedimentos.find(p=>p.id===S.execAtiva.procId);if(!proc)return;
-    const steps=proc.steps.slice().sort((a,b)=>a.ordem-b.ordem);const step=steps.find(s=>s.id===stepId);if(!step)return;
-    const done=new Set(S.execAtiva.stepsDone);const faltando=steps.filter(s=>s.ordem<step.ordem&&!done.has(s.id));
-    if(faltando.length>0){toast(`⛔ Faltam ${faltando.length} passo(s)!`,'error');return;}
-
-    // 🕒 CÁLCULO DE METRIFICADO DE TEMPO POR PASSO
-    const agora = Date.now();
-    const tempoGastoMs = agora - (S.execAtiva.ultimoTimestamp || S.execAtiva.startTs);
-    S.execAtiva.tempos[stepId] = tempoGastoMs; 
-    S.execAtiva.ultimoTimestamp = agora; // Atualiza o ponteiro de tempo para a próxima etapa
-
-    S.execAtiva.stepsDone.push(stepId);
-    const proximo=steps.find(s=>!S.execAtiva.stepsDone.includes(s.id));
-    S.execAtiva.stepAtual=proximo?.id||null;render();
+    if(!S.execAtiva) return;
+    const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
+    if(!proc) return;
+    
+    const steps = (proc.steps || []).slice().sort((a, b) => a.ordem - b.ordem);
+    
+    // Adiciona o passo atual aos concluídos (bolinha fica verde)
+    if (!S.execAtiva.stepsDone) S.execAtiva.stepsDone = [];
+    if (!S.execAtiva.stepsDone.includes(stepId)) {
+      S.execAtiva.stepsDone.push(stepId);
+    }
+    
+    // Descobre qual é a próxima bolinha da sequência
+    const idxAtual = steps.findIndex(s => s.id === stepId);
+    if (idxAtual !== -1 && idxAtual < steps.length - 1) {
+      // Avança para a próxima bolinha
+      S.execAtiva.stepAtual = steps[idxAtual + 1].id;
+    } else {
+      // Se era a última bolinha, verifica se tudo foi feito para encerrar
+      if (S.execAtiva.stepsDone.length === steps.length) {
+        S.execAtiva.stepAtual = 'concluido';
+      } else {
+        // Se faltou algum passo que o usuário pulou, volta para o primeiro incompleto
+        const pendente = steps.find(s => !S.execAtiva.stepsDone.includes(s.id));
+        S.execAtiva.stepAtual = pendente ? pendente.id : 'concluido';
+      }
+    }
+    
+    // Atualiza o cronômetro do Analytics se estiver ativo
+    if(S.execAtiva.ultimoTimestamp) S.execAtiva.ultimoTimestamp = Date.now();
+    render();
   },
-async finalizarExec(concluido){
+
+  async finalizarExec(concluido){
     if(!S.execAtiva)return;
     S.execAtiva=null;
     toast(concluido?'✅ Procedimento concluído!':'Execução encerrada.','ok');
