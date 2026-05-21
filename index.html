@@ -289,6 +289,88 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 }
 .code-block { background: var(--ink); padding: 12px; border-radius: var(--r); border: 1px solid rgba(255,255,255,.1); border-left: 3px solid var(--yellow); font-family: var(--font-mono); font-size: 13px; color: #a8c7fa; overflow-x: auto; white-space: pre; margin: 8px 0; tab-size: 2; }
 .code-input { font-family: var(--font-mono); font-size: 12px; color: #a8c7fa; background: rgba(0,0,0,.3); min-height: 100px; white-space: pre; }
+/* --- ESTILOS DA ÁRVORE VISUAL DO FLUXOGRAMA --- */
+.tree-container { display: flex; flex-direction: column; gap: 12px; padding: 5px 0; }
+.tree-node-group { margin-bottom: 5px; width: 100%; }
+.tree-branch { 
+    position: relative; 
+    margin-left: 24px; 
+    padding-left: 16px; 
+    border-left: 2px dashed rgba(34, 211, 238, 0.35); 
+    margin-top: 8px; 
+    margin-bottom: 8px; 
+}
+.tree-branch::before { 
+    content: ''; 
+    position: absolute; 
+    left: 0; 
+    top: 14px; 
+    width: 14px; 
+    height: 2px; 
+    background: rgba(34, 211, 238, 0.35); 
+}
+.branch-label {
+    font-family: var(--font-mono); 
+    font-size: 10px; 
+    color: var(--cyan2); 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px;
+    margin-bottom: 6px; 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 6px;
+}
+.branch-label strong {
+    color: white; 
+    background: rgba(34, 211, 238, 0.2); 
+    padding: 2px 6px; 
+    border-radius: 4px;
+    font-family: var(--font-body);
+}
+/* --- SISTEMA ANTI-ENCURTAMENTO DE FLUXOGRAMA EXTRA PROFUNDO --- */
+.fluxo-caminho-bar {
+    background: rgba(0, 0, 0, 0.25);
+    padding: 6px 10px;
+    border-radius: var(--r);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--chrome);
+    margin-bottom: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    border-left: 3px solid var(--cyan2);
+}
+.fluxo-caminho-seta {
+    color: var(--cyan2);
+    font-weight: bold;
+    font-size: 10px;
+}
+.fluxo-caminho-step {
+    color: #f8fafc;
+    font-weight: 600;
+}
+.fluxo-caminho-resp {
+    background: rgba(34, 211, 238, 0.12);
+    color: var(--cyan2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    border: 1px solid rgba(34, 211, 238, 0.2);
+}
+.focus-badge-ativo {
+    background: rgba(245, 200, 0, 0.08);
+    border: 1px solid rgba(245, 200, 0, 0.25);
+    color: var(--chrome2);
+    padding: 10px 14px;
+    border-radius: var(--r2);
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
 </style>
 </head>
 <body>
@@ -596,9 +678,14 @@ function buildStepCard(step,procId,idx){
   const badges = `<div style="display:flex;gap:3px;flex-wrap:wrap">${step.fotos?.length?`<span class="step-tag">📷 ${step.fotos.length}</span>`:''}${step.audio?`<span class="step-tag">🎙 ÁUDIO</span>`:''}${step.alerta?'<span class="step-tag" style="border-color:rgba(192,57,43,.3);color:#e74c3c">⚠</span>':''}</div>`;
   const actions = `<div class="step-actions"><button class="step-mini-btn up" onclick="event.stopPropagation(); A.moverStep('${step.id}',${procId},-1)">▲</button><button class="step-mini-btn dn" onclick="event.stopPropagation(); A.moverStep('${step.id}',${procId},1)">▼</button><button class="step-mini-btn edit" onclick="event.stopPropagation(); A.editarStep('${step.id}',${procId})">✏</button><button class="step-mini-btn del" onclick="event.stopPropagation(); A.deletarStep('${step.id}',${procId})">✕</button></div>`;
 
-  // 🔴 VERSÃO RECOLHIDA (Leve, sem carregar mídia pesada)
+  // 🔴 VERSÃO RECOLHIDA (Com atributos Drag & Drop adicionados)
   if (!isAberto) {
-      return `<div class="step-card collapsed" onclick="toggleStepAberto('${step.id}', ${procId})" style="cursor:pointer; display:flex; align-items:center; padding:10px; background:var(--steel); border:1px solid rgba(255,255,255,.05); border-radius:var(--r); margin-bottom:8px; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background='var(--steel)'">
+      return `<div class="step-card collapsed" onclick="toggleStepAberto('${step.id}', ${procId})" 
+            draggable="true" 
+            ondragstart="A.drag(event, '${step.id}')" 
+            ondragover="A.allowDrop(event)" 
+            ondrop="A.drop(event, '${step.id}', ${procId})"
+            style="cursor:move; display:flex; align-items:center; padding:10px; background:var(--steel); border:1px solid rgba(255,255,255,.05); border-radius:var(--r); margin-bottom:8px; transition:background 0.2s;">
           <div style="background:var(--yellow); color:var(--ink); width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:12px; margin-right:12px; flex-shrink:0;">${step.ordem}</div>
           <div style="flex:1; font-weight:bold; color:var(--chrome2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px;">${esc(step.titulo)}</div>
           ${badges}
@@ -606,11 +693,16 @@ function buildStepCard(step,procId,idx){
       </div>`;
   }
 
-  // 🟢 VERSÃO EXPANDIDA (Carrega as fotos e áudios só de quem você abriu)
+  // 🟢 VERSÃO EXPANDIDA (Com atributos Drag & Drop adicionados)
   const fotosHtml = step.fotos?.length ? `<div class="step-imgs">${step.fotos.map((f,i)=>`<div class="step-img" onclick="event.stopPropagation(); lightbox('${f}')"><img src="${f}" alt="${i+1}" loading="lazy"></div>`).join('')}</div>` : '';
   const audioHtml = step.audio ? `<div style="margin-top:8px; background:rgba(0,0,0,.2); padding:8px; border-radius:4px; border-left:3px solid var(--yellow)"><div style="font-family:var(--font-mono);font-size:9px;color:var(--yellow);text-transform:uppercase;margin-bottom:4px">🎙 Áudio de Instrução</div><audio controls src="${step.audio}" style="width:100%; height:30px;" onplay="tocarAudioLockScreen('${esc(step.titulo)}')"></audio></div>` : '';
 
-  return `<div class="step-card" id="sc_${step.id}" style="border:1px solid var(--yellow); cursor:pointer;" onclick="toggleStepAberto('${step.id}', ${procId})">
+  return `<div class="step-card" id="sc_${step.id}" 
+    draggable="true" 
+    ondragstart="A.drag(event, '${step.id}')" 
+    ondragover="A.allowDrop(event)" 
+    ondrop="A.drop(event, '${step.id}', ${procId})"
+    style="border:1px solid var(--yellow); cursor:move;" onclick="toggleStepAberto('${step.id}', ${procId})">
     <div class="step-num-col"><div class="step-num">${step.ordem}</div></div>
     <div class="step-body" onclick="event.stopPropagation()">
       <div class="step-title">${esc(step.titulo)}</div>
@@ -626,7 +718,6 @@ function buildStepCard(step,procId,idx){
     </div>
   </div>`;
 }
-
 /* ══ ABA EXECUTAR ══ */
 function buildExecutar(){
   if(!S.procedimentos.length)return`<div class="empty"><div class="empty-icon">▶</div><div class="empty-title">NADA PARA EXECUTAR</div><div class="empty-desc">Crie um procedimento primeiro.</div></div>`;
@@ -1025,6 +1116,39 @@ function buildHistorico() {
 
 /* ══ AÇÕES ══ */
 const A={
+  // Cole estes três métodos logo abaixo de "const A={"
+  drag(ev, stepId) {
+    ev.dataTransfer.setData("text/plain", stepId);
+    ev.currentTarget.style.opacity = "0.4";
+  },
+  allowDrop(ev) {
+    ev.preventDefault();
+  },
+  async drop(ev, targetStepId, procId) {
+    ev.preventDefault();
+    const draggedStepId = ev.dataTransfer.getData("text/plain");
+    if (draggedStepId === targetStepId) return;
+
+    const proc = S.procedimentos.find(p => p.id === procId);
+    if (!proc) return;
+
+    const steps = [...proc.steps].sort((a, b) => a.ordem - b.ordem);
+    const dragIdx = steps.findIndex(s => s.id === draggedStepId);
+    const targetIdx = steps.findIndex(s => s.id === targetStepId);
+
+    if(dragIdx === -1 || targetIdx === -1) return;
+
+    const [removed] = steps.splice(dragIdx, 1);
+    steps.splice(targetIdx, 0, removed);
+
+    steps.forEach((s, i) => s.ordem = i + 1);
+    proc.steps = steps;
+    proc.atualizadoEm = Date.now();
+
+    await DB.put('procedimentos', proc);
+    const bodyEl = document.getElementById('body');
+    if(bodyEl) bodyEl.innerHTML = buildVerProcedimento(proc);
+  },
   setTab(t){S.tab=t;S.viewProcId=null;S.viewFluxoId=null;S.fluxoExec=null;render();},
   acaoPrincipal(){A.novoProcedimento();},
   fecharProc(){S.viewProcId=null;S.tab='procedimentos';render();},
@@ -1120,7 +1244,7 @@ procBuscar(val){
   iniciarExec(procId){
     const proc=S.procedimentos.find(p=>p.id===procId);if(!proc||!proc.steps?.length){toast('⚠ Sem passos!','');return;}
     const steps=proc.steps.slice().sort((a,b)=>a.ordem-b.ordem);
-    S.execAtiva={procId,stepsDone:[],stepAtual:steps[0]?.id||null,startTs:Date.now()};S.tab='executar';render();
+    S.execAtiva={procId,stepsDone:[],stepAtual:steps[0]?.id||null,startTs:Date.now(),ultimoTimestamp:Date.now(),tempos:{}};S.tab='executar';render();
   },
   iniciarExecDoFluxo(procId){S.fluxoExec=null;A.iniciarExec(procId);},
   marcarStepDone(stepId){
@@ -1128,7 +1252,15 @@ procBuscar(val){
     const steps=proc.steps.slice().sort((a,b)=>a.ordem-b.ordem);const step=steps.find(s=>s.id===stepId);if(!step)return;
     const done=new Set(S.execAtiva.stepsDone);const faltando=steps.filter(s=>s.ordem<step.ordem&&!done.has(s.id));
     if(faltando.length>0){toast(`⛔ Faltam ${faltando.length} passo(s)!`,'error');return;}
-    S.execAtiva.stepsDone.push(stepId);const proximo=steps.find(s=>!S.execAtiva.stepsDone.includes(s.id));
+
+    // 🕒 CÁLCULO DE METRIFICADO DE TEMPO POR PASSO
+    const agora = Date.now();
+    const tempoGastoMs = agora - (S.execAtiva.ultimoTimestamp || S.execAtiva.startTs);
+    S.execAtiva.tempos[stepId] = tempoGastoMs; 
+    S.execAtiva.ultimoTimestamp = agora; // Atualiza o ponteiro de tempo para a próxima etapa
+
+    S.execAtiva.stepsDone.push(stepId);
+    const proximo=steps.find(s=>!S.execAtiva.stepsDone.includes(s.id));
     S.execAtiva.stepAtual=proximo?.id||null;render();
   },
 async finalizarExec(concluido){
@@ -1393,9 +1525,18 @@ bibBuscar(val){
     if(lista) lista.innerHTML = buildBibliotecaLista(); else render();
   },
   novoBibItem(){abrirModalBibItem(null);},
-  editarBibItem(id){const b=S.biblioteca.find(x=>x.id===id);if(!b)return;abrirModalBibItem(b);},
-  verBibItem(id){const b=S.biblioteca.find(x=>x.id===id);if(!b)return;abrirModalVerBibItem(b);},
-  
+  async verBibItem(id){
+    // Busca o registro completo direto do banco de dados (Lazy Loading)
+    const b = await DB.get('biblioteca', id);
+    if(!b) return;
+    abrirModalVerBibItem(b);
+  },
+  async editarBibItem(id){
+    // Busca o registro completo direto do banco de dados (Lazy Loading)
+    const b = await DB.get('biblioteca', id);
+    if(!b) return;
+    abrirModalBibItem(b);
+  },
   async salvarBibItem(){
     const titulo=v('bTitulo');if(!titulo){toast('⚠ Digite o título!','');return;}
     const editId=window._editandoBibId;
@@ -1448,10 +1589,152 @@ bibBuscar(val){
 
 /* ══ MODAL FLUXO ══ */
 
+function buildNosEditor(nos) {
+  if (!nos || nos.length === 0) {
+    return `<div style="text-align:center;padding:24px;color:var(--chrome);font-family:var(--font-mono);font-size:11px;text-transform:uppercase;border:1px dashed rgba(255,255,255,0.1);border-radius:8px;">Nenhum bloco criado ainda. Clique em "NOVO BLOCO (NÓ)".</div>`;
+  }
 
-function buildNosEditor(nos,fluxo){
-  if(!nos.length)return`<div style="text-align:center;padding:12px;color:var(--chrome);font-family:var(--font-mono);font-size:10px;text-transform:uppercase">Nenhum nó ainda</div>`;
-  return nos.map((n,i)=>buildNoEditorCard(n,i,nos)).join('');
+  const nosMap = new Map(nos.map(n => [n.id, n]));
+  const visitados = new Set();
+  const htmlFlatList = [];
+  
+  // Gerenciador do Sistema de Zoom/Foco
+  let noInicialId = nos[0].id;
+  let mostrandoSubarvore = false;
+  if (window._fluxoFocoId && nosMap.has(window._fluxoFocoId)) {
+      noInicialId = window._fluxoFocoId;
+      mostrandoSubarvore = true;
+  }
+
+  // Desenha aviso de foco ativo se o usuário deu "zoom" em um ramo profundo
+  let topoFocoHtml = '';
+  if (mostrandoSubarvore) {
+      const noFoco = nosMap.get(noInicialId);
+      topoFocoHtml = `
+      <div class="focus-badge-ativo">
+         <span style="min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">🔍 <b>VISÃO FOCADA:</b> Editando ramo de: <strong style="color:var(--yellow)">"${esc(noFoco.pergunta || noFoco.titulo)}"</strong></span>
+         <button class="btn yellow sm" style="width:auto; padding:4px 8px; font-size:11px; margin-left:12px;" onclick="window.limparFocoFluxo()">VER TUDO</button>
+      </div>`;
+  }
+
+  // Varredura sequencial profunda (DFS), mas jogando os blocos de forma plana (Full Width)
+  function traverseFlatList(id, currentPath) {
+    if (visitados.has(id)) {
+      const noAlvo = nosMap.get(id);
+      htmlFlatList.push(`
+        <div style="background: rgba(34, 211, 238, 0.03); border: 1px dashed rgba(34, 211, 238, 0.3); padding: 10px; border-radius: var(--r); font-size: 12px; color: var(--cyan2); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
+           <span>🔄 <b>RECONEXÃO DE ESCOPO:</b> As decisões acima direcionam o cliente de volta ao Bloco: <b>"${esc(noAlvo?.pergunta || noAlvo?.titulo)}"</b></span>
+           <button class="step-mini-btn edit" onclick="window.scrollParaNo('${id}')">Subir para o Bloco ↑</button>
+        </div>`);
+      return;
+    }
+
+    const no = nosMap.get(id);
+    if (!no) return;
+
+    visitados.add(id);
+    htmlFlatList.push(buildNoEditorCard(no, nos.indexOf(no), nos, currentPath));
+
+    if (no.tipo !== 'diagnostico' && no.opcoes) {
+      no.opcoes.forEach((op) => {
+        if (op.destinoId && nosMap.has(op.destinoId)) {
+          const nextPath = [...currentPath, { tipo: 'bloco', txt: no.pergunta || no.titulo }, { tipo: 'resp', txt: op.label }];
+          traverseFlatList(op.destinoId, nextPath);
+        }
+      });
+    }
+  }
+
+  // Inicializa o desenho do fluxo com largura total
+  const raizNome = nosMap.get(noInicialId)?.pergunta || nosMap.get(noInicialId)?.titulo || 'Início';
+  traverseFlatList(noInicialId, [{ tipo: 'bloco', txt: raizNome }]);
+
+  // Captura blocos órfãos desconectados (Apenas se não estiver em modo focado)
+  let isoladosHtml = '';
+  if (!mostrandoSubarvore) {
+    const htmlIsolados = [];
+    nos.forEach((n) => {
+      if (!visitados.has(n.id)) {
+        function traverseIsolados(id, path) {
+          if (visitados.has(id)) return;
+          const node = nosMap.get(id);
+          if (!node) return;
+          visitados.add(id);
+          htmlIsolados.push(buildNoEditorCard(node, nos.indexOf(node), nos, path));
+          if (node.tipo !== 'diagnostico' && node.opcoes) {
+            node.opcoes.forEach(op => {
+              if (op.destinoId && nosMap.has(op.destinoId)) {
+                traverseIsolados(op.destinoId, [...path, { tipo: 'bloco', txt: node.pergunta || node.titulo }, { tipo: 'resp', txt: op.label }]);
+              }
+            });
+          }
+        }
+        traverseIsolados(n.id, [{ tipo: 'bloco', txt: n.pergunta || n.titulo || 'Bloco Avulso' }]);
+      }
+    });
+    
+    if (htmlIsolados.length > 0) {
+      isoladosHtml = `
+        <div style="margin-top:25px; border-top:2px dashed rgba(192,57,43,0.3); padding-top:15px;">
+          <div class="label" style="color:#e74c3c; font-size:11px; margin-bottom:10px; letter-spacing:1px;">⚠️ BLOCOS AVULSOS / DESCONECTADOS (Mapeie um destino de resposta acima para conectá-los ao fluxo)</div>
+          ${htmlIsolados.join('')}
+        </div>`;
+    }
+  }
+
+  return topoFocoHtml + `<div style="display:flex; flex-direction:column; gap:12px;">${htmlFlatList.join('')}</div>` + isoladosHtml;
+}
+
+// Auxiliar técnico para montar as tags de linhagem organizadas
+function buildCaminhoBarHtml(path) {
+    if (!path || path.length === 0) return '';
+    const itensHtml = path.map((item) => {
+        if (item.tipo === 'bloco') {
+            return `<span class="fluxo-caminho-step">${esc((item.txt || '').slice(0, 20))}</span>`;
+        } else {
+            return `<span class="fluxo-caminho-seta">➔</span><span class="fluxo-caminho-resp">${esc(item.txt)}</span>`;
+        }
+    }).join(' ');
+    return `<div class="fluxo-caminho-bar">${itensHtml}</div>`;
+}
+
+// Função auxiliar mágica que monta a árvore visual aninhando filhos dentro de pais
+function renderTraverseTree(noId, nosMap, visitados, nivel, todosNos) {
+  // Evita Loops Infinitos na tela se o usuário apontar A para B e B para A
+  if (visitados.has(noId)) {
+    const no = nosMap.get(noId);
+    return `<div style="margin-left:24px; padding:6px 12px; background:rgba(231,76,60,0.08); border:1px solid rgba(231,76,60,0.25); border-radius:var(--r); font-size:11px; color:#e74c3c; font-family:var(--font-mono); display:inline-block; margin-top:4px;">🔄 RETORNO DA DECISÃO: Redireciona o fluxo para o bloco existente: "${esc(no?.pergunta || no?.titulo)}"</div>`;
+  }
+  
+  const no = nosMap.get(noId);
+  if (!no) return '';
+  
+  visitados.add(noId);
+  
+  // Gera o bloco HTML atual
+  let html = buildNoEditorCard(no, todosNos.indexOf(no), todosNos);
+  
+  // Se o bloco for uma pergunta e possuir opções de resposta, investiga se tem filhos para aninhar
+  if (no.tipo !== 'diagnostico' && no.opcoes && no.opcoes.length > 0) {
+    let filhosHtml = '';
+    no.opcoes.forEach((op, oi) => {
+      if (op.destinoId && nosMap.has(op.destinoId)) {
+        filhosHtml += `
+          <div class="tree-branch">
+            <div class="branch-label">↳ Se a resposta for: <strong>"${esc(op.label)}"</strong></div>
+            ${renderTraverseTree(op.destinoId, nosMap, visitados, nivel + 1, todosNos)}
+          </div>`;
+      } else if (op.destino === 'diagnostico_direto') {
+        filhosHtml += `
+          <div class="tree-branch">
+            <div class="branch-label" style="color:var(--green2)">↳ Se a resposta for: <strong style="background:rgba(46,204,113,0.15); border-color:rgba(46,204,113,0.3); color:var(--green2)">"${esc(op.label)}"</strong> ➔ Conclui e encerra o fluxo</div>
+          </div>`;
+      }
+    });
+    html += filhosHtml;
+  }
+  
+  return `<div class="tree-node-group" id="group_${noId}">${html}</div>`;
 }
 
 
@@ -1505,12 +1788,64 @@ window.adicionarOpcaoEditor=(noId)=>{
   `;
   optsContainer.appendChild(rowDiv);
 };
+// Cole este validador estrutural exatamente ANTES de window.salvarFluxoComNos
+window.validarEstruturaDoFluxo = (nos, noRaizId) => {
+  const erros = [];
+  const visitados = new Set();
+  const pilhaRec = new Set();
+  const nosMap = new Map(nos.map(n => [n.id, n]));
 
+  if (!noRaizId || !nosMap.has(noRaizId)) {
+    return ["O fluxo não possui um bloco inicial válido."];
+  }
+
+  function verificarNo(id) {
+    if (pilhaRec.has(id)) {
+      const no = nosMap.get(id);
+      erros.push(`🔄 Loop Infinito detectado no bloco: "${no?.pergunta || no?.titulo}"`);
+      return;
+    }
+    if (visitados.has(id)) return;
+
+    visitados.add(id);
+    pilhaRec.add(id);
+
+    const no = nosMap.get(id);
+    if (no && no.tipo !== 'diagnostico' && no.opcoes) {
+      no.opcoes.forEach(op => {
+        if (!op.destinoId && op.destino !== 'diagnostico_direto') {
+          erros.push(`🔀 A opção "${op.label}" do bloco "${no.pergunta}" está sem destino mapeado.`);
+        } else if (op.destinoId && !nosMap.has(op.destinoId)) {
+          erros.push(`❌ O destino da opção "${op.label}" aponta para um bloco inexistente.`);
+        } else if (op.destinoId) {
+          verificarNo(op.destinoId);
+        }
+      });
+    }
+    pilhaRec.delete(id);
+  }
+
+  verificarNo(noRaizId);
+
+  nos.forEach(n => {
+    if (!visitados.has(n.id)) {
+      erros.push(`👻 Bloco Isolado: O bloco "${n.pergunta || n.titulo}" não possui caminhos que cheguem até ele.`);
+    }
+  });
+
+  return erros;
+};
 window.salvarFluxoComNos = async () => {
   const nome=v('fNome');if(!nome){toast('⚠ Digite o nome do fluxo!','');return;}
   
   // 1. Sincroniza a única caixa que está aberta no momento para a memória
   window.sincronizarDOMParaMemoria(); 
+  const errosFluxo = window.validarEstruturaDoFluxo(window._nosEditor, window._nosEditor[0]?.id);
+  if (errosFluxo.length > 0) {
+    if (!confirm("⚠️ Falhas estruturais detectadas no fluxo:\n\n" + errosFluxo.join("\n") + "\n\nDeseja salvar o diagrama mesmo assim?")) {
+      return; // Interrompe o salvamento para o usuário corrigir
+    }
+  }
   const nosColetados = [];
   
   // 2. Lê os dados 100% da Memória (ignorando se a tela está aberta ou fechada)
@@ -2284,139 +2619,107 @@ window.adicionarOpcaoEditorMagico = (noId) => {
     }
 };
 
-function buildNoEditorCard(no,idx,todos){
+
+function buildNoEditorCard(no,idx,todos,path){
   const isAberto = window._noAbertoId === no.id;
   const isPerguntar = no.tipo !== 'diagnostico';
-  const tituloExibicao = esc(no.pergunta||no.titulo||(isPerguntar?'P'+(idx+1):'D'+(idx+1)));
-
-  const origem = window.encontrarOrigemDoNo(no.id, todos);
-  
-  let badgeOrigem = '';
-  if (origem.tipo === 'raiz') {
-      badgeOrigem = `<div style="font-size:10px; background:var(--yellow); color:#000; padding:3px 8px; border-radius:4px; font-weight:bold; margin-right:10px;">🌟 INÍCIO DO FLUXO</div>`;
-  } else if (origem.tipo === 'filho') {
-      badgeOrigem = `<div style="font-size:10px; background:rgba(255,255,255,.1); color:var(--chrome2); padding:3px 8px; border-radius:4px; border:1px dashed rgba(255,255,255,.3); margin-right:10px; display:flex; align-items:center; gap:4px;"><span>🔗 Vem do Bloco #${origem.paiNum}:</span> <b style="color:white">"${origem.respostaTexto || origem.respostaLetra}"</b></div>`;
-  } else {
-      badgeOrigem = `<div style="font-size:10px; background:rgba(192,57,43,.2); color:#e74c3c; padding:3px 8px; border-radius:4px; border:1px solid #e74c3c; margin-right:10px;">⚠ DESCONECTADO (Invisível)</div>`;
-  }
+  const tituloExibicao = esc(no.pergunta || no.titulo || (isPerguntar ? 'P'+(idx+1) : 'D'+(idx+1)));
 
   const paleta = ['#3498db', '#e74c3c', '#9b59b6', '#e67e22', '#1abc9c', '#fd79a8', '#f1c40f'];
   const corGrupo = isPerguntar ? paleta[idx % paleta.length] : 'var(--green2)'; 
+  const caminhoHtml = buildCaminhoBarHtml(path);
 
+  // --- MODO REDUZIDO / RECOLHIDO (Largura total estável) ---
   if (!isAberto) {
       return `
-      <div class="no-card-editor collapsed" style="border:1px solid ${origem.tipo==='orfao'?'#e74c3c':corGrupo}66; background:rgba(0,0,0,.3); border-radius:var(--r); cursor:pointer; display:flex; align-items:center; padding:10px; transition:background 0.2s; margin-bottom:8px;" onclick="toggleNoAberto('${no.id}')" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background='rgba(0,0,0,.3)'">
-        <div style="background:${origem.tipo==='orfao'?'#e74c3c':corGrupo}; color:${isPerguntar||origem.tipo==='orfao'?'#fff':'#000'}; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:14px; margin-right:12px; flex-shrink:0;">${idx+1}</div>
-        <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
-            <div style="display:flex; align-items:center;">${badgeOrigem}</div>
-            <div style="font-weight:bold; color:var(--chrome2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:15px; margin-top:4px;">${tituloExibicao}</div>
+      <div class="no-card-editor collapsed" id="noeditor_${no.id}" style="border:1px solid ${corGrupo}33; background:var(--steel); border-radius:var(--r); cursor:pointer; padding:10px; margin-bottom:2px;" onclick="toggleNoAberto('${no.id}')">
+        ${caminhoHtml}
+        <div style="display:flex; align-items:center; width:100%;">
+          <div style="background:${corGrupo}; color:${isPerguntar?'#fff':'#000'}; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:12px; margin-right:12px; flex-shrink:0;">${idx+1}</div>
+          <div style="flex:1; font-weight:bold; color:var(--chrome2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px;">${tituloExibicao}</div>
+          <div style="font-family:var(--font-mono); font-size:9px; color:${corGrupo}; border:1px solid ${corGrupo}44; padding:2px 6px; border-radius:4px; margin-right:8px; background:rgba(0,0,0,0.2); flex-shrink:0;">
+            ${isPerguntar ? '❓ PERGUNTA' : '✅ CONCLUSÃO'}
+          </div>
+          <button onclick="event.stopPropagation(); window.focarNoFluxo('${no.id}')" style="background:transparent; color:var(--cyan2); border:none; cursor:pointer; font-size:12px; padding:0 6px; font-weight:bold;" title="Focar Ramo">🔍 FOCO</button>
+          <button onclick="event.stopPropagation(); removerNoMagico('${no.id}')" style="background:transparent; color:#e74c3c; border:none; cursor:pointer; font-weight:bold; font-size:14px; margin-left:4px; padding:0 4px;">✕</button>
         </div>
-        <div style="font-family:var(--font-mono); font-size:9px; color:${corGrupo}; border:1px solid ${corGrupo}66; padding:4px 8px; border-radius:4px; margin-right:12px; letter-spacing:1px; background:rgba(0,0,0,.3);">
-          ${isPerguntar ? '❓ PERGUNTA' : '✅ DIAGNÓSTICO'}
-        </div>
-        <button onclick="event.stopPropagation(); removerNoMagico('${no.id}')" style="background:rgba(192,57,43,.1); color:#e74c3c; border:none; border-radius:4px; padding:8px 14px; cursor:pointer; font-weight:bold; font-size:14px;">✕</button>
       </div>`;
   }
 
-  let boxOrigemExpandido = '';
-  if (origem.tipo === 'raiz') {
-      boxOrigemExpandido = `<div style="background:rgba(245,200,0,.1); border-left:4px solid var(--yellow); padding:12px; margin-bottom:12px; border-radius:0 4px 4px 0; color:var(--yellow); font-size:13px;"><b>🌟 PONTO DE PARTIDA:</b> Este bloco é a primeira coisa que o cliente verá.</div>`;
-  } else if (origem.tipo === 'filho') {
-      boxOrigemExpandido = `<div style="background:rgba(255,255,255,.05); border-left:4px solid var(--cyan2); padding:12px; margin-bottom:12px; border-radius:0 4px 4px 0; color:var(--chrome2); font-size:13px; display:flex; flex-direction:column; gap:4px;">
-        <div><b>🔗 CAMINHO ATÉ AQUI:</b> O cliente chegará neste bloco se...</div>
-        <div style="padding-left:10px; border-left:2px solid rgba(255,255,255,.2); color:white;">No Bloco <b>#${origem.paiNum} (${origem.paiTitulo})</b> ➔ Escolher a resposta: <b style="color:var(--cyan2)">"${origem.respostaTexto}"</b></div>
-      </div>`;
-  } else {
-      boxOrigemExpandido = `<div style="background:rgba(192,57,43,.1); border-left:4px solid #e74c3c; padding:12px; margin-bottom:12px; border-radius:0 4px 4px 0; color:#e74c3c; font-size:13px;"><b>⚠ ALERTA DE BLOCO PERDIDO:</b> Nenhuma resposta leva a este bloco! Volte em uma pergunta e aponte o "Destino" para cá.</div>`;
-  }
-
+  // --- MODO EDICAO / EXPANDIDO (Largura total estável) ---
   const outrosNos = todos.filter(x => x.id !== no.id);
   
   const opcoesHtml = isPerguntar ? (no.opcoes||[]).map((o,oi) => `
-    <div class="opt-editor-row" id="optrow_${no.id}_${oi}" style="flex-direction:column; align-items:stretch; gap:6px; background:rgba(0,0,0,.2); border-radius:var(--r); padding:12px; margin-bottom:10px; border:1px solid ${corGrupo}33;">
+    <div class="opt-editor-row" id="optrow_${no.id}_${oi}" style="flex-direction:column; align-items:stretch; gap:6px; background:rgba(0,0,0,0.15); border-radius:var(--r); padding:10px; margin-bottom:8px; border:1px solid ${corGrupo}22;">
       <div style="display:flex;align-items:center;gap:8px">
-        <div style="background:${corGrupo};color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold; flex-shrink:0;">${String.fromCharCode(65+oi)}</div>
-        <span style="font-size:14px;opacity:0.7">🔍</span>
-        <input type="text" placeholder="Puxar texto da biblioteca..." oninput="filtrarBibModal(this.value, 'fluxo_opt', '${no.id}_${oi}')" style="flex:1; background:rgba(0,0,0,.3); border:1px solid ${corGrupo}66; color:${corGrupo}; font-size:12px; padding:8px; border-radius:4px; outline:none;">
-        <button onclick="removerOpcaoEditor('${no.id}',${oi})" style="background:rgba(192,57,43,.15);color:#e74c3c;border:1px solid rgba(192,57,43,.2);border-radius:4px;padding:8px 12px;cursor:pointer;font-size:12px">✕</button>
-      </div>
-      <div id="bibResults_${no.id}_${oi}" style="display:flex; flex-direction:column; gap:2px; padding-left:42px;"></div>
-      
-      <div style="display:flex;align-items:center;gap:8px; padding-left:42px;">
-        <input class="opt-input" id="opt_label_${no.id}_${oi}" value="${esc(o.label||'')}" placeholder="Texto da resposta (Ex: Sim, Não, Faz barulho...)" style="font-size:15px; padding:10px; border-color:rgba(255,255,255,.2); background:rgba(255,255,255,.05); color:white;" oninput="const lbl = document.getElementById('lbl_dest_${no.id}_${oi}'); if(lbl) lbl.innerText = '↳ O QUE ACONTECE SE ESCOLHER \\'' + (this.value || 'VAZIO') + '\\'?'">
+        <div style="background:${corGrupo};color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold; flex-shrink:0;">${String.fromCharCode(65+oi)}</div>
+        <input class="opt-input" id="opt_label_${no.id}_${oi}" value="${esc(o.label||'')}" placeholder="Texto da resposta (Ex: Sim, Não, Apitando...)" style="font-size:14px; padding:8px; flex:1;" oninput="const lbl = document.getElementById('lbl_dest_${no.id}_${oi}'); if(lbl) lbl.innerText = '↳ Ação se o usuário escolher \\'' + this.value + '\\':'">
+        <button onclick="removerOpcaoEditor('${no.id}',${oi})" style="background:transparent;color:#e74c3c;border:none;cursor:pointer;font-size:14px;padding:0 4px;">✕</button>
       </div>
       
-      <div style="margin-left:10px; display:flex; flex-direction:column; gap:8px; margin-top:8px; background:${corGrupo}11; padding:12px; border-radius:6px; border-left:4px solid ${corGrupo};">
-        <div id="lbl_dest_${no.id}_${oi}" style="font-size:11px; color:${corGrupo}; text-transform:uppercase; font-weight:bold; letter-spacing:0.5px;">↳ O QUE ACONTECE SE ESCOLHER "${esc(o.label||'vazio')}"?</div>
-        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-           <select class="opt-dest-sel" id="opt_dest_${no.id}_${oi}" style="flex:1; min-width:60%; padding:10px; font-size:13px; height:auto;">
-             <option value="">Ainda não decidi...</option>
-             ${outrosNos.map(x=>`<option value="${x.id}" ${o.destinoId===x.id?'selected':''}>Vincular ao Bloco #${todos.indexOf(x)+1} ➔ ${esc((x.pergunta||x.titulo||'').slice(0,30))}</option>`).join('')}
-             <option value="diagnostico_direto" ${o.destino==='diagnostico_direto'?'selected':''}>✓ final do fluxo (Sair)</option>
+      <div style="margin-left:4px; display:flex; flex-direction:column; gap:6px; margin-top:4px; background:rgba(0,0,0,0.2); padding:8px; border-radius:4px;">
+        <div id="lbl_dest_${no.id}_${oi}" style="font-size:10px; color:${corGrupo}; text-transform:uppercase; font-weight:bold;">↳ Ação se o usuário escolher "${esc(o.label||'vazio')}":</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+           <select class="opt-dest-sel" id="opt_dest_${no.id}_${oi}" style="flex:1; padding:6px; font-size:12px; height:34px;">
+             <option value="">Ligar a um Bloco Existente...</option>
+             ${outrosNos.map(x=>`<option value="${x.id}" ${o.destinoId===x.id?'selected':''}>Bloco #${todos.indexOf(x)+1} ➔ ${esc((x.pergunta||x.titulo||'').slice(0,25))}</option>`).join('')}
+             <option value="diagnostico_direto" ${o.destino==='diagnostico_direto'?'selected':''}>✓ Encerrar aqui (Diagnóstico Concluído)</option>
            </select>
-           <button onclick="autoCriarNo('${no.id}', ${oi}, 'pergunta')" style="height:39px; background:${corGrupo}22; color:${corGrupo}; border:1px solid ${corGrupo}66; padding:0 12px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center;">＋ ❓ Nova Pergunta</button>
-           <button onclick="autoCriarNo('${no.id}', ${oi}, 'diagnostico')" style="height:39px; background:rgba(46,204,113,.15); color:var(--green2); border:1px solid rgba(46,204,113,.4); padding:0 12px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center;">＋ ✅ Diagnóstico</button>
+           <button class="step-mini-btn up" style="background:rgba(34,211,238,0.1); border-color:var(--cyan2); color:var(--cyan2); height:34px; padding:0 8px; font-weight:bold;" onclick="autoCriarNo('${no.id}', ${oi}, 'pergunta')">＋ Nova Pergunta</button>
+           <button class="step-mini-btn up" style="background:rgba(46,204,113,0.1); border-color:var(--green2); color:var(--green2); height:34px; padding:0 8px; font-weight:bold;" onclick="autoCriarNo('${no.id}', ${oi}, 'diagnostico')">＋ Conclusão</button>
         </div>
       </div>
     </div>`).join('') : '';
 
   const procHtml = `
-    <div style="margin-top:10px; padding:10px; background:rgba(0,0,0,.2); border-radius:var(--r); border:1px dashed rgba(255,255,255,.1);">
-      <div class="label" style="margin-bottom:6px; color:var(--yellow)">🛠 VINCULAR PROCEDIMENTO & VALOR (Opcional)</div>
-      <div style="display:flex; gap:8px; margin-bottom:10px;">
-        <select class="input" id="no_proc_${no.id}" style="flex:2; font-size:12px;"><option value="">Nenhum procedimento...</option>${S.procedimentos.map(p=>`<option value="${p.id}" ${no.procId==p.id?'selected':''}>📋 ${esc(p.nome)}</option>`).join('')}</select>
+    <div style="margin-top:10px; padding:10px; background:rgba(0,0,0,.2); border-radius:var(--r); border:1px dashed rgba(255,255,255,.05);">
+      <div class="label" style="margin-bottom:6px; color:var(--yellow)">🛠 PROVIMENTO TÉCNICO & VALOR COMERCIAL (Opcional)</div>
+      <div style="display:flex; gap:6px; margin-bottom:8px;">
+        <select class="input" id="no_proc_${no.id}" style="flex:2; font-size:12px; padding:6px;"><option value="">Vincular guia operacional...</option>${S.procedimentos.map(p=>`<option value="${p.id}" ${no.procId==p.id?'selected':''}>📋 ${esc(p.nome)}</option>`).join('')}</select>
         <div style="flex:1; position:relative;">
           <span style="position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:10px; color:var(--green2)">R$</span>
-          <input type="number" class="input" id="no_val_${no.id}" value="${no.procValor || ''}" placeholder="0.00" style="padding-left:25px; font-size:12px;">
+          <input type="number" class="input" id="no_val_${no.id}" value="${no.procValor || ''}" placeholder="" style="padding-left:22px; padding:6px; font-size:12px;">
         </div>
       </div>
-      <div class="label" style="margin-bottom:6px;">Mídia do Passo: 📷 Fotos | 🎙 PC | 📱 Celular</div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-        <div class="photo-drop" style="width:45px; height:45px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="document.getElementById('file_${no.id}').click()" title="Fotos"><span style="font-size:18px; opacity:0.6">📷</span></div>
-        <div id="btnGravar_${no.id}" class="photo-drop" style="width:45px; height:45px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer; border-color:rgba(34,211,238,.3); background:rgba(34,211,238,.02);" onclick="toggleGravacaoNativa('fluxo', '${no.id}')" title="Microfone PC"><span style="font-size:18px; opacity:0.6">🎙</span></div>
-        <div class="photo-drop" style="width:45px; height:45px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer; border-color:rgba(245,200,0,.3); background:rgba(245,200,0,.02);" onclick="document.getElementById('audioFile_${no.id}').click()" title="Celular"><span style="font-size:18px; opacity:0.6">📱</span></div>
+      <div class="label" style="margin-bottom:4px;">Multimídia de Suporte:</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+        <div class="photo-drop" style="width:36px; height:36px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="document.getElementById('file_${no.id}').click()"><span style="font-size:14px; opacity:0.6">📷</span></div>
+        <div id="btnGravar_${no.id}" class="photo-drop" style="width:36px; height:36px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer; border-color:rgba(34,211,238,.3); background:rgba(34,211,238,.02);" onclick="toggleGravacaoNativa('fluxo', '${no.id}')"><span style="font-size:14px; opacity:0.6">🎙</span></div>
+        <div class="photo-drop" style="width:36px; height:36px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer; border-color:rgba(245,200,0,.3); background:rgba(245,200,0,.02);" onclick="document.getElementById('audioFile_${no.id}').click()"><span style="font-size:14px; opacity:0.6">📱</span></div>
         <input type="file" id="audioFile_${no.id}" accept="audio/*" capture="microphone" style="display:none" onchange="adicionarAudioTemp(event, 'fluxo', '${no.id}')">
-        ${(no.fotos||[]).map((f,i)=>`<div class="photo-thumb" style="width:45px;height:45px"><img src="${f}"><div class="photo-del" style="width:16px;height:16px;font-size:10px;top:2px;right:2px;" onclick="removerFotoNo('${no.id}',${i})">✕</div></div>`).join('')}
+        ${(no.fotos||[]).map((f,i)=>`<div class="photo-thumb" style="width:36px;height:36px"><img src="${f}"><div class="photo-del" style="width:14px;height:14px;font-size:8px;top:1px;right:1px;" onclick="removerFotoNo('${no.id}',${i})">✕</div></div>`).join('')}
       </div>
-      ${no.audio ? `<div style="display:flex;align-items:center;gap:10px;background:rgba(245,200,0,.1);padding:6px;border-radius:4px;border:1px solid rgba(245,200,0,.3);margin-top:8px;"><audio controls src="${no.audio}" style="height:30px;flex:1"></audio><button onclick="removerAudioTemp('fluxo', '${no.id}')" style="background:rgba(192,57,43,.8);color:white;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:10px;font-weight:bold">✕</button></div>` : ''}
+      ${no.audio ? `<div style="display:flex;align-items:center;gap:6px;background:rgba(245,200,0,.08);padding:4px;border-radius:4px;border:1px solid rgba(245,200,0,.2);margin-top:6px;"><audio controls src="${no.audio}" style="height:24px;flex:1"></audio><button onclick="removerAudioTemp('fluxo', '${no.id}')" style="background:rgba(192,57,43,.8);color:white;border:none;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:9px;font-weight:bold">✕</button></div>` : ''}
       <input type="file" id="file_${no.id}" accept="image/*" multiple capture="environment" style="display:none" onchange="adicionarFotoNo(event, '${no.id}')">
     </div>
   `;
 
   return `
-  <div class="no-card-editor" id="noeditor_${no.id}" style="border:2px solid ${origem.tipo==='orfao'?'#e74c3c':corGrupo}88; background:var(--steel); border-radius:var(--r); overflow:hidden; margin-bottom:12px; box-shadow:0 4px 15px rgba(0,0,0,.2);">
-    <div class="no-card-header" style="background:${origem.tipo==='orfao'?'rgba(192,57,43,.15)':corGrupo+'22'}; border-bottom:1px solid ${corGrupo}44; cursor:pointer; display:flex; align-items:center; padding:12px;" onclick="toggleNoAberto('${no.id}')" title="Clique para fechar">
-      <div class="no-card-num" style="background:${origem.tipo==='orfao'?'#e74c3c':corGrupo}; color:${isPerguntar||origem.tipo==='orfao'?'#fff':'#000'}; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:bold; margin-right:8px;">${idx+1}</div>
-      <input class="opt-input" id="no_titulo_${no.id}" value="${tituloExibicao}" style="flex:1;margin:0 8px;font-size:18px; font-weight:bold; border-color:rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:white;" onclick="event.stopPropagation()">
-      <select class="opt-dest-sel" id="no_tipo_${no.id}" style="width:130px; border-color:${corGrupo}66; color:${corGrupo}; font-weight:bold; padding:8px; font-size:13px;" onchange="trocarTipoNoMagico('${no.id}',this.value)" onclick="event.stopPropagation()">
+  <div class="no-card-editor" id="noeditor_${no.id}" style="border:2px solid ${corGrupo}; background:var(--steel); border-radius:var(--r); overflow:hidden; margin-bottom:10px;">
+    <div class="no-card-header" style="background:rgba(0,0,0,0.2); border-bottom:1px solid ${corGrupo}33; display:flex; align-items:center; padding:10px;" onclick="toggleNoAberto('${no.id}')">
+      <div style="background:${corGrupo}; color:${isPerguntar?'#fff':'#000'}; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:bold; flex-shrink:0;">${idx+1}</div>
+      <input class="opt-input" id="no_titulo_${no.id}" value="${tituloExibicao}" style="flex:1; margin:0 6px; font-size:15px; font-weight:bold; padding:6px;" onclick="event.stopPropagation()">
+      <select class="opt-dest-sel" id="no_tipo_${no.id}" style="width:110px; border-color:${corGrupo}44; color:${corGrupo}; font-weight:bold; padding:6px; font-size:12px; height:32px;" onchange="trocarTipoNoMagico('${no.id}',this.value)" onclick="event.stopPropagation()">
         <option value="pergunta" ${isPerguntar?'selected':''}>❓ Pergunta</option>
-        <option value="diagnostico" ${!isPerguntar?'selected':''}>✅ Diagnóstico</option>
+        <option value="diagnostico" ${!isPerguntar?'selected':''}>✅ Conclusão</option>
       </select>
-      <button onclick="event.stopPropagation(); removerNoMagico('${no.id}')" style="background:rgba(192,57,43,.15);color:#e74c3c;border:1px solid rgba(192,57,43,.3);border-radius:4px;padding:8px 12px;cursor:pointer;font-size:14px;margin-left:10px; font-weight:bold;">✕</button>
     </div>
     
-    <div style="padding:15px 12px; border-bottom:1px solid rgba(255,255,255,.05); background:rgba(0,0,0,.15)">
-      
-      ${boxOrigemExpandido}
-
-      <div class="label" style="color:var(--yellow)">🔍 PUXAR DA BIBLIOTECA (Título e Fotos)</div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:14px;opacity:0.7">🔍</span>
-        <input type="text" class="input" placeholder="Buscar pergunta ou diagnóstico..." oninput="filtrarBibModal(this.value, 'fluxo', '${no.id}')" style="font-size:13px; padding:10px; flex:1; background:rgba(255,255,255,.05);">
+    <div style="padding:10px; background:rgba(0,0,0,0.05)">
+      ${caminhoHtml}
+      <div style="display:flex; justify-content:flex-end; margin-bottom:6px;">
+         <button class="btn cyan sm" style="width:auto; padding:4px 8px; font-size:11px;" onclick="window.focarNoFluxo('${no.id}')">🔍 ISOLAR E FOCAR NESTE RAMO</button>
       </div>
-      <div id="bibResults_${no.id}" style="display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:120px;overflow-y:auto"></div>
-      
-      ${!isPerguntar ? `<div style="margin-top:10px;"><div class="label">Qual a solução do problema?</div><textarea class="textarea" id="no_desc_${no.id}" style="min-height:50px" placeholder="Descreva a conclusão...">${esc(no.descricao||no.solucao||'')}</textarea></div>` : ''}
-
-      <div style="margin-top:10px;">
-        <div class="label" style="color:var(--yellow)">💻 CÓDIGO FONTE (Opcional)</div>
-        <textarea class="textarea code-input" id="no_cod_${no.id}" placeholder="Cole seu código aqui...">${esc(no.codigo||'')}</textarea>
+      ${!isPerguntar ? `<div><div class="label">Laudo Técnico Final / Solução do Problema:</div><textarea class="textarea" id="no_desc_${no.id}" style="min-height:50px" placeholder="Escreva os detalhes da resolução aqui...">${esc(no.descricao || no.solucao || '')}</textarea></div>` : ''}
+      <div style="margin-top:6px;">
+        <div class="label" style="color:var(--yellow)">💻 SCRIPT OPERACIONAL / NOTAS COMPLEMENTARES (Opcional)</div>
+        <textarea class="textarea code-input" id="no_cod_${no.id}" style="min-height:50px;" placeholder="Diretrizes complementares para o operador...">${esc(no.codigo||'')}</textarea>
       </div>
       ${procHtml}
     </div>
 
-    <div id="no_opts_${no.id}" style="padding:10px 12px 0;">${isPerguntar ? opcoesHtml : ''}</div>
-    ${isPerguntar ? `<div style="padding:10px 12px 14px;"><button onclick="adicionarOpcaoEditorMagico('${no.id}')" style="background:${corGrupo}11;color:${corGrupo};border:1px dashed ${corGrupo}66;border-radius:var(--r);padding:14px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;cursor:pointer;width:100%; transition:background 0.2s;" onmouseover="this.style.background='${corGrupo}33'" onmouseout="this.style.background='${corGrupo}11'">＋ ADICIONAR OUTRA OPÇÃO DE RESPOSTA</button></div>` : ''}
+    <div id="no_opts_${no.id}" style="padding:8px 10px 0;">${isPerguntar ? opcoesHtml : ''}</div>
+    ${isPerguntar ? `<div style="padding:0 10px 10px;"><button onclick="adicionarOpcaoEditorMagico('${no.id}')" style="background:rgba(255,255,255,0.02);color:${corGrupo};border:1px dashed ${corGrupo}44;border-radius:var(--r);padding:10px;font-size:12px;font-weight:700;cursor:pointer;width:100%;">＋ ADICIONAR OPÇÃO DE RESPOSTA</button></div>` : ''}
   </div>`;
 }
 
@@ -2674,6 +2977,38 @@ window.abrirEscolhaFotoBib = () => {
   `;
 
   document.body.appendChild(bg);
+};
+/* --- NAVEGADOR DE ESCOPO E FOCO VISUAL --- */
+window._fluxoFocoId = null;
+
+window.focarNoFluxo = (noId) => {
+    window.sincronizarDOMParaMemoria();
+    window._fluxoFocoId = noId;
+    window._noAbertoId = noId; // Expande automaticamente o bloco focado
+    document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor);
+    toast("🔍 Visão focada ativada!", "cyan");
+};
+
+window.limparFocoFluxo = () => {
+    window.sincronizarDOMParaMemoria();
+    window._fluxoFocoId = null;
+    document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor);
+    toast("👁️ Mostrando o fluxograma completo.", "ok");
+};
+
+window.scrollParaNo = (noId) => {
+    window.sincronizarDOMParaMemoria();
+    // Se o bloco alvo estiver oculto devido ao foco ativo, desativa o foco para exibi-lo
+    if (window._fluxoFocoId && !window._nosEditor.find(n => n.id === noId)) {
+        window._fluxoFocoId = null;
+    }
+    window._noAbertoId = noId;
+    document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor);
+    
+    setTimeout(() => {
+        const target = document.getElementById('noeditor_' + noId);
+        if(target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 60);
 };
 /* ══ INIT ══ */
 (async()=>{
