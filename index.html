@@ -795,7 +795,7 @@ function buildExecAtiva(){
             title="Ativar Comando de Voz">
       🎙️
     </button>
-  </div><span style="font-family:var(--font-mono);font-size:10px;color:var(--chrome)">${ndone}/${total}</span></div><div style="padding:8px 14px 5px"><div class="exec-progress">${dotRow}</div><div style="display:flex;justify-content:space-between;padding:0 2px;margin-top:3px"><span style="font-family:var(--font-mono);font-size:9px;color:var(--chrome)">PROGRESSO</span><span style="font-family:var(--font-mono);font-size:9px;color:var(--yellow)">${Math.round((ndone/total)*100)}%</span></div></div></div>
+  </div><span style="font-family:var(--font-mono);font-size:10px;padding-left: 10px;color:var(--chrome)">${ndone}/${total}</span></div><div style="padding:8px 14px 5px"><div class="exec-progress">${dotRow}</div><div style="display:flex;justify-content:space-between;padding:0 2px;margin-top:3px"><span style="font-family:var(--font-mono);font-size:9px;color:var(--chrome)">PROGRESSO</span><span style="font-family:var(--font-mono);font-size:9px;color:var(--yellow)">${Math.round((ndone/total)*100)}%</span></div></div></div>
   <div style="display:flex;flex-direction:column;gap:8px;padding-bottom:20px">${conteudo}<button class="btn ghost sm" onclick="A.confirmarAbandonar()">✕ Abandonar</button></div>`;
 }
 
@@ -1116,6 +1116,7 @@ function formataDataRelativa(ts) {
   return d.toLocaleDateString('pt-BR');
 }
 
+
 function buildHistorico() {
     const body=document.getElementById('body');
     let historico = S.historico || [];
@@ -1161,10 +1162,8 @@ function buildHistorico() {
               const statusCor = h.status === 'CONCLUÍDO' ? 'var(--green2)' : 'var(--yellow)';
               const podeRetomar = h.status === 'INTERROMPIDO'; 
               
-              // 1. Etiqueta visual com o nome do cliente, se existir
               const clienteTag = h.cliente ? `<span style="background:rgba(245,200,0,.15); color:var(--yellow); border:1px solid rgba(245,200,0,.3); padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; margin-right:6px;">👤 ${esc(h.cliente)}</span>` : '';
               
-              // 2. Etiqueta com o Dinheiro no topo
               const totalOrcStr = (h.totalOrcamento > 0) ? `<span style="color:var(--green2); font-weight:bold; font-size:14px; margin-left:auto;">💰 R$ ${h.totalOrcamento.toFixed(2).replace('.', ',')}</span>` : '';
 
               let procsHtml = '';
@@ -1175,7 +1174,7 @@ function buildHistorico() {
                   </div>`;
               }
               
-              // 3. Monta a listinha do orçamento
+              // 💰 Seção do Orçamento Modificada com o Compartilhamento do WhatsApp
               let orcamentoListHtml = '';
               if (h.orcamento && h.orcamento.length > 0) {
                   orcamentoListHtml = `<div style="margin-top:10px; padding:10px; background:rgba(46,204,113,.05); border-radius:4px; border-left:3px solid var(--green2);">
@@ -1184,6 +1183,11 @@ function buildHistorico() {
                        <span>• ${esc(o.descricao)}</span><span style="color:var(--green2); font-weight:bold;">R$ ${o.valor.toFixed(2).replace('.', ',')}</span>
                     </div>`).join('')}
                     <div style="display:flex; justify-content:flex-end; font-size:14px; color:var(--green2); font-weight:bold; margin-top:8px; border-top:1px dashed rgba(46,204,113,.3); padding-top:6px;">TOTAL: R$ ${h.totalOrcamento.toFixed(2).replace('.', ',')}</div>
+                    
+                    <button class="btn" onclick="A.enviarOrcamentoWhatsApp('${esc(h.nome)}', ${JSON.stringify(h.orcamento).replace(/"/g, '&quot;')})" 
+                            style="background:#25D366; color:#000; font-weight:bold; font-size:12px; width:100%; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:6px; border:none; padding:8px; border-radius:var(--r); cursor:pointer;">
+                      🟢 ENVIAR ESTE ORÇAMENTO VIA WHATSAPP
+                    </button>
                   </div>`;
               }
               
@@ -1246,7 +1250,6 @@ function buildHistorico() {
 
     body.innerHTML = `<div style="padding-bottom:80px; padding-top:10px;">${html}</div>`;
 }
-
 /* ══ AÇÕES ══ */
 const A={
   // Cole estes três métodos logo abaixo de "const A={"
@@ -1372,22 +1375,26 @@ const A={
     proc.steps=steps.sort((a,b)=>a.ordem-b.ordem);proc.steps.forEach((s,i)=>s.ordem=i+1);proc.atualizadoEm=Date.now();await DB.put('procedimentos',proc);
     document.getElementById('body').innerHTML=buildVerProcedimento(proc);document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   },
-  enviarOrcamentoWhatsApp() {
-    if (!S.fluxoExec) return;
-    const fe = S.fluxoExec;
-    const fluxo = S.fluxos.find(f => f.id === fe.fluxoId);
-    if (!fluxo) return;
+  enviarOrcamentoWhatsApp(nomeFluxoPersonalizado, orcamentoPersonalizado) {
+    // Se não passarmos parâmetros, ele pega do fluxo que está rodando na hora (Padrão)
+    let nomeFluxo = nomeFluxoPersonalizado;
+    let itens = orcamentoPersonalizado;
 
-    const itens = fe.orcamento || [];
+    if (!nomeFluxo || !itens) {
+      if (!S.fluxoExec) return;
+      const fluxoOriginal = S.fluxos.find(f => f.id === S.fluxoExec.fluxoId);
+      nomeFluxo = fluxoOriginal ? fluxoOriginal.nome : 'Diagnóstico';
+      itens = S.fluxoExec.orcamento || [];
+    }
+
     const total = itens.reduce((acc, cur) => acc + cur.valor, 0);
 
-    // Monta uma mensagem com formatação nativa do WhatsApp (*bold*)
     let textoMsg = `*📋 ORÇAMENTO DE SERVIÇO / DIAGNÓSTICO*\n`;
-    textoMsg += `*Fluxo Executado:* ${fluxo.nome}\n`;
+    textoMsg += `*Procedimento:* ${nomeFluxo}\n`;
     textoMsg += `-------------------------------------------\n\n`;
 
     if (itens.length === 0) {
-      textoMsg += `Nenhum custo adicional gerado nesta verificação.\n`;
+      textoMsg += `Nenhum custo adicional cadastrado.\n`;
     } else {
       itens.forEach((item, idx) => {
         textoMsg += `${idx + 1}. *${item.descricao}*\n   ↳ R$ ${item.valor.toFixed(2).replace('.', ',')}\n`;
@@ -1396,9 +1403,8 @@ const A={
 
     textoMsg += `\n-------------------------------------------\n`;
     textoMsg += `*💰 VALOR TOTAL ESTIMADO: R$ ${total.toFixed(2).replace('.', ',')}* \n\n`;
-    textoMsg += `_Gerado automaticamente via GuiaPro. Aguardamos sua aprovação para iniciar os procedimentos._`;
+    textoMsg += `_Enviado via GuiaPro._`;
 
-    // Codifica para URL segura e dispara o link oficial do WhatsApp API
     const urlLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(textoMsg)}`;
     window.open(urlLink, '_blank');
   },
@@ -3270,6 +3276,108 @@ window.scrollParaNo = (noId) => {
         if(target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 60);
 };
+
+/* ═════════════════════════════════════════════════════════════════
+   🎙️ MOTOR DE VOZ EXTENSÍVEL COM TEXT-TO-SPEECH (GUIA PRO VOX)
+   ═════════════════════════════════════════════════════════════════ */
+
+// 🔊 Auxiliares globais de controlo de áudio e leitura
+window._audioUtteranceAtual = null;
+
+// Função mágica que faz o navegador falar em voz alta
+window.falarTextoGuiaPro = (texto) => {
+  if (!texto) return;
+  window.speechSynthesis.cancel(); // Cancela qualquer leitura anterior imediatamente
+  
+  const utterance = new SpeechSynthesisUtterance(texto);
+  utterance.lang = 'pt-BR'; // Define o idioma da síntese de voz
+  utterance.rate = 1.15;    // Velocidade de leitura ideal para o ambiente de oficina
+  
+  window._audioUtteranceAtual = utterance;
+  window.speechSynthesis.speak(utterance);
+};
+
+// Função inteligente que recolhe dinamicamente os textos da tela atual para leitura
+window.coletarTextoEtapaAtual = () => {
+  let textoParaLer = "";
+  
+  // 1. Se estiver a executar um Procedimento Linear
+  if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual) {
+    const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
+    const step = proc?.steps?.find(s => s.id === S.execAtiva.stepAtual);
+    if (step) {
+      textoParaLer += `Passo ${step.ordem}. ${step.titulo}. `;// introduçao removida textoParaLer += `Passo ${s...
+      if (step.descricao) textoParaLer += `Descrição: ${step.descricao}. `;
+      if (step.codigo) textoParaLer += `: ${step.codigo}. `;// se quiser introcuçao textoParaLer += `Instrução técnica do código :
+    }
+  }
+  // 2. Se estiver a executar um Fluxograma de Diagnóstico
+  else if (S.fluxoExec && S.fluxoExec.noAtual) {
+    const fluxo = S.fluxos.find(f => f.id === S.fluxoExec.fluxoId);
+    const noAtual = fluxo?.nos?.find(n => n.id === S.fluxoExec.noAtual);
+    if (noAtual) {
+      if (noAtual.tipo === 'diagnostico') {
+        textoParaLer += `Conclusão do Diagnóstico: ${noAtual.titulo || noAtual.pergunta}. `;
+      } else {
+        textoParaLer += `: ${noAtual.pergunta || noAtual.titulo}. `;// se quiser uma introduçao textoParaLer += `Pergunta atual:
+      }
+      if (noAtual.descricao || noAtual.solucao) textoParaLer += `Laudo e orientações: ${noAtual.descricao || noAtual.solucao}. `;
+      if (noAtual.codigo) textoParaLer += `: ${noAtual.codigo}. `;// textoParaLer += `Notas: se quiser que diga algo antes da leitura
+    }
+  }
+  return textoParaLer;
+};
+
+/* 🛠️ REGISTRO CENTRAL DE COMANDOS DE VOZ (Adicione novos aqui facilmente!) */
+window.registroComandosVoz = {
+  // --- NOVOS COMANDOS DE LEITURA (SÍNTESE DE VOZ) ---
+  "leia para mim": () => {
+    const texto = window.coletarTextoEtapaAtual();
+    if (texto) {
+      window.falarTextoGuiaPro(texto);
+      toast("🔊 A ler etapa atual...", "ok");
+    } else {
+      toast("⚠ Nada para ler nesta tela.", "error");
+    }
+  },
+  "pausar leitura": () => {
+    if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+      window.speechSynthesis.pause();
+      toast("⏸️ Leitura Pausada", "cyan");
+    }
+  },
+  "continue lendo": () => {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+      toast("▶️ A retomar leitura...", "ok");
+    }
+  },
+  
+  // --- COMANDOS DE AVANÇO DE ETAPAS (PROCEDIMENTOS) ---
+  "concluído": () => window.executarAvancoLinearVoz(),
+  "avançar": () => window.executarAvancoLinearVoz(),
+  "próximo": () => window.executarAvancoLinearVoz(),
+  
+  // --- COMANDOS DE RETORNO (FLUXOGRAMAS / PROCEDIMENTOS) ---
+  "voltar": () => {
+    if (S.fluxoExec) {
+      A.fluxoVoltar();
+      window.speechSynthesis.cancel(); // Para a leitura se mudar de página
+      toast("🎙️ Voltando etapa...", "cyan");
+    }
+  }
+};
+
+// Auxiliar para avanço linear seguro
+window.executarAvancoLinearVoz = () => {
+  if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual && S.execAtiva.stepAtual !== 'concluido') {
+    window.speechSynthesis.cancel(); // Interrompe qualquer áudio antes de avançar
+    A.marcarStepDone(S.execAtiva.stepAtual);
+    toast("🎙️ Passo concluído por voz!", "ok");
+  }
+};
+
+/* 🎙️ ATIVADOR E GERENCIADOR DO RECONHECIMENTO DE VOZ */
 window.ativarComandosVozOperacionais = () => {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
@@ -3277,9 +3385,11 @@ window.ativarComandosVozOperacionais = () => {
     return;
   }
 
+  // Desliga se já estiver rodando
   if (window._reconhecedorAtivo) {
     window._reconhecedorAtivo.stop();
     window._reconhecedorAtivo = null;
+    window.speechSynthesis.cancel(); // Cancela leituras se desligar o microfone
     toast("🎙️ Microfone Desativado", "error");
     document.getElementById("btnVozGlobal")?.classList.remove("ativo");
     return;
@@ -3292,37 +3402,52 @@ window.ativarComandosVozOperacionais = () => {
 
   recognition.onresult = (event) => {
     const resultado = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-    console.log("🎙️ Comando capturado:", resultado);
+    console.log("🎙️ Texto capturado pelo microfone:", resultado);
 
-    // Regras de comandos para a Execução de Procedimento Linear
-    if (S.tab === 'executar' && S.execAtiva) {
-      if (resultado.includes("concluído") || resultado.includes("avançar") || resultado.includes("próximo")) {
-        if (S.execAtiva.stepAtual && S.execAtiva.stepAtual !== 'concluido') {
-          A.marcarStepDone(S.execAtiva.stepAtual);
-          toast("🎙️ Ouvido: Avançando passo...", "ok");
-        }
+    let comandoExecutado = false;
+
+    // ⚡ 1. Varre o mapa de comandos estáticos cadastrados
+    for (const chave in window.registroComandosVoz) {
+      // Aceita correspondência exata ou se o comando estiver inserido na frase dita
+      if (resultado === chave || resultado.includes(chave)) {
+        window.registroComandosVoz[chave]();
+        comandoExecutado = true;
+        break;
       }
     }
-    
-    // Regras de comandos para a Execução de Fluxogramas de Diagnóstico
-    if (S.fluxoExec) {
-      if (resultado.includes("voltar")) {
-        A.fluxoVoltar();
-        toast("🎙️ Ouvido: Voltando etapa...", "cyan");
+
+    // 🧠 2. Se não for comando fixo, avalia botões dinâmicos dos Fluxogramas
+    if (!comandoExecutado && S.fluxoExec) {
+      const fluxo = S.fluxos.find(f => f.id === S.fluxoExec.fluxoId);
+      const noAtual = fluxo?.nos?.find(n => n.id === S.fluxoExec.noAtual);
+      
+      if (noAtual && noAtual.opcoes) {
+        const indexEncontrado = noAtual.opcoes.findIndex(op => {
+          const textoBotao = op.label.toLowerCase().trim();
+          return resultado === textoBotao || resultado.includes(textoBotao) || textoBotao.includes(resultado);
+        });
+
+        if (indexEncontrado !== -1) {
+          window.speechSynthesis.cancel(); // Para de falar se o usuário escolheu uma rota
+          const nomeBotao = noAtual.opcoes[indexEncontrado].label;
+          A.fluxoResponder(indexEncontrado);
+          toast(`🎙️ Selecionado: "${nomeBotao}"`, "ok");
+        }
       }
     }
   };
 
   recognition.onend = () => {
-    // Se fechar sozinho por tempo de inatividade, reinicia automaticamente para não desligar na oficina
+    // Mantém o microfone sempre acordado na oficina
     if (window._reconhecedorAtivo) recognition.start();
   };
 
   window._reconhecedorAtivo = recognition;
   recognition.start();
   document.getElementById("btnVozGlobal")?.classList.add("ativo");
-  toast("🎙️ Microfone Ativo! Diga 'Concluído' ou 'Avançar'", "ok");
+  toast("🎙️ Sistema de Voz Avançado Ativo!", "ok");
 };
+
 /* ══ INIT ══ */
 (async()=>{
   try{
