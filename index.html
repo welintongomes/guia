@@ -647,10 +647,9 @@ function buildProcedimentosLista() {
   
   return procsFiltro.map(p=>{
     const steps=p.steps||[];const fotos=steps.reduce((n,s)=>n+(s.fotos?.length||0),0);
-    return`<div class="proc-card" onclick="A.verProcedimento(${p.id})"><div class="proc-card-body"><div class="proc-title">${esc(p.nome)}</div><div class="proc-meta">${p.categoria||'Geral'} · ${fmtDate(p.criadoEm)}</div><div class="proc-badge-row"><span class="proc-badge pb-yellow">⚙ ${steps.length} passo${steps.length!==1?'s':''}</span>${fotos>0?`<span class="proc-badge pb-blue">📷 ${fotos}</span>`:''}${p.categoria?`<span class="proc-badge pb-gray">${esc(p.categoria)}</span>`:''}${p.veiculoModelo?`<span class="proc-badge pb-green">🚗 ${esc(p.veiculoModelo)}</span>`:''}</div></div></div>`;
+    return`<div class="proc-card" onclick="A.verProcedimento(${p.id})"><div class="proc-card-body"><div class="proc-title">${esc(window.limparTagsTexto(p.nome))}</div><div class="proc-meta">${p.categoria||'Geral'} · ${fmtDate(p.criadoEm)}</div><div class="proc-badge-row"><span class="proc-badge pb-yellow">⚙ ${steps.length} passo${steps.length!==1?'s':''}</span>${fotos>0?`<span class="proc-badge pb-blue">📷 ${fotos}</span>`:''}${p.categoria?`<span class="proc-badge pb-gray">${esc(p.categoria)}</span>`:''}${p.veiculoModelo?`<span class="proc-badge pb-green">🚗 ${esc(p.veiculoModelo)}</span>`:''}</div></div></div>`;
   }).join('');
 }
-
 function buildProcedimentos(){
   if(!S.procedimentos.length)return`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">SEM PROCEDIMENTOS</div><div class="empty-desc">Crie seu primeiro procedimento técnico.</div><button class="btn yellow" style="max-width:240px;margin-top:8px" onclick="A.novoProcedimento()">＋ NOVO PROCEDIMENTO</button></div>`;
   
@@ -683,13 +682,14 @@ window.toggleStepAberto = (stepId, procId) => {
         document.getElementById('body').innerHTML = buildVerProcedimento(proc);
     }
 };
+
 function buildStepCard(step,procId,idx){
   const isAberto = window._stepAbertoId === step.id;
   
   const badges = `<div style="display:flex;gap:3px;flex-wrap:wrap">${step.fotos?.length?`<span class="step-tag">📷 ${step.fotos.length}</span>`:''}${step.audio?`<span class="step-tag">🎙 ÁUDIO</span>`:''}${step.alerta?'<span class="step-tag" style="border-color:rgba(192,57,43,.3);color:#e74c3c">⚠</span>':''}</div>`;
   const actions = `<div class="step-actions"><button class="step-mini-btn up" onclick="event.stopPropagation(); A.moverStep('${step.id}',${procId},-1)">▲</button><button class="step-mini-btn dn" onclick="event.stopPropagation(); A.moverStep('${step.id}',${procId},1)">▼</button><button class="step-mini-btn edit" onclick="event.stopPropagation(); A.editarStep('${step.id}',${procId})">✏</button><button class="step-mini-btn del" onclick="event.stopPropagation(); A.deletarStep('${step.id}',${procId})">✕</button></div>`;
 
-  // 🔴 VERSÃO RECOLHIDA (Com atributos Drag & Drop adicionados)
+  // 🔴 VERSÃO RECOLHIDA
   if (!isAberto) {
       return `<div class="step-card collapsed" onclick="toggleStepAberto('${step.id}', ${procId})" 
             draggable="true" 
@@ -698,15 +698,15 @@ function buildStepCard(step,procId,idx){
             ondrop="A.drop(event, '${step.id}', ${procId})"
             style="cursor:move; display:flex; align-items:center; padding:10px; background:var(--steel); border:1px solid rgba(255,255,255,.05); border-radius:var(--r); margin-bottom:8px; transition:background 0.2s;">
           <div style="background:var(--yellow); color:var(--ink); width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:12px; margin-right:12px; flex-shrink:0;">${step.ordem}</div>
-          <div style="flex:1; font-weight:bold; color:var(--chrome2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px;">${esc(step.titulo)}</div>
+          <div style="flex:1; font-weight:bold; color:var(--chrome2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px;">${esc(window.limparTagsTexto(step.titulo))}</div>
           ${badges}
           <div style="margin-left:12px;">${actions}</div>
       </div>`;
   }
 
-  // 🟢 VERSÃO EXPANDIDA (Com atributos Drag & Drop adicionados)
+  // 🟢 VERSÃO EXPANDIDA
   const fotosHtml = step.fotos?.length ? `<div class="step-imgs">${step.fotos.map((f,i)=>`<div class="step-img" onclick="event.stopPropagation(); lightbox('${f}')"><img src="${f}" alt="${i+1}" loading="lazy"></div>`).join('')}</div>` : '';
-  const audioHtml = step.audio ? `<div style="margin-top:8px; background:rgba(0,0,0,.2); padding:8px; border-radius:4px; border-left:3px solid var(--yellow)"><div style="font-family:var(--font-mono);font-size:9px;color:var(--yellow);text-transform:uppercase;margin-bottom:4px">🎙 Áudio de Instrução</div><audio controls src="${step.audio}" style="width:100%; height:30px;" onplay="tocarAudioLockScreen('${esc(step.titulo)}')"></audio></div>` : '';
+  const audioHtml = step.audio ? `<div style="margin-top:8px; background:rgba(0,0,0,.2); padding:8px; border-radius:4px; border-left:3px solid var(--yellow)"><div style="font-family:var(--font-mono);font-size:9px;color:var(--yellow);text-transform:uppercase;margin-bottom:4px">🎙 Áudio de Instrução</div><audio controls src="${step.audio}" style="width:100%; height:30px;" onplay="tocarAudioLockScreen('${esc(window.limparTagsTexto(step.titulo))}')"></audio></div>` : '';
 
   return `<div class="step-card" id="sc_${step.id}" 
     draggable="true" 
@@ -716,12 +716,12 @@ function buildStepCard(step,procId,idx){
     style="border:1px solid var(--yellow); cursor:move;" onclick="toggleStepAberto('${step.id}', ${procId})">
     <div class="step-num-col"><div class="step-num">${step.ordem}</div></div>
     <div class="step-body" onclick="event.stopPropagation()">
-      <div class="step-title">${esc(step.titulo)}</div>
-      ${step.descricao?`<div class="step-desc">${esc(step.descricao)}</div>`:''}
-      ${step.codigo?`<pre class="code-block"><code>${esc(step.codigo)}</code></pre>`:''} 
+      <div class="step-title">${esc(window.limparTagsTexto(step.titulo))}</div>
+      ${step.descricao?`<div class="step-desc">${esc(window.limparTagsTexto(step.descricao))}</div>`:''}
+      ${step.codigo?`<pre class="code-block"><code>${esc(window.limparTagsTexto(step.codigo))}</code></pre>`:''} 
       ${audioHtml} 
       ${fotosHtml}
-      ${step.alerta?`<div class="warn-box" style="margin-top:5px">⚠ ${esc(step.alerta)}</div>`:''}
+      ${step.alerta?`<div class="warn-box" style="margin-top:5px">⚠ ${esc(window.limparTagsTexto(step.alerta))}</div>`:''}
       <div class="step-footer">
         ${badges}
         ${actions}
@@ -729,6 +729,7 @@ function buildStepCard(step,procId,idx){
     </div>
   </div>`;
 }
+
 /* ══ ABA EXECUTAR ══ */
 function buildExecutar(){
   if(!S.procedimentos.length)return`<div class="empty"><div class="empty-icon">▶</div><div class="empty-title">NADA PARA EXECUTAR</div><div class="empty-desc">Crie um procedimento primeiro.</div></div>`;
@@ -830,17 +831,15 @@ window.irParaPassoProcedimento = (stepId) => {
   
   render(); // Atualiza a renderização do cartão imediatamente
 };
+
 function buildExecStepCard(step, faltando){
   if(faltando.length > 0) {
-    return `<div class="seq-error-box"><div class="seq-error-title">⛔ ERRO DE SEQUÊNCIA</div><div style="font-size:12px;color:var(--chrome);line-height:1.5">Passo <strong style="color:white">#${step.ordem} ${esc(step.titulo)}</strong> — conclua antes:</div><div class="seq-missing-list">${faltando.map(s=>`<div class="seq-missing-item"><div class="seq-missing-num">${s.ordem}</div><div class="seq-missing-name">${esc(s.titulo)}</div></div>`).join('')}</div></div>`;
+    return `<div class="seq-error-box"><div class="seq-error-title">⛔ ERRO DE SEQUÊNCIA</div><div style="font-size:12px;color:var(--chrome);line-height:1.5">Passo <strong style="color:white">#${step.ordem} ${esc(window.limparTagsTexto(step.titulo))}</strong> — conclua antes:</div></div>`;
   }
   
   const fotosHtml = step.fotos?.length ? `<div class="exec-imgs">${step.fotos.map((f,i)=>`<div class="exec-img" onclick="lightbox('${f}')"><img src="${f}" alt="${i+1}" loading="lazy"></div>`).join('')}</div>` : '';
   
-  // 🟢 MÁGICA DO BOTÃO DINÂMICO: Verifica se este passo específico já está concluído no banco temporário
   const isPassoEfetuado = S.execAtiva?.stepsDone?.includes(step.id);
-  
-  // Configura a cor, classe e o texto de acordo com o status real do passo
   const classeBotao = isPassoEfetuado ? 'btn green' : 'btn steel';
   const estiloBotao = isPassoEfetuado ? '' : 'background: var(--cyan2); color: #000; font-weight: bold;';
   const textoBotao = isPassoEfetuado ? '✔ PASSO CONCLUÍDO' : 'CONCLUIR ESTA ETAPA';
@@ -851,15 +850,15 @@ function buildExecStepCard(step, faltando){
     <div class="exec-step-head">
       <div class="exec-num-badge">${step.ordem}</div>
       <div>
-        <div class="exec-step-title">${esc(step.titulo)}</div>
+        <div class="exec-step-title step-title">${esc(window.limparTagsTexto(step.titulo))}</div>
         <div style="font-family:var(--font-mono);font-size:9px;color:rgba(245,200,0,.5);text-transform:uppercase;letter-spacing:1px;margin-top:1px">${tagStatus}</div>
       </div>
     </div>
     <div class="exec-step-body">
-      ${step.descricao ? `<div class="exec-step-desc">${esc(step.descricao)}</div>` : ''}
-      ${step.codigo ? `<pre class="code-block"><code>${esc(step.codigo)}</code></pre>` : ''}
+      ${step.descricao ? `<div class="exec-step-desc" id="sDesc">${esc(window.limparTagsTexto(step.descricao))}</div>` : ''}
+      ${step.codigo ? `<pre class="code-block"><code>${esc(window.limparTagsTexto(step.codigo))}</code></pre>` : ''}
       ${fotosHtml}
-      ${step.alerta ? `<div class="warn-box">⚠ ${esc(step.alerta)}</div>` : ''}
+      ${step.alerta ? `<div class="warn-box">⚠ ${esc(window.limparTagsTexto(step.alerta))}</div>` : ''}
     </div>
     <div class="exec-foot">
       <button class="${classeBotao}" style="${estiloBotao}" onclick="A.marcarStepDone('${step.id}')">
@@ -868,7 +867,6 @@ function buildExecStepCard(step, faltando){
     </div>
   </div>`;
 }
-
 /* ══ ABA TREINO ══ */
 function buildTreino(){
   const tr=S.treino;
@@ -881,21 +879,21 @@ function buildSelecionarTreino(){
   const procs=S.procedimentos.filter(p=>(p.steps||[]).length>=2);
   if(!procs.length)return`<div class="empty"><div class="empty-icon">🎓</div><div class="empty-title">PASSOS INSUFICIENTES</div><div class="empty-desc">Cada procedimento precisa de pelo menos 2 passos para o modo treino.</div></div>`;
   return`<div class="treino-card"><div class="card-head"><div class="card-title" style="color:#a855f7">🎓 MODO TREINO</div></div><div class="card-body"><div class="info-box" style="background:rgba(168,85,247,.05);border-color:rgba(168,85,247,.2);color:#a855f7">Os passos aparecem embaralhados. Toque-os na ordem correta.</div></div></div>
-  <div style="display:flex;flex-direction:column;gap:8px">${procs.map(p=>`<div class="proc-card" onclick="A.iniciarTreino(${p.id})"><div class="proc-card-body"><div class="proc-title">🎓 ${esc(p.nome)}</div><div class="proc-meta">${(p.steps||[]).length} passos · ${p.categoria||'Geral'}</div><div class="proc-badge-row"><span class="proc-badge pb-purple">🔀 Embaralhado</span></div></div></div>`).join('')}</div>`;
+  <div style="display:flex;flex-direction:column;gap:8px">${procs.map(p=>`<div class="proc-card" onclick="A.iniciarTreino(${p.id})"><div class="proc-card-body"><div class="proc-title">🎓 ${esc(window.limparTagsTexto(p.nome))}</div><div class="proc-meta">${(p.steps||[]).length} passos · ${p.categoria||'Geral'}</div><div class="proc-badge-row"><span class="proc-badge pb-purple">🔀 Embaralhado</span></div></div></div>`).join('')}</div>`;
 }
 function buildTreinoAtivo(){
   const tr=S.treino;const proc=S.procedimentos.find(p=>p.id===tr.procId);if(!proc)return buildSelecionarTreino();
   const total=tr.steps.length;const nResp=tr.respostas.length;const pct=Math.round((nResp/total)*100);
   const respondidosIds=new Set(tr.respostas.map(r=>r.stepId));const pendentes=tr.steps.filter(s=>!respondidosIds.has(s.id));
   const stepsHtml=pendentes.map(s=>{const thumb=s.fotos?.length?`<div class="treino-step-thumb"><img src="${s.fotos[0]}" alt="" loading="lazy"></div>`:'';
-    return`<div class="treino-step" id="ts_${s.id}" onclick="A.treinoClicarStep('${s.id}')"><div style="display:flex;align-items:center;gap:0"><div class="treino-slot" id="slot_${s.id}">?</div><div class="treino-step-body"><div class="treino-step-title">${esc(s.titulo)}</div>${s.descricao?`<div class="treino-step-desc">${esc(s.descricao).slice(0,70)}…</div>`:''}</div>${thumb}</div></div>`;
+    return`<div class="treino-step" id="ts_${s.id}" onclick="A.treinoClicarStep('${s.id}')"><div style="display:flex;align-items:center;gap:0"><div class="treino-slot" id="slot_${s.id}">?</div><div class="treino-step-body"><div class="treino-step-title">${esc(window.limparTagsTexto(s.titulo))}</div>${s.descricao?`<div class="treino-step-desc">${esc(window.limparTagsTexto(s.descricao)).slice(0,70)}…</div>`:''}</div>${thumb}</div></div>`;
   }).join('');
-  const respostasHtml=tr.respostas.slice().reverse().slice(0,3).map(r=>`<div style="display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--steel2);border-radius:var(--r);border:1px solid ${r.correto?'rgba(46,204,113,.2)':'rgba(192,57,43,.2)'}"><span style="color:${r.correto?'var(--green2)':'#e74c3c'};font-family:var(--font-head);font-size:15px">${r.correto?'✓':'✗'}</span><span style="font-family:var(--font-head);font-size:13px;color:${r.correto?'var(--green2)':'#e74c3c'}">#${r.ordemDada}</span><span style="font-size:12px;font-weight:600;color:var(--chrome);flex:1">${esc(r.titulo)}</span></div>`).join('');
+  const respostasHtml=tr.respostas.slice().reverse().slice(0,3).map(r=>`<div style="display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--steel2);border-radius:var(--r);border:1px solid ${r.correto?'rgba(46,204,113,.2)':'rgba(192,57,43,.2)'}"><span style="color:${r.correto?'var(--green2)':'#e74c3c'};font-family:var(--font-head);font-size:15px">${r.correto?'✓':'✗'}</span><span style="font-family:var(--font-head);font-size:13px;color:${r.correto?'var(--green2)':'#e74c3c'}">#${r.ordemDada}</span><span style="font-size:12px;font-weight:600;color:var(--chrome);flex:1">${esc(window.limparTagsTexto(r.titulo))}</span></div>`).join('');
   let feedbackHtml='';const ultimaResp=tr.respostas[tr.respostas.length-1];
-  if(ultimaResp&&!ultimaResp.correto){const faltavam=ultimaResp.faltavam||[];feedbackHtml=`<div class="treino-feedback"><div class="treino-feedback-title tf-red">⛔ ORDEM INCORRETA!</div><div style="font-size:12px;color:var(--chrome);line-height:1.5">Tentou colocar <strong style="color:white">"${esc(ultimaResp.titulo)}"</strong> como #${ultimaResp.ordemDada}, mas é <strong style="color:var(--yellow)">#${ultimaResp.ordemCorreta}</strong>.</div>${faltavam.length?`<div class="seq-missing-list">${faltavam.map(f=>`<div class="seq-missing-item"><div class="seq-missing-num">${f.ordem}</div><div class="seq-missing-name">${esc(f.titulo)}</div></div>`).join('')}</div>`:''}
+  if(ultimaResp&&!ultimaResp.correto){const faltavam=ultimaResp.faltavam||[];feedbackHtml=`<div class="treino-feedback"><div class="treino-feedback-title tf-red">⛔ ORDEM INCORRETA!</div><div style="font-size:12px;color:var(--chrome);line-height:1.5">Tentou colocar <strong style="color:white">"${esc(window.limparTagsTexto(ultimaResp.titulo))}"</strong> como #${ultimaResp.ordemDada}, mas é <strong style="color:var(--yellow)">#${ultimaResp.ordemCorreta}</strong>.</div>${faltavam.length?`<div class="seq-missing-list">${faltavam.map(f=>`<div class="seq-missing-item"><div class="seq-missing-num">${f.ordem}</div><div class="seq-missing-name">${esc(window.limparTagsTexto(f.titulo))}</div></div>`).join('')}</div>`:''}
     <button class="btn ghost sm" style="border-color:rgba(168,85,247,.3);color:#a855f7" onclick="A.treinoDesfazer()">↩ DESFAZER</button></div>`;}
   else if(ultimaResp&&ultimaResp.correto&&nResp<total){feedbackHtml=`<div class="treino-feedback ok"><div class="treino-feedback-title tf-green">✓ CORRETO! Continue…</div></div>`;}
-  return`<div class="treino-card"><div class="card-head"><div class="card-title" style="color:#a855f7">🎓 ${esc(proc.nome)}</div><div style="display:flex;align-items:center;gap:6px"><span class="treino-score-badge tsb-green">✓ ${tr.acertos}</span><span class="treino-score-badge tsb-red">✗ ${tr.erros}</span></div></div><div style="padding:8px 14px 5px"><div class="treino-progress"><div class="treino-progress-fill" style="width:${pct}%"></div></div><div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-family:var(--font-mono);font-size:9px;color:var(--chrome)">POSICIONADOS: ${nResp}/${total}</span><span style="font-family:var(--font-mono);font-size:9px;color:#a855f7">${pct}%</span></div></div></div>
+  return`<div class="treino-card"><div class="card-head"><div class="card-title" style="color:#a855f7">🎓 ${esc(window.limparTagsTexto(proc.nome))}</div><div style="display:flex;align-items:center;gap:6px"><span class="treino-score-badge tsb-green">✓ ${tr.acertos}</span><span class="treino-score-badge tsb-red">✗ ${tr.erros}</span></div></div><div style="padding:8px 14px 5px"><div class="treino-progress"><div class="treino-progress-fill" style="width:${pct}%"></div></div><div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-family:var(--font-mono);font-size:9px;color:var(--chrome)">POSICIONADOS: ${nResp}/${total}</span><span style="font-family:var(--font-mono);font-size:9px;color:#a855f7">${pct}%</span></div></div></div>
   ${feedbackHtml}
   <div class="card"><div class="card-head"><div class="card-title">🔀 TOQUE NA ORDEM CORRETA</div></div><div style="padding:7px 13px 13px;display:flex;flex-direction:column;gap:7px"><div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;letter-spacing:1px">Posição a preencher: <span style="color:var(--yellow)">#${nResp+1}</span></div>${stepsHtml}</div></div>
   ${respostasHtml?`<div style="display:flex;flex-direction:column;gap:5px">${respostasHtml}</div>`:''}
@@ -913,7 +911,7 @@ function buildTreinoResultado(){
   
   // O gabarito agora só mostra a ordem perfeita, porque a prova do erro fica no Histórico Geral
   const gabaritoHtml=stepsOrdenados.map(s=>{
-    return`<div class="gabarito-item"><div class="gabarito-num ok">✓</div><div style="flex:1"><div style="font-family:var(--font-head);font-size:13px;letter-spacing:.5px;color:var(--chrome2)">#${s.ordem} ${esc(s.titulo)}</div></div></div>`;
+    return`<div class="gabarito-item"><div class="gabarito-num ok">✓</div><div style="flex:1"><div style="font-family:var(--font-head);font-size:13px;letter-spacing:.5px;color:var(--chrome2)">#${s.ordem} ${esc(window.limparTagsTexto(s.titulo))}</div></div></div>`;
   }).join('');
   
   return`<div class="treino-card"><div class="card-head"><div class="card-title" style="color:#a855f7">🎓 RESULTADO DO TREINO</div></div><div class="card-body"><div style="text-align:center;padding:12px 0"><div style="font-family:var(--font-head);font-size:48px;color:${corNota};letter-spacing:2px">${taxa}%</div><div style="font-family:var(--font-head);font-size:20px;color:${corNota};letter-spacing:1px;margin-top:3px">${nota}</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;letter-spacing:1px;margin-top:6px;background:rgba(0,0,0,.2);padding:6px;border-radius:4px;display:inline-block;">DESEMPENHO: ${total} PASSOS · <span style="color:#e74c3c">${tr.erros} ERROS COMETIDOS</span></div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn purple sm" onclick="A.iniciarTreino(${tr.procId})" style="flex:2">🔄 TREINAR NOVAMENTE</button><button class="btn steel sm" onclick="A.abandonarTreino()">Voltar</button></div></div></div>
@@ -928,7 +926,7 @@ function buildFluxosLista() {
   
   return fluxosFiltro.map(f=>{
     const nos=f.nos||[];
-    return`<div class="fluxo-card" onclick="A.verFluxo(${f.id})"><div class="fluxo-card-body"><div class="proc-title" style="color:var(--cyan2)">${esc(f.nome)}</div><div class="proc-meta">${nos.length} nó${nos.length!==1?'s':''} · ${fmtDate(f.criadoEm)}</div><div class="proc-badge-row"><span class="proc-badge pb-cyan">🔀 Fluxo</span>${f.categoria?`<span class="proc-badge pb-gray">${esc(f.categoria)}</span>`:''}</div></div></div>`;
+    return`<div class="fluxo-card" onclick="A.verFluxo(${f.id})"><div class="fluxo-card-body"><div class="proc-title" style="color:var(--cyan2)">${esc(window.limparTagsTexto(f.nome))}</div><div class="proc-meta">${nos.length} nó${nos.length!==1?'s':''} · ${fmtDate(f.criadoEm)}</div><div class="proc-badge-row"><span class="proc-badge pb-cyan">🔀 Fluxo</span>${f.categoria?`<span class="proc-badge pb-gray">${esc(f.categoria)}</span>`:''}</div></div></div>`;
   }).join('');
 }
 
@@ -965,9 +963,9 @@ function buildFluxoNosPreview(fluxo){
     return`<div style="background:var(--steel);border:1px solid rgba(255,255,255,.06);border-radius:var(--r2);padding:10px 13px;border-left:3px solid ${cor}">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:${n.tipo==='pergunta'?'6':'0'}px">
         <span style="font-family:var(--font-mono);font-size:9px;background:rgba(0,0,0,.3);padding:2px 7px;border-radius:4px;color:${cor}">${tipo}</span>
-        <div style="font-family:var(--font-head);font-size:14px;color:var(--chrome2)">${esc(n.pergunta||n.titulo||'')}</div>
+        <div style="font-family:var(--font-head);font-size:14px;color:var(--chrome2)">${esc(window.limparTagsTexto(n.pergunta||n.titulo||''))}</div>
       </div>
-      ${n.tipo==='pergunta'&&n.opcoes?.length?`<div style="display:flex;flex-direction:column;gap:3px">${n.opcoes.map(o=>`<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:rgba(0,0,0,.2);border-radius:var(--r)"><span style="font-family:var(--font-mono);font-size:9px;color:var(--chrome);text-transform:uppercase;min-width:20px">${esc(o.label)}</span><span style="font-size:12px;color:var(--chrome)">→</span><span style="font-family:var(--font-mono);font-size:9px;color:var(--cyan2)">${o.destino==='diagnostico_direto'?'DIAGNÓSTICO':nos.find(x=>x.id===o.destinoId)?.pergunta||o.destinoId||'?'}</span></div>`).join('')}</div>`:''}
+      ${n.tipo==='pergunta'&&n.opcoes?.length?`<div style="display:flex;flex-direction:column;gap:3px">${n.opcoes.map(o=>`<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:rgba(0,0,0,.2);border-radius:var(--r)"><span style="font-family:var(--font-mono);font-size:9px;color:var(--chrome);text-transform:uppercase;min-width:20px">${esc(window.limparTagsTexto(o.label))}</span><span style="font-size:12px;color:var(--chrome)">→</span><span style="font-family:var(--font-mono);font-size:9px;color:var(--cyan2)">${o.destino==='diagnostico_direto'?'DIAGNÓSTICO':esc(window.limparTagsTexto(nos.find(x=>x.id===o.destinoId)?.pergunta||o.destinoId||'?'))}</span></div>`).join('')}</div>`:''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -978,17 +976,16 @@ function buildFluxoExec(){
   const nos=fluxo.nos||[];const noAtual=nos.find(n=>n.id===fe.noAtual);
   if(!noAtual)return`<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">NÓ NÃO ENCONTRADO</div></div>`;
   
-  // 🟢 SOLUÇÃO DO ERRO: Localiza o procedimento vinculado se ele existir para evitar o "proc is not defined"
   const proc = noAtual.procId ? S.procedimentos.find(p => p.id === noAtual.procId) : null;
 
-  const breadcrumb=fe.historico.length?`<div class="fluxo-breadcrumb">${fe.historico.map(h=>`<div class="bc-item"><span>${esc((h.pergunta||'').slice(0,20))}</span><span class="bc-resp"> ${esc(h.resposta)}</span></div>`).join('')}</div>`:'';
+  // Filtra as tags do histórico de navegação superior (Breadcrumbs)
+  const breadcrumb=fe.historico.length?`<div class="fluxo-breadcrumb">${fe.historico.map(h=>`<div class="bc-item"><span>${esc(window.limparTagsTexto(h.pergunta).slice(0,20))}</span><span class="bc-resp"> ${esc(window.limparTagsTexto(h.resposta))}</span></div>`).join('')}</div>`:'';
   
   const fotosExecHtml = (noAtual.fotos?.length) ? `<div class="exec-imgs" style="margin:12px 0">${noAtual.fotos.map((f,i)=>`<div class="exec-img" onclick="lightbox('${f}')"><img src="${f}"></div>`).join('')}</div>` : '';
-  const audioExecHtml = noAtual.audio ? `<div style="margin:12px 0; background:rgba(34,211,238,0.1); padding:10px; border-radius:var(--r); border-left:3px solid var(--cyan2);"><div style="font-family:var(--font-mono);font-size:10px;color:var(--cyan2);text-transform:uppercase;margin-bottom:6px;">🎙 Instrução em Áudio</div><audio controls src="${noAtual.audio}" style="width:100%; height:40px;" onplay="tocarAudioLockScreen('${esc(noAtual.pergunta||noAtual.titulo)}')"></audio></div>` : '';
+  const audioExecHtml = noAtual.audio ? `<div style="margin:12px 0; background:rgba(34,211,238,0.1); padding:10px; border-radius:var(--r); border-left:3px solid var(--cyan2);"><div style="font-family:var(--font-mono);font-size:10px;color:var(--cyan2);text-transform:uppercase;margin-bottom:6px;">🎙️ Instrução em Áudio</div><audio controls src="${noAtual.audio}" style="width:100%; height:40px;" onplay="tocarAudioLockScreen('${esc(window.limparTagsTexto(noAtual.pergunta || noAtual.titulo || ''))}')"></audio></div>` : '';
 
   const isDiag = noAtual.tipo === 'diagnostico';
   
-  // ⚙️ Uso seguro com proc?.nome para não quebrar se o procedimento for deletado
   const btnProcHtml = noAtual.procId ? `
     <button class="btn yellow sm" style="margin-top:10px; border:2px solid var(--yellow); padding:8px 12px; font-size:12px; font-weight:bold; width:100%;" onclick="A.verProcNoFluxo(${noAtual.procId}, '${esc(proc?.nome || 'Técnico')}', ${noAtual.procValor || 0})">
       📋 VER PROCEDIMENTO ${noAtual.procValor > 0 ? `(R$ ${noAtual.procValor.toFixed(2).replace('.', ',')})` : ''}
@@ -999,21 +996,22 @@ function buildFluxoExec(){
     conteudoPrincipal = `
     <div class="fluxo-diag-card">
       <div style="font-family:var(--font-mono);font-size:10px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">✅ FINAL DO FLUXO</div>
-      <div class="fluxo-diag-title">${esc(noAtual.titulo||noAtual.pergunta||'')}</div>
+      <div class="fluxo-diag-title">${esc(window.limparTagsTexto(noAtual.titulo||noAtual.pergunta||''))}</div>
       ${audioExecHtml} ${fotosExecHtml}
-      ${noAtual.descricao?`<div class="fluxo-diag-desc">${esc(noAtual.descricao)}</div>`:''}
-      ${noAtual.codigo?`<pre class="code-block"><code>${esc(noAtual.codigo)}</code></pre>`:''}
-      ${noAtual.solucao?`<div style="background:rgba(0,0,0,.3);border-radius:var(--r);padding:10px 12px;border-left:3px solid var(--cyan2);margin-top:4px"><div style="font-family:var(--font-mono);font-size:9px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">SOLUÇÃO RECOMENDADA</div><div style="font-size:13px;color:var(--chrome2);line-height:1.6">${esc(noAtual.solucao)}</div></div>`:''}
+      ${noAtual.descricao?`<div class="fluxo-diag-desc">${esc(window.limparTagsTexto(noAtual.descricao))}</div>`:''}
+      ${noAtual.codigo?`<pre class="code-block"><code>${esc(window.limparTagsTexto(noAtual.codigo))}</code></pre>`:''}
+      ${noAtual.solucao?`<div style="background:rgba(0,0,0,.3);border-radius:var(--r);padding:10px 12px;border-left:3px solid var(--cyan2);margin-top:4px"><div style="font-family:var(--font-mono);font-size:9px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">SOLUÇÃO RECOMENDADA</div><div style="font-size:13px;color:var(--chrome2);line-height:1.6">${esc(window.limparTagsTexto(noAtual.solucao))}</div></div>`:''}
       ${btnProcHtml}
     </div>`;
   } else {
-    const opcoesHtml=(noAtual.opcoes||[]).map((o,i)=>`<button class="fluxo-opt-btn" onclick="A.fluxoResponder(${i})"><span style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.5px;min-width:20px;color:rgba(34,211,238,.5)">${String.fromCharCode(65+i)}</span> ${esc(o.label)}<span class="fluxo-opt-arrow">›</span></button>`).join('');
+    // Filtra as tags dos botões de opções clicáveis (A, B, C...)
+    const opcoesHtml=(noAtual.opcoes||[]).map((o,i)=>`<button class="fluxo-opt-btn" onclick="A.fluxoResponder(${i})"><span style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.5px;min-width:20px;color:rgba(34,211,238,.5)">${String.fromCharCode(65+i)}</span> ${esc(window.limparTagsTexto(o.label))}<span class="fluxo-opt-arrow">›</span></button>`).join('');
     conteudoPrincipal = `
     <div class="fluxo-node-card">
-      <div class="fluxo-node-head"><div class="fluxo-q-badge"> </div><div class="fluxo-question">${esc(noAtual.pergunta||noAtual.titulo||'')}</div></div>
+      <div class="fluxo-node-head"><div class="fluxo-q-badge"> </div><div class="fluxo-question">${esc(window.limparTagsTexto(noAtual.pergunta || noAtual.titulo || ''))}</div></div>
       <div style="padding: 0 16px;">${audioExecHtml} ${fotosExecHtml}</div>
-      ${noAtual.descricao?`<div class="fluxo-desc" style="padding-top:0">${esc(noAtual.descricao)}</div>`:''}
-      ${noAtual.codigo?`<div style="padding:0 16px"><pre class="code-block" style="margin-top:0"><code>${esc(noAtual.codigo)}</code></pre></div>`:''}
+      ${noAtual.descricao?`<div class="fluxo-desc" style="padding-top:0">${esc(window.limparTagsTexto(noAtual.descricao))}</div>`:''}
+      ${noAtual.codigo?`<div style="padding:0 16px"><pre class="code-block" style="margin-top:0"><code>${esc(window.limparTagsTexto(noAtual.codigo))}</code></pre></div>`:''}
       ${btnProcHtml ? `<div style="padding: 0 16px;">${btnProcHtml}</div>` : ''}
       <div class="fluxo-opts">${opcoesHtml||'<div style="color:var(--chrome);font-size:13px">Sem opções</div>'}</div>
     </div>`;
@@ -1051,7 +1049,7 @@ function buildFluxoExec(){
   return `
   <div class="card" style="border-color:rgba(34,211,238,.15)">
     <div class="card-head" style="display:flex; justify-content:space-between; align-items:center;">
-      <div class="card-title" style="color:var(--cyan2)">🔀 ${esc(fluxo.nome)}</div>
+      <div class="card-title" style="color:var(--cyan2)">🔀 ${esc(window.limparTagsTexto(fluxo.nome))}</div>
       <button id="btnVozGlobal" onclick="window.ativarComandosVozOperacionais()" 
               style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); color:var(--cyan2); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; transition:all 0.2s;" 
                   title="Ativar Comando de Voz">
@@ -1076,8 +1074,8 @@ function buildBibliotecaLista() {
   const statsHtml=`<div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px;margin-bottom:8px"><span style="font-family:var(--font-mono);padding-left: 10px;font-size:10px;color:var(--chrome);text-transform:uppercase">${S.bibBusca?`${total} resultado${total!==1?'s':''}`:total+' passo'+(total!==1?'s':'')+' no total'}</span>${pages>1?`<span style="font-family:var(--font-mono);font-size:10px;color:#fb923c">Pág ${S.bibPagina+1}/${pages}</span>`:''}</div>`;
   
   const itensHtml = items.length ? `<div class="bib-card">${items.map(b=>{const fotos=b.fotos||[];return`<div class="bib-step-row" onclick="A.verBibItem(${b.id})">
-    ${fotos.length?`<div class="bib-step-thumb"><img src="${fotos[0]}" alt="" loading="lazy"></div>`:`<div class="bib-step-thumb-empty">📄</div>`}
-    <div class="bib-step-info"><div class="bib-step-title">${esc(b.titulo)}</div><div class="bib-step-meta">${b.categoria||'Geral'}${b.origem?' · '+b.origem:''} ${b.audio ? ' 🎙' : ''}</div></div>
+    ${fotos.length?`<div class="bib-step-thumb"><img src="${fotos[0]}" style="width:100%;height:100%;object-fit:cover"></div>`:`<div class="bib-step-thumb-empty">📄</div>`}
+    <div class="bib-step-info"><div class="bib-step-title">${esc(window.limparTagsTexto(b.titulo))}</div><div class="bib-step-meta">${b.categoria||'Geral'}${b.origem?' · '+b.origem:''} ${b.audio ? ' 🎙' : ''}</div></div>
     <div class="bib-step-acts"><button class="bib-btn edit" onclick="event.stopPropagation();A.editarBibItem(${b.id})">✏</button><button class="bib-btn del" onclick="event.stopPropagation();A.deletarBibItem(${b.id})">✕</button></div>
   </div>`;}).join('')}</div>` : 
   `<div style="text-align:center;padding:28px;color:var(--chrome);font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:1px">${S.bibBusca?'Nenhum resultado encontrado':'Biblioteca vazia — passos adicionados em procedimentos ou fluxos aparecem aqui'}</div>`;
@@ -2902,7 +2900,7 @@ function buildNoEditorCard(no,idx,todos,path){
         ${caminhoHtml}
         <div style="display:flex; align-items:center; width:100%;">
           <div style="background:${corGrupo}; color:${isPerguntar?'#fff':'#000'}; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:12px; margin-right:12px; flex-shrink:0;">${idx+1}</div>
-          <div style="flex:1; font-weight:bold; color:var(--chrome2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px;">${tituloExibicao}</div>
+          <div style="flex:1; font-weight:bold; color:var(--chrome2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px;">${esc(window.limparTagsTexto(no.pergunta || no.titulo || (isPerguntar ? 'P'+(idx+1) : 'D'+(idx+1))))}</div>
           <div style="font-family:var(--font-mono); font-size:9px; color:${corGrupo}; border:1px solid ${corGrupo}44; padding:2px 6px; border-radius:4px; margin-right:8px; background:rgba(0,0,0,0.2); flex-shrink:0;">
             ${isPerguntar ? '❓ PERGUNTA' : '✅ CONCLUSÃO'}
           </div>
@@ -3283,58 +3281,120 @@ window.scrollParaNo = (noId) => {
 
 // 🔊 Auxiliares globais de controlo de áudio e leitura
 window._audioUtteranceAtual = null;
-
+window._sistemaFalando = false;
 /* ═════════════════════════════════════════════════════════════════
    🔊 DETECTOR DE IDIOMA OFFLINE E LEITURA DINÂMICA (TTS)
    ═════════════════════════════════════════════════════════════════ */
+/* ═════════════════════════════════════════════════════════════════
+   🔊 MOTOR DE IDIOMAS ATUALIZADO (LIMPEZA VISUAL E TEXT-TO-SPEECH)
+   ═════════════════════════════════════════════════════════════════ */
 
-// Algoritmo leve de varredura heurística para detecção de idioma nativo no celular
-window.detectarIdiomaDoTexto = (texto) => {
-  if (!texto) return 'pt-BR';
-  const t = texto.toLowerCase().trim();
-  
-  // Lista de palavras de altíssima frequência (Marcadores de Idioma)
-  const padraoIngles = /\b(the|is|are|you|this|with|step|and|not|check|test|battery|engine|plug|fail|clear|view)\b/g;
-  const padraoEspanhol = /\b(el|los|las|con|para|una|que|si|este|motor|no|bien|bateria|ver|buscar|limpiar)\b/g;
-  
-  const correspondenciasIngles = (t.match(padraoIngles) || []).length;
-  const correspondenciasEspanhol = (t.match(padraoEspanhol) || []).length;
-  
-  // Se houver mais pegadas de termos em inglês ou espanhol, altera o código internacional
-  if (correspondenciasIngles > correspondenciasEspanhol && correspondenciasIngles > 0) return 'en-US';
-  if (correspondenciasEspanhol > correspondenciasIngles && correspondenciasEspanhol > 0) return 'es-ES';
-  
-  return 'pt-BR'; // Padrão caso seja português ou neutro
+// 1. 🖼️ FUNÇÃO DE LIMPEZA VISUAL: Remove completamente os marcadores "~xx" da tela
+window.limparTagsTexto = (texto) => {
+  if (!texto) return "";
+  // Remove globalmente qualquer tag do tipo ~pt, ~en, ~es (seguidas ou não de espaços)
+  return texto.replace(/~[a-zA-Z]{2}\s*/g, '');
 };
 
-// Modificado para processar e falar cada campo no seu idioma correto sequencialmente
+window.detectarIdiomaDoTexto = (texto) => {
+  if (!texto) return 'pt-BR';
+  const t = texto.toLowerCase();
+
+  // 1. Prioridade Máxima: Marcadores Manuais
+  if (t.includes('~en')) return 'en-US';
+  if (t.includes('~es')) return 'es-ES';
+  if (t.includes('~pt')) return 'pt-BR';
+
+  // 2. Dicionários de Palavras EXCLUSIVAS (Marcadores Fortes)
+  // Palavras que definem o inglês
+  const padraoIngles = /\b(the|is|are|you|with|and|have|good|morning|afternoon|please|hello|thanks|thank|what|where|how|why|who|bread|loaf|tomorrow|my|your|this|that|it)\b/g;
+
+  // Palavras exclusivas do espanhol (NÃO existem no PT com a mesma grafia)
+  // Ex: 'un' (PT é um), 'una' (PT é uma), 'y' (PT é e), 'en' (PT é em), 'con' (PT é com)
+  const padraoEspanhol = /\b(el|los|las|un|una|y|en|con|hola|gracias|adios|buenos|buenas|pero|muy|donde|cuando|quien|usted|ustedes|ellos|pan|lo|al)\b/g;
+
+  // Palavras fortes do português para equilibrar o jogo e pontuar
+  const padraoPortugues = /\b(o|a|os|as|um|uma|e|em|com|bom|dia|tarde|noite|obrigado|obrigada|você|do|da|dos|das|no|na|nos|nas|não|sim|pão|eu|meu|minha|aqui|para)\b/g;
+
+  // 3. Contagem de Pontos
+  const ptsIngles = (t.match(padraoIngles) || []).length;
+  const ptsEspanhol = (t.match(padraoEspanhol) || []).length;
+  const ptsPortugues = (t.match(padraoPortugues) || []).length;
+
+  // Se não encontrou palavras exclusivas de inglês ou espanhol, o padrão é Português
+  if (ptsIngles === 0 && ptsEspanhol === 0) return 'pt-BR';
+
+  // 4. Verificação de Vencedor
+  if (ptsIngles > ptsEspanhol && ptsIngles > ptsPortugues) return 'en-US';
+  if (ptsEspanhol > ptsIngles && ptsEspanhol > ptsPortugues) return 'es-ES';
+
+  // Se houver empate, ou o Português vencer na pontuação contra o espanhol/inglês
+  return 'pt-BR';
+};
+
+// 3. 🔊 LEITOR DE VOZ DINÂMICO: Obedece cada comando por linha, altera o sotaque e ignora os marcadores
 window.falarTextoGuiaPro = (camposArray) => {
-  window.speechSynthesis.cancel(); // Limpa qualquer áudio da fila
+  window.speechSynthesis.cancel(); // Para qualquer leitura anterior
+  
+  if (window._reconhecedorAtivo) {
+    window._sistemaFalando = true; 
+    window._reconhecedorAtivo.stop();
+  } else {
+    window._sistemaFalando = true;
+  }
 
-  camposArray.forEach(textoCampo => {
-    if (!textoCampo || !textoCampo.trim()) return;
+  const fragmentosLinhas = [];
+  camposArray.forEach(bloco => {
+    if (!bloco) return;
+    const linhas = bloco.split(/\n/); 
+    linhas.forEach(linha => {
+      const linhaLimpa = linha.replace(/[\u2714\u2715]|PASSO CONCLUÍDO|Abandonar/g, '').trim(); 
+      if (linhaLimpa.length > 0) {
+        fragmentosLinhas.push(linhaLimpa);
+      }
+    });
+  });
 
-    // Detecta o idioma específico DESTE campo de texto
-    const idiomaDetectado = window.detectarIdiomaDoTexto(textoCampo);
+  if (fragmentosLinhas.length === 0) {
+    window._sistemaFalando = false;
+    return;
+  }
+
+  fragmentosLinhas.forEach((frase, index) => {
+    const idiomaDetectado = window.detectarIdiomaDoTexto(frase);
     
-    const utterance = new SpeechSynthesisUtterance(textoCampo);
+    // Remove categoricamente a tag de idioma da frase antes de falar para nunca ler "til pt"
+    const fraseFormatada = frase.replace(/~[a-zA-Z]{2}\s*/g, '').trim();
+
+    if (fraseFormatada.length === 0) return;
+
+    const utterance = new SpeechSynthesisUtterance(fraseFormatada);
     utterance.lang = idiomaDetectado;
-    
-    // Ajusta a velocidade de reprodução: idiomas estrangeiros leem um pouco mais lento para melhor compreensão
-    utterance.rate = idiomaDetectado === 'pt-BR' ? 1.15 : 0.95; 
+    utterance.rate = idiomaDetectado === 'pt-BR' ? 1.15 : 0.88; 
 
-    // Tenta capturar uma voz nativa instalada no celular do usuário para aquele idioma
     if (window.speechSynthesis.getVoices) {
       const vozesDisponiveis = window.speechSynthesis.getVoices();
       const vozIdeal = vozesDisponiveis.find(v => v.lang.startsWith(idiomaDetectado));
       if (vozIdeal) utterance.voice = vozIdeal;
     }
 
-    // O navegador enfileira as falas automaticamente e as reproduz na ordem correta
+    if (index === fragmentosLinhas.length - 1) {
+      utterance.onend = () => {
+        window._sistemaFalando = false;
+        setTimeout(() => {
+          if (window._reconhecedorAtivo && window.speechSynthesis.speaking === false) {
+            try {
+              window._ultimoStartVoz = Date.now();
+              window._reconhecedorAtivo.start();
+            } catch(e) {}
+          }
+        }, 800);
+      };
+    }
+
     window.speechSynthesis.speak(utterance);
   });
 };
-
 // Ajustado para retornar um ARRAY de strings (Título, Descrição, Código) isolados para análise individual
 window.coletarCamposEtapaAtualArray = () => {
   const listaCampos = [];
@@ -3343,7 +3403,8 @@ window.coletarCamposEtapaAtualArray = () => {
     const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
     const step = proc?.steps?.find(s => s.id === S.execAtiva.stepAtual);
     if (step) {
-      listaCampos.push(`Passo ${step.ordem}: ${step.titulo}`);
+      listaCampos.push(`Passo ${step.ordem}`); // Adicionado de forma isolada
+      if (step.titulo) listaCampos.push(step.titulo);
       if (step.descricao) listaCampos.push(step.descricao);
       if (step.codigo) listaCampos.push(step.codigo);
     }
@@ -3352,14 +3413,15 @@ window.coletarCamposEtapaAtualArray = () => {
     const fluxo = S.fluxos.find(f => f.id === S.fluxoExec.fluxoId);
     const noAtual = fluxo?.nos?.find(n => n.id === S.fluxoExec.noAtual);
     if (noAtual) {
-      listaCampos.push(noAtual.tipo === 'diagnostico' ? `Conclusão: ${noAtual.titulo || noAtual.pergunta}` : noAtual.pergunta || noAtual.titulo);
+      listaCampos.push(noAtual.tipo === 'diagnostico' ? "Conclusão" : "Pergunta");
+      const txt = noAtual.pergunta || noAtual.titulo;
+      if (txt) listaCampos.push(txt);
       if (noAtual.descricao || noAtual.solucao) listaCampos.push(noAtual.descricao || noAtual.solucao);
       if (noAtual.codigo) listaCampos.push(noAtual.codigo);
     }
   }
   return listaCampos;
 };
-
 /* 🛠️ REGISTRO CENTRAL DE COMANDOS DE VOZ (Adicione novos aqui facilmente!) */
 window.registroComandosVoz = {
   // --- NOVOS COMANDOS DE LEITURA (SÍNTESE DE VOZ) ---
@@ -3411,18 +3473,20 @@ window.executarAvancoLinearVoz = () => {
 };
 
 /* 🎙️ ATIVADOR E GERENCIADOR DO RECONHECIMENTO DE VOZ */
+/* 🎙️ GERENCIADOR DE RECONHECIMENTO DE VOZ COM TRAVA OPERACIONAL ANTI-BIPE */
 window.ativarComandosVozOperacionais = () => {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    toast("🎙️ Comando de voz não suportado neste navegador.", "error");
+    toast("🎙️ Comando de voz não suportado neste dispositivo.", "error");
     return;
   }
 
-  // Desliga se já estiver rodando
   if (window._reconhecedorAtivo) {
     window._reconhecedorAtivo.stop();
     window._reconhecedorAtivo = null;
-    window.speechSynthesis.cancel(); // Cancela leituras se desligar o microfone
+    window.speechSynthesis.cancel();
+    window._sistemaFalando = false;
+    clearTimeout(window._timerEstabilizadorVozMobile);
     toast("🎙️ Microfone Desativado", "error");
     document.getElementById("btnVozGlobal")?.classList.remove("ativo");
     return;
@@ -3430,18 +3494,16 @@ window.ativarComandosVozOperacionais = () => {
 
   const recognition = new SpeechRecognition();
   recognition.lang = 'pt-BR';
-  recognition.continuous = true;
+  recognition.continuous = false; 
   recognition.interimResults = false;
 
   recognition.onresult = (event) => {
     const resultado = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-    console.log("🎙️ Texto capturado pelo microfone:", resultado);
+    console.log("🎙️ Capturado no celular:", resultado);
 
     let comandoExecutado = false;
 
-    // ⚡ 1. Varre o mapa de comandos estáticos cadastrados
     for (const chave in window.registroComandosVoz) {
-      // Aceita correspondência exata ou se o comando estiver inserido na frase dita
       if (resultado === chave || resultado.includes(chave)) {
         window.registroComandosVoz[chave]();
         comandoExecutado = true;
@@ -3449,7 +3511,6 @@ window.ativarComandosVozOperacionais = () => {
       }
     }
 
-    // 🧠 2. Se não for comando fixo, avalia botões dinâmicos dos Fluxogramas
     if (!comandoExecutado && S.fluxoExec) {
       const fluxo = S.fluxos.find(f => f.id === S.fluxoExec.fluxoId);
       const noAtual = fluxo?.nos?.find(n => n.id === S.fluxoExec.noAtual);
@@ -3461,55 +3522,62 @@ window.ativarComandosVozOperacionais = () => {
         });
 
         if (indexEncontrado !== -1) {
-          window.speechSynthesis.cancel(); // Para de falar se o usuário escolheu uma rota
-          const nomeBotao = noAtual.opcoes[indexEncontrado].label;
+          window.speechSynthesis.cancel();
           A.fluxoResponder(indexEncontrado);
-          toast(`🎙️ Selecionado: "${nomeBotao}"`, "ok");
+          toast(`🎙️ Selecionado: "${noAtual.opcoes[indexEncontrado].label}"`, "ok");
         }
       }
     }
   };
 
-  // Gerenciador de segurança para o temporizador do celular
-  window._timerEstabilizadorVozMobile = null;
-
   recognition.onend = () => {
-    // Se o usuário não desligou o microfone manualmente pelo botão
+    // 🔥 BLOQUEIO DO LAÇO: Se o celular está lendo o texto, impede o reinício e corta os bipes!
+    if (window._sistemaFalando) {
+      console.log("🎙️ Reinício suspenso enquanto o áudio está tocando.");
+      return; 
+    }
+
     if (window._reconhecedorAtivo) {
       clearTimeout(window._timerEstabilizadorVozMobile);
       
-      // ⏳ Dá um respiro de 1.5 segundos para o sistema operacional do celular se estabilizar
+      const agora = Date.now();
+      const tempoDesdeUltimoStart = agora - window._ultimoStartVoz;
+      
+      let tempoEspera = 1200; 
+      if (tempoDesdeUltimoStart < 3000) {
+        tempoEspera = 3000; // Proteção para o hardware do celular respirar
+      }
+
       window._timerEstabilizadorVozMobile = setTimeout(() => {
-        if (window._reconhecedorAtivo) {
+        // Nova validação antes de disparar o hardware de captura
+        if (window._reconhecedorAtivo && !window._sistemaFalando) {
           try {
+            window._ultimoStartVoz = Date.now();
             recognition.start();
-            console.log("🎙️ Microfone reativado de forma estável pós-silêncio.");
-          } catch (erro) {
-            // Caso o navegador tente abrir antes do tempo, ignora silenciosamente para não travar a tela
-            console.log("🎙️ Aguardando liberação do hardware de áudio...");
+          } catch (e) {
+            console.log("Aguardando liberação do microfone...");
           }
         }
-      }, 1500); // 1500 milissegundos é o tempo perfeito para uso em oficinas/celulares
+      }, tempoEspera);
     }
   };
 
   recognition.onerror = (event) => {
-    // Ignora erros comuns de silêncio (no-speech) para não exibir alertas desnecessários na tela do celular
-    if (event.error === 'no-speech') {
-      console.log("🎙️ Silêncio detectado. O estabilizador mobile entrará em ação...");
-      return;
-    }
-    console.error("🎙️ Erro no Reconhecedor de Voz:", event.error);
+    if (event.error === 'no-speech') return; // Ignora silêncio
+    if (event.error === 'aborted') return;   // Ignora fechamentos manuais controlados
+    console.error("Erro capturado:", event.error);
   };
 
   window._reconhecedorAtivo = recognition;
   
   try {
+    window._sistemaFalando = false;
+    window._ultimoStartVoz = Date.now();
     recognition.start();
     document.getElementById("btnVozGlobal")?.classList.add("ativo");
-    toast("🎙️ Sistema de Voz Avançado Ativo!", "ok");
+    toast("🎙️ Voz Inteligente Estabilizada!", "ok");
   } catch(e) {
-    console.log("Erro inicial de hardware:", e);
+    console.log("Erro de inicialização:", e);
   }
 };
 
