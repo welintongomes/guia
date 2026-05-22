@@ -3284,69 +3284,102 @@ window.scrollParaNo = (noId) => {
 // 🔊 Auxiliares globais de controlo de áudio e leitura
 window._audioUtteranceAtual = null;
 
-// Função mágica que faz o navegador falar em voz alta
-window.falarTextoGuiaPro = (texto) => {
-  if (!texto) return;
-  window.speechSynthesis.cancel(); // Cancela qualquer leitura anterior imediatamente
+/* ═════════════════════════════════════════════════════════════════
+   🔊 DETECTOR DE IDIOMA OFFLINE E LEITURA DINÂMICA (TTS)
+   ═════════════════════════════════════════════════════════════════ */
+
+// Algoritmo leve de varredura heurística para detecção de idioma nativo no celular
+window.detectarIdiomaDoTexto = (texto) => {
+  if (!texto) return 'pt-BR';
+  const t = texto.toLowerCase().trim();
   
-  const utterance = new SpeechSynthesisUtterance(texto);
-  utterance.lang = 'pt-BR'; // Define o idioma da síntese de voz
-  utterance.rate = 1.15;    // Velocidade de leitura ideal para o ambiente de oficina
+  // Lista de palavras de altíssima frequência (Marcadores de Idioma)
+  const padraoIngles = /\b(the|is|are|you|this|with|step|and|not|check|test|battery|engine|plug|fail|clear|view)\b/g;
+  const padraoEspanhol = /\b(el|los|las|con|para|una|que|si|este|motor|no|bien|bateria|ver|buscar|limpiar)\b/g;
   
-  window._audioUtteranceAtual = utterance;
-  window.speechSynthesis.speak(utterance);
+  const correspondenciasIngles = (t.match(padraoIngles) || []).length;
+  const correspondenciasEspanhol = (t.match(padraoEspanhol) || []).length;
+  
+  // Se houver mais pegadas de termos em inglês ou espanhol, altera o código internacional
+  if (correspondenciasIngles > correspondenciasEspanhol && correspondenciasIngles > 0) return 'en-US';
+  if (correspondenciasEspanhol > correspondenciasIngles && correspondenciasEspanhol > 0) return 'es-ES';
+  
+  return 'pt-BR'; // Padrão caso seja português ou neutro
 };
 
-// Função inteligente que recolhe dinamicamente os textos da tela atual para leitura
-window.coletarTextoEtapaAtual = () => {
-  let textoParaLer = "";
+// Modificado para processar e falar cada campo no seu idioma correto sequencialmente
+window.falarTextoGuiaPro = (camposArray) => {
+  window.speechSynthesis.cancel(); // Limpa qualquer áudio da fila
+
+  camposArray.forEach(textoCampo => {
+    if (!textoCampo || !textoCampo.trim()) return;
+
+    // Detecta o idioma específico DESTE campo de texto
+    const idiomaDetectado = window.detectarIdiomaDoTexto(textoCampo);
+    
+    const utterance = new SpeechSynthesisUtterance(textoCampo);
+    utterance.lang = idiomaDetectado;
+    
+    // Ajusta a velocidade de reprodução: idiomas estrangeiros leem um pouco mais lento para melhor compreensão
+    utterance.rate = idiomaDetectado === 'pt-BR' ? 1.15 : 0.95; 
+
+    // Tenta capturar uma voz nativa instalada no celular do usuário para aquele idioma
+    if (window.speechSynthesis.getVoices) {
+      const vozesDisponiveis = window.speechSynthesis.getVoices();
+      const vozIdeal = vozesDisponiveis.find(v => v.lang.startsWith(idiomaDetectado));
+      if (vozIdeal) utterance.voice = vozIdeal;
+    }
+
+    // O navegador enfileira as falas automaticamente e as reproduz na ordem correta
+    window.speechSynthesis.speak(utterance);
+  });
+};
+
+// Ajustado para retornar um ARRAY de strings (Título, Descrição, Código) isolados para análise individual
+window.coletarCamposEtapaAtualArray = () => {
+  const listaCampos = [];
   
-  // 1. Se estiver a executar um Procedimento Linear
   if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual) {
     const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
     const step = proc?.steps?.find(s => s.id === S.execAtiva.stepAtual);
     if (step) {
-      textoParaLer += `Passo ${step.ordem}. ${step.titulo}. `;// introduçao removida textoParaLer += `Passo ${s...
-      if (step.descricao) textoParaLer += `Descrição: ${step.descricao}. `;
-      if (step.codigo) textoParaLer += `: ${step.codigo}. `;// se quiser introcuçao textoParaLer += `Instrução técnica do código :
+      listaCampos.push(`Passo ${step.ordem}: ${step.titulo}`);
+      if (step.descricao) listaCampos.push(step.descricao);
+      if (step.codigo) listaCampos.push(step.codigo);
     }
-  }
-  // 2. Se estiver a executar um Fluxograma de Diagnóstico
+  } 
   else if (S.fluxoExec && S.fluxoExec.noAtual) {
     const fluxo = S.fluxos.find(f => f.id === S.fluxoExec.fluxoId);
     const noAtual = fluxo?.nos?.find(n => n.id === S.fluxoExec.noAtual);
     if (noAtual) {
-      if (noAtual.tipo === 'diagnostico') {
-        textoParaLer += `Conclusão do Diagnóstico: ${noAtual.titulo || noAtual.pergunta}. `;
-      } else {
-        textoParaLer += `: ${noAtual.pergunta || noAtual.titulo}. `;// se quiser uma introduçao textoParaLer += `Pergunta atual:
-      }
-      if (noAtual.descricao || noAtual.solucao) textoParaLer += `Laudo e orientações: ${noAtual.descricao || noAtual.solucao}. `;
-      if (noAtual.codigo) textoParaLer += `: ${noAtual.codigo}. `;// textoParaLer += `Notas: se quiser que diga algo antes da leitura
+      listaCampos.push(noAtual.tipo === 'diagnostico' ? `Conclusão: ${noAtual.titulo || noAtual.pergunta}` : noAtual.pergunta || noAtual.titulo);
+      if (noAtual.descricao || noAtual.solucao) listaCampos.push(noAtual.descricao || noAtual.solucao);
+      if (noAtual.codigo) listaCampos.push(noAtual.codigo);
     }
   }
-  return textoParaLer;
+  return listaCampos;
 };
 
 /* 🛠️ REGISTRO CENTRAL DE COMANDOS DE VOZ (Adicione novos aqui facilmente!) */
 window.registroComandosVoz = {
   // --- NOVOS COMANDOS DE LEITURA (SÍNTESE DE VOZ) ---
+// Substitua apenas esta linha dentro do seu window.registroComandosVoz
   "leia para mim": () => {
-    const texto = window.coletarTextoEtapaAtual();
-    if (texto) {
-      window.falarTextoGuiaPro(texto);
-      toast("🔊 A ler etapa atual...", "ok");
+    const campos = window.coletarCamposEtapaAtualArray();
+    if (campos.length > 0) {
+      window.falarTextoGuiaPro(campos);
+      toast("🔊 Lendo informações no idioma nativo...", "ok");
     } else {
       toast("⚠ Nada para ler nesta tela.", "error");
     }
   },
-  "pausar leitura": () => {
+  "pausar": () => {
     if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
       window.speechSynthesis.pause();
       toast("⏸️ Leitura Pausada", "cyan");
     }
   },
-  "continue lendo": () => {
+  "continue": () => {
     if (window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
       toast("▶️ A retomar leitura...", "ok");
@@ -3437,15 +3470,47 @@ window.ativarComandosVozOperacionais = () => {
     }
   };
 
+  // Gerenciador de segurança para o temporizador do celular
+  window._timerEstabilizadorVozMobile = null;
+
   recognition.onend = () => {
-    // Mantém o microfone sempre acordado na oficina
-    if (window._reconhecedorAtivo) recognition.start();
+    // Se o usuário não desligou o microfone manualmente pelo botão
+    if (window._reconhecedorAtivo) {
+      clearTimeout(window._timerEstabilizadorVozMobile);
+      
+      // ⏳ Dá um respiro de 1.5 segundos para o sistema operacional do celular se estabilizar
+      window._timerEstabilizadorVozMobile = setTimeout(() => {
+        if (window._reconhecedorAtivo) {
+          try {
+            recognition.start();
+            console.log("🎙️ Microfone reativado de forma estável pós-silêncio.");
+          } catch (erro) {
+            // Caso o navegador tente abrir antes do tempo, ignora silenciosamente para não travar a tela
+            console.log("🎙️ Aguardando liberação do hardware de áudio...");
+          }
+        }
+      }, 1500); // 1500 milissegundos é o tempo perfeito para uso em oficinas/celulares
+    }
+  };
+
+  recognition.onerror = (event) => {
+    // Ignora erros comuns de silêncio (no-speech) para não exibir alertas desnecessários na tela do celular
+    if (event.error === 'no-speech') {
+      console.log("🎙️ Silêncio detectado. O estabilizador mobile entrará em ação...");
+      return;
+    }
+    console.error("🎙️ Erro no Reconhecedor de Voz:", event.error);
   };
 
   window._reconhecedorAtivo = recognition;
-  recognition.start();
-  document.getElementById("btnVozGlobal")?.classList.add("ativo");
-  toast("🎙️ Sistema de Voz Avançado Ativo!", "ok");
+  
+  try {
+    recognition.start();
+    document.getElementById("btnVozGlobal")?.classList.add("ativo");
+    toast("🎙️ Sistema de Voz Avançado Ativo!", "ok");
+  } catch(e) {
+    console.log("Erro inicial de hardware:", e);
+  }
 };
 
 /* ══ INIT ══ */
