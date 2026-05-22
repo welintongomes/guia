@@ -830,15 +830,17 @@ window.irParaPassoProcedimento = (stepId) => {
   
   render(); // Atualiza a renderização do cartão imediatamente
 };
-
 function buildExecStepCard(step, faltando){
   if(faltando.length > 0) {
-    return `<div class="seq-error-box"><div class="seq-error-title">⛔ ERRO DE SEQUÊNCIA</div><div style="font-size:12px;color:var(--chrome);line-height:1.5">Passo <strong style="color:white">#${step.ordem} ${esc(window.limparTagsTexto(step.titulo))}</strong> — conclua antes:</div></div>`;
+    return `<div class="seq-error-box"><div class="seq-error-title">⛔ ERRO DE SEQUÊNCIA</div><div style="font-size:12px;color:var(--chrome);line-height:1.5">Passo <strong style="color:white">#${step.ordem} ${esc(step.titulo)}</strong> — conclua antes:</div><div class="seq-missing-list">${faltando.map(s=>`<div class="seq-missing-item"><div class="seq-missing-num">${s.ordem}</div><div class="seq-missing-name">${esc(s.titulo)}</div></div>`).join('')}</div></div>`;
   }
   
   const fotosHtml = step.fotos?.length ? `<div class="exec-imgs">${step.fotos.map((f,i)=>`<div class="exec-img" onclick="lightbox('${f}')"><img src="${f}" alt="${i+1}" loading="lazy"></div>`).join('')}</div>` : '';
   
+  // 🟢 MÁGICA DO BOTÃO DINÂMICO: Verifica se este passo específico já está concluído no banco temporário
   const isPassoEfetuado = S.execAtiva?.stepsDone?.includes(step.id);
+  
+  // Configura a cor, classe e o texto de acordo com o status real do passo
   const classeBotao = isPassoEfetuado ? 'btn green' : 'btn steel';
   const estiloBotao = isPassoEfetuado ? '' : 'background: var(--cyan2); color: #000; font-weight: bold;';
   const textoBotao = isPassoEfetuado ? '✔ PASSO CONCLUÍDO' : 'CONCLUIR ESTA ETAPA';
@@ -849,17 +851,15 @@ function buildExecStepCard(step, faltando){
     <div class="exec-step-head">
       <div class="exec-num-badge">${step.ordem}</div>
       <div>
-        <div class="exec-step-title step-title">${esc(window.limparTagsTexto(step.titulo))}</div>
+        <div class="exec-step-title">${esc(step.titulo)}</div>
         <div style="font-family:var(--font-mono);font-size:9px;color:rgba(245,200,0,.5);text-transform:uppercase;letter-spacing:1px;margin-top:1px">${tagStatus}</div>
       </div>
     </div>
     <div class="exec-step-body">
-      ${step.descricao ? `<div class="exec-step-desc" id="sDesc">${esc(window.limparTagsTexto(step.descricao))}</div>` : ''}
-      
-      ${step.codigo ? `<pre class="code-block"><code>${esc(window.limparTagsTexto(step.codigo))}</code></pre>` : ''}
-      
+      ${step.descricao ? `<div class="exec-step-desc">${esc(step.descricao)}</div>` : ''}
+      ${step.codigo ? `<pre class="code-block"><code>${esc(step.codigo)}</code></pre>` : ''}
       ${fotosHtml}
-      ${step.alerta ? `<div class="warn-box">⚠ ${esc(window.limparTagsTexto(step.alerta))}</div>` : ''}
+      ${step.alerta ? `<div class="warn-box">⚠ ${esc(step.alerta)}</div>` : ''}
     </div>
     <div class="exec-foot">
       <button class="${classeBotao}" style="${estiloBotao}" onclick="A.marcarStepDone('${step.id}')">
@@ -984,7 +984,7 @@ function buildFluxoExec(){
   const breadcrumb=fe.historico.length?`<div class="fluxo-breadcrumb">${fe.historico.map(h=>`<div class="bc-item"><span>${esc((h.pergunta||'').slice(0,20))}</span><span class="bc-resp"> ${esc(h.resposta)}</span></div>`).join('')}</div>`:'';
   
   const fotosExecHtml = (noAtual.fotos?.length) ? `<div class="exec-imgs" style="margin:12px 0">${noAtual.fotos.map((f,i)=>`<div class="exec-img" onclick="lightbox('${f}')"><img src="${f}"></div>`).join('')}</div>` : '';
-  const audioExecHtml = noAtual.audio ? `<div style="margin:12px 0; background:rgba(34,211,238,0.1); padding:10px; border-radius:var(--r); border-left:3px solid var(--cyan2);"><div style="font-family:var(--font-mono);font-size:10px;color:var(--cyan2);text-transform:uppercase;margin-bottom:6px;">🎙 Instrução em Áudio</div><audio controls src="${noAtual.audio}" style="width:100%; height:40px;" onplay="tocarAudioLockScreen('${esc(window.limparTagsTexto(noAtual.pergunta))}esc(noAtual.pergunta||noAtual.titulo)}')"></audio></div>` : '';
+  const audioExecHtml = noAtual.audio ? `<div style="margin:12px 0; background:rgba(34,211,238,0.1); padding:10px; border-radius:var(--r); border-left:3px solid var(--cyan2);"><div style="font-family:var(--font-mono);font-size:10px;color:var(--cyan2);text-transform:uppercase;margin-bottom:6px;">🎙 Instrução em Áudio</div><audio controls src="${noAtual.audio}" style="width:100%; height:40px;" onplay="tocarAudioLockScreen('${esc(noAtual.pergunta||noAtual.titulo)}')"></audio></div>` : '';
 
   const isDiag = noAtual.tipo === 'diagnostico';
   
@@ -1001,8 +1001,8 @@ function buildFluxoExec(){
       <div style="font-family:var(--font-mono);font-size:10px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">✅ FINAL DO FLUXO</div>
       <div class="fluxo-diag-title">${esc(noAtual.titulo||noAtual.pergunta||'')}</div>
       ${audioExecHtml} ${fotosExecHtml}
-      ${noAtual.descricao?`<div class="fluxo-diag-desc">${esc(window.limparTagsTexto(noAtual.descricao))}</div>`:''}
-      ${noAtual.codigo?`<pre class="code-block"><code>${esc(window.limparTagsTexto(noAtual.codigo))}</code></pre>`:''}
+      ${noAtual.descricao?`<div class="fluxo-diag-desc">${esc(noAtual.descricao)}</div>`:''}
+      ${noAtual.codigo?`<pre class="code-block"><code>${esc(noAtual.codigo)}</code></pre>`:''}
       ${noAtual.solucao?`<div style="background:rgba(0,0,0,.3);border-radius:var(--r);padding:10px 12px;border-left:3px solid var(--cyan2);margin-top:4px"><div style="font-family:var(--font-mono);font-size:9px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">SOLUÇÃO RECOMENDADA</div><div style="font-size:13px;color:var(--chrome2);line-height:1.6">${esc(noAtual.solucao)}</div></div>`:''}
       ${btnProcHtml}
     </div>`;
@@ -1010,10 +1010,10 @@ function buildFluxoExec(){
     const opcoesHtml=(noAtual.opcoes||[]).map((o,i)=>`<button class="fluxo-opt-btn" onclick="A.fluxoResponder(${i})"><span style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.5px;min-width:20px;color:rgba(34,211,238,.5)">${String.fromCharCode(65+i)}</span> ${esc(o.label)}<span class="fluxo-opt-arrow">›</span></button>`).join('');
     conteudoPrincipal = `
     <div class="fluxo-node-card">
-      <div class="fluxo-node-head"><div class="fluxo-q-badge"> </div><div class="fluxo-question">${esc(window.limparTagsTexto(noAtual.pergunta))}||noAtual.titulo||'')}</div></div>
+      <div class="fluxo-node-head"><div class="fluxo-q-badge"> </div><div class="fluxo-question">${esc(noAtual.pergunta||noAtual.titulo||'')}</div></div>
       <div style="padding: 0 16px;">${audioExecHtml} ${fotosExecHtml}</div>
-      ${noAtual.descricao?`<div class="fluxo-desc" style="padding-top:0">${esc(window.limparTagsTexto(noAtual.descricao))}</div>`:''}
-      ${noAtual.codigo?`<div style="padding:0 16px"><pre class="code-block" style="margin-top:0"><code>${esc(window.limparTagsTexto(noAtual.codigo))}</code></pre></div>`:''}
+      ${noAtual.descricao?`<div class="fluxo-desc" style="padding-top:0">${esc(noAtual.descricao)}</div>`:''}
+      ${noAtual.codigo?`<div style="padding:0 16px"><pre class="code-block" style="margin-top:0"><code>${esc(noAtual.codigo)}</code></pre></div>`:''}
       ${btnProcHtml ? `<div style="padding: 0 16px;">${btnProcHtml}</div>` : ''}
       <div class="fluxo-opts">${opcoesHtml||'<div style="color:var(--chrome);font-size:13px">Sem opções</div>'}</div>
     </div>`;
@@ -3277,6 +3277,10 @@ window.scrollParaNo = (noId) => {
     }, 60);
 };
 
+/* ═════════════════════════════════════════════════════════════════
+   🎙️ MOTOR DE VOZ EXTENSÍVEL COM TEXT-TO-SPEECH (GUIA PRO VOX)
+   ═════════════════════════════════════════════════════════════════ */
+
 // 🔊 Auxiliares globais de controlo de áudio e leitura
 window._audioUtteranceAtual = null;
 
@@ -3285,103 +3289,53 @@ window._audioUtteranceAtual = null;
    ═════════════════════════════════════════════════════════════════ */
 
 // Algoritmo leve de varredura heurística para detecção de idioma nativo no celular
-/* ═════════════════════════════════════════════════════════════════
-   🔊 MOTOR DE IDIOMAS COM SUPORTE A TAGS DE OVERRIDE (~en, ~es, ~pt)
-   ═════════════════════════════════════════════════════════════════ */
-
-/* ═════════════════════════════════════════════════════════════════
-   🔊 MOTOR DE AUDIO E FILTRAGEM DE TAGS VISUAIS (~en, ~pt, ~es)
-   ═════════════════════════════════════════════════════════════════ */
-
-// Função utilitária mágica que remove as tags para exibição limpa no ecrã
-window.limparTagsTexto = (texto) => {
-  if (!texto) return "";
-  return texto.split('\n').map(linha => {
-    const l = linha.trim().toLowerCase();
-    if (l.startsWith('~en') || l.startsWith('~es') || l.startsWith('~pt')) {
-      return linha.trim().substring(3).trim(); // Remove a tag (~en, ~pt, ~es) e preserva o resto
-    }
-    return linha;
-  }).join('\n');
-};
-   
-/* 🎙️ ATIVADOR E GERENCIADOR DO RECONHECIMENTO DE VOZ */
-/* ═════════════════════════════════════════════════════════════════
-   🎙️ MOTOR DE VOZ ULTRA ESTABILIZADO PARA CELULAR (MULTI-IDIOMA)
-   ═════════════════════════════════════════════════════════════════ */
-
-window._ultimoStartVoz = 0; // Guarda o timestamp para evitar o loop maluco
-window._timerEstabilizadorVozMobile = null;
-
-// Heurística expandida e precisa para capturar idiomas linha por linha com suporte a tags (~en, ~es, ~pt)
 window.detectarIdiomaDoTexto = (texto) => {
   if (!texto) return 'pt-BR';
   const t = texto.toLowerCase().trim();
   
-  if (t.startsWith('~en')) return 'en-US';
-  if (t.startsWith('~es')) return 'es-ES';
-  if (t.startsWith('~pt')) return 'pt-BR';
-  
-  // Dicionário expandido com termos comuns do dia a dia e aprendizado
-  const padraoIngles = /\b(good|morning|afternoon|hello|like|please|bread|loaf|the|is|are|you|this|with|and|not|i|my|have|it|for|to|in|of|up|down|step|check|test|battery|fail|clear|view|tomorrow|excuse|me|thanks|thank)\b/g;
-  const padraoEspanhol = /\b(buenos|dias|tardes|hola|por|favor|pan|el|la|los|las|con|para|una|que|si|este|un|del|lo|gracias|adios|como|esta|motor|bateria)\b/g;
+  // Lista de palavras de altíssima frequência (Marcadores de Idioma)
+  const padraoIngles = /\b(the|is|are|you|this|with|step|and|not|check|test|battery|engine|plug|fail|clear|view)\b/g;
+  const padraoEspanhol = /\b(el|los|las|con|para|una|que|si|este|motor|no|bien|bateria|ver|buscar|limpiar)\b/g;
   
   const correspondenciasIngles = (t.match(padraoIngles) || []).length;
   const correspondenciasEspanhol = (t.match(padraoEspanhol) || []).length;
   
+  // Se houver mais pegadas de termos em inglês ou espanhol, altera o código internacional
   if (correspondenciasIngles > correspondenciasEspanhol && correspondenciasIngles > 0) return 'en-US';
   if (correspondenciasEspanhol > correspondenciasIngles && correspondenciasEspanhol > 0) return 'es-ES';
   
-  return 'pt-BR';
+  return 'pt-BR'; // Padrão caso seja português ou neutro
 };
 
-// 🧠 MÁGICA DA LEITURA LINHA POR LINHA: Altera o idioma em tempo real a cada frase e limpa as tags
+// Modificado para processar e falar cada campo no seu idioma correto sequencialmente
 window.falarTextoGuiaPro = (camposArray) => {
-  window.speechSynthesis.cancel(); // Para qualquer leitura anterior
+  window.speechSynthesis.cancel(); // Limpa qualquer áudio da fila
 
-  // Quebra os blocos de texto por linhas para analisar frase por frase separadamente
-  const fragmentosLinhas = [];
-  camposArray.forEach(bloco => {
-    if (!bloco) return;
-    const linhas = bloco.split(/\n/); // Divide pelas quebras de linha
-    linhas.forEach(linha => {
-      const linhaLimpa = linha.replace(/[\u2714\u2715]|PASSO CONCLUÍDO|Abandonar/g, '').trim(); // Remove textos inúteis de botões
-      if (linhaLimpa.length > 1) {
-        fragmentosLinhas.push(linhaLimpa);
-      }
-    });
-  });
+  camposArray.forEach(textoCampo => {
+    if (!textoCampo || !textoCampo.trim()) return;
 
-  // Enfileira cada linha com seu sotaque e idioma nativo correto
-  fragmentosLinhas.forEach(frase => {
-    const idiomaDetectado = window.detectarIdiomaDoTexto(frase);
+    // Detecta o idioma específico DESTE campo de texto
+    const idiomaDetectado = window.detectarIdiomaDoTexto(textoCampo);
     
-    // 🔥 REMOÇÃO DA TAG: Limpa o marcador para o sintetizador não ditar "til e n" ou "til p t"
-    let fraseFormatada = frase;
-    const expressaoTag = frase.toLowerCase().trim();
-    if (expressaoTag.startsWith('~en') || expressaoTag.startsWith('~es') || expressaoTag.startsWith('~pt')) {
-      fraseFormatada = frase.trim().substring(3).trim(); 
-    }
-
-    if (fraseFormatada.length === 0) return;
-
-    const utterance = new SpeechSynthesisUtterance(fraseFormatada);
+    const utterance = new SpeechSynthesisUtterance(textoCampo);
     utterance.lang = idiomaDetectado;
     
-    // Ajuste de velocidade dinâmico para melhor compreensão em celular
-    utterance.rate = idiomaDetectado === 'pt-BR' ? 1.15 : 0.88; 
+    // Ajusta a velocidade de reprodução: idiomas estrangeiros leem um pouco mais lento para melhor compreensão
+    utterance.rate = idiomaDetectado === 'pt-BR' ? 1.15 : 0.95; 
 
+    // Tenta capturar uma voz nativa instalada no celular do usuário para aquele idioma
     if (window.speechSynthesis.getVoices) {
       const vozesDisponiveis = window.speechSynthesis.getVoices();
       const vozIdeal = vozesDisponiveis.find(v => v.lang.startsWith(idiomaDetectado));
       if (vozIdeal) utterance.voice = vozIdeal;
     }
 
+    // O navegador enfileira as falas automaticamente e as reproduz na ordem correta
     window.speechSynthesis.speak(utterance);
   });
 };
 
-// Coleta as strings brutas das telas do programa
+// Ajustado para retornar um ARRAY de strings (Título, Descrição, Código) isolados para análise individual
 window.coletarCamposEtapaAtualArray = () => {
   const listaCampos = [];
   
@@ -3406,62 +3360,69 @@ window.coletarCamposEtapaAtualArray = () => {
   return listaCampos;
 };
 
-/* 🛠️ MAPA CENTRAL DE COMANDOS DE VOZ FIXOS */
+/* 🛠️ REGISTRO CENTRAL DE COMANDOS DE VOZ (Adicione novos aqui facilmente!) */
 window.registroComandosVoz = {
+  // --- NOVOS COMANDOS DE LEITURA (SÍNTESE DE VOZ) ---
+// Substitua apenas esta linha dentro do seu window.registroComandosVoz
   "leia para mim": () => {
     const campos = window.coletarCamposEtapaAtualArray();
     if (campos.length > 0) {
       window.falarTextoGuiaPro(campos);
-      toast("🔊 Analisando e lendo informações...", "ok");
+      toast("🔊 Lendo informações no idioma nativo...", "ok");
     } else {
       toast("⚠ Nada para ler nesta tela.", "error");
     }
   },
-  "pausar leitura": () => {
+  "pausar": () => {
     if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
       window.speechSynthesis.pause();
       toast("⏸️ Leitura Pausada", "cyan");
     }
   },
-  "continue lendo": () => {
+  "continue": () => {
     if (window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
-      toast("▶️ Retomando leitura...", "ok");
+      toast("▶️ A retomar leitura...", "ok");
     }
   },
+  
+  // --- COMANDOS DE AVANÇO DE ETAPAS (PROCEDIMENTOS) ---
   "concluído": () => window.executarAvancoLinearVoz(),
   "avançar": () => window.executarAvancoLinearVoz(),
   "próximo": () => window.executarAvancoLinearVoz(),
+  
+  // --- COMANDOS DE RETORNO (FLUXOGRAMAS / PROCEDIMENTOS) ---
   "voltar": () => {
     if (S.fluxoExec) {
       A.fluxoVoltar();
-      window.speechSynthesis.cancel();
+      window.speechSynthesis.cancel(); // Para a leitura se mudar de página
       toast("🎙️ Voltando etapa...", "cyan");
     }
   }
 };
 
+// Auxiliar para avanço linear seguro
 window.executarAvancoLinearVoz = () => {
   if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual && S.execAtiva.stepAtual !== 'concluido') {
-    window.speechSynthesis.cancel();
+    window.speechSynthesis.cancel(); // Interrompe qualquer áudio antes de avançar
     A.marcarStepDone(S.execAtiva.stepAtual);
     toast("🎙️ Passo concluído por voz!", "ok");
   }
 };
 
-/* 🎙️ GERENCIADOR DE RECONHECIMENTO DE VOZ ANTI-LOOP PARA CELULAR */
+/* 🎙️ ATIVADOR E GERENCIADOR DO RECONHECIMENTO DE VOZ */
 window.ativarComandosVozOperacionais = () => {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    toast("🎙️ Comando de voz não suportado neste dispositivo.", "error");
+    toast("🎙️ Comando de voz não suportado neste navegador.", "error");
     return;
   }
 
+  // Desliga se já estiver rodando
   if (window._reconhecedorAtivo) {
     window._reconhecedorAtivo.stop();
     window._reconhecedorAtivo = null;
-    window.speechSynthesis.cancel();
-    clearTimeout(window._timerEstabilizadorVozMobile);
+    window.speechSynthesis.cancel(); // Cancela leituras se desligar o microfone
     toast("🎙️ Microfone Desativado", "error");
     document.getElementById("btnVozGlobal")?.classList.remove("ativo");
     return;
@@ -3469,18 +3430,18 @@ window.ativarComandosVozOperacionais = () => {
 
   const recognition = new SpeechRecognition();
   recognition.lang = 'pt-BR';
-  
-  // 🔴 SOLUÇÃO DO LOOP MALUCO: Desativamos o continuous nativo que quebra no celular
-  recognition.continuous = false; 
+  recognition.continuous = true;
   recognition.interimResults = false;
 
   recognition.onresult = (event) => {
     const resultado = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-    console.log("🎙️ Capturado no celular:", resultado);
+    console.log("🎙️ Texto capturado pelo microfone:", resultado);
 
     let comandoExecutado = false;
 
+    // ⚡ 1. Varre o mapa de comandos estáticos cadastrados
     for (const chave in window.registroComandosVoz) {
+      // Aceita correspondência exata ou se o comando estiver inserido na frase dita
       if (resultado === chave || resultado.includes(chave)) {
         window.registroComandosVoz[chave]();
         comandoExecutado = true;
@@ -3488,6 +3449,7 @@ window.ativarComandosVozOperacionais = () => {
       }
     }
 
+    // 🧠 2. Se não for comando fixo, avalia botões dinâmicos dos Fluxogramas
     if (!comandoExecutado && S.fluxoExec) {
       const fluxo = S.fluxos.find(f => f.id === S.fluxoExec.fluxoId);
       const noAtual = fluxo?.nos?.find(n => n.id === S.fluxoExec.noAtual);
@@ -3499,55 +3461,55 @@ window.ativarComandosVozOperacionais = () => {
         });
 
         if (indexEncontrado !== -1) {
-          window.speechSynthesis.cancel();
+          window.speechSynthesis.cancel(); // Para de falar se o usuário escolheu uma rota
+          const nomeBotao = noAtual.opcoes[indexEncontrado].label;
           A.fluxoResponder(indexEncontrado);
-          toast(`🎙️ Selecionado: "${noAtual.opcoes[indexEncontrado].label}"`, "ok");
+          toast(`🎙️ Selecionado: "${nomeBotao}"`, "ok");
         }
       }
     }
   };
 
-  // 🛡️ FILTRO ANTI-STORM: Controla estritamente o tempo de reinício para acabar com os bipes loucos
+  // Gerenciador de segurança para o temporizador do celular
+  window._timerEstabilizadorVozMobile = null;
+
   recognition.onend = () => {
+    // Se o usuário não desligou o microfone manualmente pelo botão
     if (window._reconhecedorAtivo) {
       clearTimeout(window._timerEstabilizadorVozMobile);
       
-      const agora = Date.now();
-      const tempoDesdeUltimoStart = agora - window._ultimoStartVoz;
-      
-      // Se tentou fechar em menos de 3 segundos, força o celular a esperar um respiro maior
-      let tempoEspera = 1200; 
-      if (tempoDesdeUltimoStart < 3000) {
-        tempoEspera = 3000; // Freio de segurança de 3 segundos para limpar o buffer do celular
-      }
-
+      // ⏳ Dá um respiro de 1.5 segundos para o sistema operacional do celular se estabilizar
       window._timerEstabilizadorVozMobile = setTimeout(() => {
         if (window._reconhecedorAtivo) {
           try {
-            window._ultimoStartVoz = Date.now();
             recognition.start();
-          } catch (e) {
-            console.log("Aguardando liberação de hardware móvel...");
+            console.log("🎙️ Microfone reativado de forma estável pós-silêncio.");
+          } catch (erro) {
+            // Caso o navegador tente abrir antes do tempo, ignora silenciosamente para não travar a tela
+            console.log("🎙️ Aguardando liberação do hardware de áudio...");
           }
         }
-      }, tempoEspera);
+      }, 1500); // 1500 milissegundos é o tempo perfeito para uso em oficinas/celulares
     }
   };
 
   recognition.onerror = (event) => {
-    if (event.error === 'no-speech') return; // Ignora o erro de silêncio padrão do celular
-    console.error("Erro capturado:", event.error);
+    // Ignora erros comuns de silêncio (no-speech) para não exibir alertas desnecessários na tela do celular
+    if (event.error === 'no-speech') {
+      console.log("🎙️ Silêncio detectado. O estabilizador mobile entrará em ação...");
+      return;
+    }
+    console.error("🎙️ Erro no Reconhecedor de Voz:", event.error);
   };
 
   window._reconhecedorAtivo = recognition;
   
   try {
-    window._ultimoStartVoz = Date.now();
     recognition.start();
     document.getElementById("btnVozGlobal")?.classList.add("ativo");
-    toast("🎙️ Voz Inteligente Estabilizada!", "ok");
+    toast("🎙️ Sistema de Voz Avançado Ativo!", "ok");
   } catch(e) {
-    console.log("Erro de inicialização:", e);
+    console.log("Erro inicial de hardware:", e);
   }
 };
 
