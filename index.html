@@ -371,6 +371,17 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
     align-items: center;
     margin-bottom: 12px;
 }
+#btnVozGlobal.ativo {
+    background: rgba(231, 76, 60, 0.2) !important;
+    border-color: #e74c3c !important;
+    color: #e74c3c !important;
+    animation: pulseVoz 1.5s infinite;
+}
+@keyframes pulseVoz {
+    0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(231, 76, 60, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+}
 </style>
 </head>
 <body>
@@ -726,7 +737,22 @@ function buildExecutar(){
 }
 function buildSelecionarExec(){
   return`<div class="card"><div class="card-head"><div class="card-title">▶ SELECIONAR PROCEDIMENTO</div></div><div class="card-body"><div class="info-box">Escolha um procedimento para execução guiada.</div></div></div>
-  <div style="display:flex;flex-direction:column;gap:8px">${S.procedimentos.map(p=>`<div class="proc-card" onclick="A.iniciarExec(${p.id})"><div class="proc-card-body"><div class="proc-title">▶ ${esc(p.nome)}</div><div class="proc-meta">${(p.steps||[]).length} passos · ${p.categoria||'Geral'}</div></div></div>`).join('')}</div>`;
+  <div style="display:flex;flex-direction:column;gap:8px">
+    ${S.procedimentos.map(p=>`
+      <div class="proc-card" onclick="A.iniciarExec(${p.id})" style="position:relative; display:flex; justify-content:space-between; align-items:center; padding-right:12px;">
+        <div class="proc-card-body" style="flex:1; min-width:0;">
+          <div class="proc-title" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">▶ ${esc(p.nome)}</div>
+          <div class="proc-meta">${(p.steps||[]).length} passos · ${p.categoria||'Geral'}</div>
+        </div>
+        
+        <button onclick="A.duplicarProcedimento(${p.id}, event)" 
+                style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); color:var(--chrome2); padding:6px 10px; border-radius:4px; font-size:11px; cursor:pointer; font-weight:bold; display:flex; align-items:center; gap:4px; z-index:10; height:30px;" 
+                title="Duplicar este procedimento">
+          📄 Copiar
+        </button>
+      </div>
+    `).join('')}
+  </div>`;
 }
 
 function buildExecAtiva(){
@@ -761,7 +787,15 @@ function buildExecAtiva(){
     conteudo = buildExecStepCard(passoVisivel, []);
   }
 
-  return`<div class="card"><div class="card-head"><div class="card-title">⚙ ${esc(proc.nome)}</div><span style="font-family:var(--font-mono);font-size:10px;color:var(--chrome)">${ndone}/${total}</span></div><div style="padding:8px 14px 5px"><div class="exec-progress">${dotRow}</div><div style="display:flex;justify-content:space-between;padding:0 2px;margin-top:3px"><span style="font-family:var(--font-mono);font-size:9px;color:var(--chrome)">PROGRESSO</span><span style="font-family:var(--font-mono);font-size:9px;color:var(--yellow)">${Math.round((ndone/total)*100)}%</span></div></div></div>
+  return`<div class="card">
+  <div class="card-head" style="display:flex; justify-content:space-between; align-items:center;">
+    <div class="card-title">⚙ ${esc(proc.nome)}</div>
+    <button id="btnVozGlobal" onclick="window.ativarComandosVozOperacionais()" 
+            style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); color:var(--cyan2); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; transition:all 0.2s;" 
+            title="Ativar Comando de Voz">
+      🎙️
+    </button>
+  </div><span style="font-family:var(--font-mono);font-size:10px;color:var(--chrome)">${ndone}/${total}</span></div><div style="padding:8px 14px 5px"><div class="exec-progress">${dotRow}</div><div style="display:flex;justify-content:space-between;padding:0 2px;margin-top:3px"><span style="font-family:var(--font-mono);font-size:9px;color:var(--chrome)">PROGRESSO</span><span style="font-family:var(--font-mono);font-size:9px;color:var(--yellow)">${Math.round((ndone/total)*100)}%</span></div></div></div>
   <div style="display:flex;flex-direction:column;gap:8px;padding-bottom:20px">${conteudo}<button class="btn ghost sm" onclick="A.confirmarAbandonar()">✕ Abandonar</button></div>`;
 }
 
@@ -796,10 +830,43 @@ window.irParaPassoProcedimento = (stepId) => {
   
   render(); // Atualiza a renderização do cartão imediatamente
 };
-function buildExecStepCard(step,faltando){
-  if(faltando.length>0)return`<div class="seq-error-box"><div class="seq-error-title">⛔ ERRO DE SEQUÊNCIA</div><div style="font-size:12px;color:var(--chrome);line-height:1.5">Passo <strong style="color:white">#${step.ordem} ${esc(step.titulo)}</strong> — conclua antes:</div><div class="seq-missing-list">${faltando.map(s=>`<div class="seq-missing-item"><div class="seq-missing-num">${s.ordem}</div><div class="seq-missing-name">${esc(s.titulo)}</div></div>`).join('')}</div></div>`;
-  const fotosHtml=step.fotos?.length?`<div class="exec-imgs">${step.fotos.map((f,i)=>`<div class="exec-img" onclick="lightbox('${f}')"><img src="${f}" alt="${i+1}" loading="lazy"></div>`).join('')}</div>`:'';
-  return`<div class="exec-step-card"><div class="exec-step-head"><div class="exec-num-badge">${step.ordem}</div><div><div class="exec-step-title">${esc(step.titulo)}</div><div style="font-family:var(--font-mono);font-size:9px;color:rgba(245,200,0,.5);text-transform:uppercase;letter-spacing:1px;margin-top:1px">PRÓXIMO PASSO</div></div></div><div class="exec-step-body">${step.descricao?`<div class="exec-step-desc">${esc(step.descricao)}</div>`:''}${step.codigo?`<pre class="code-block"><code>${esc(step.codigo)}</code></pre>`:''}${fotosHtml}${step.alerta?`<div class="warn-box">⚠ ${esc(step.alerta)}</div>`:''}</div><div class="exec-foot"><button class="btn green" onclick="A.marcarStepDone('${step.id}')">✔ PASSO CONCLUÍDO</button></div></div>`;
+function buildExecStepCard(step, faltando){
+  if(faltando.length > 0) {
+    return `<div class="seq-error-box"><div class="seq-error-title">⛔ ERRO DE SEQUÊNCIA</div><div style="font-size:12px;color:var(--chrome);line-height:1.5">Passo <strong style="color:white">#${step.ordem} ${esc(step.titulo)}</strong> — conclua antes:</div><div class="seq-missing-list">${faltando.map(s=>`<div class="seq-missing-item"><div class="seq-missing-num">${s.ordem}</div><div class="seq-missing-name">${esc(s.titulo)}</div></div>`).join('')}</div></div>`;
+  }
+  
+  const fotosHtml = step.fotos?.length ? `<div class="exec-imgs">${step.fotos.map((f,i)=>`<div class="exec-img" onclick="lightbox('${f}')"><img src="${f}" alt="${i+1}" loading="lazy"></div>`).join('')}</div>` : '';
+  
+  // 🟢 MÁGICA DO BOTÃO DINÂMICO: Verifica se este passo específico já está concluído no banco temporário
+  const isPassoEfetuado = S.execAtiva?.stepsDone?.includes(step.id);
+  
+  // Configura a cor, classe e o texto de acordo com o status real do passo
+  const classeBotao = isPassoEfetuado ? 'btn green' : 'btn steel';
+  const estiloBotao = isPassoEfetuado ? '' : 'background: var(--cyan2); color: #000; font-weight: bold;';
+  const textoBotao = isPassoEfetuado ? '✔ PASSO CONCLUÍDO' : 'CONCLUIR ESTA ETAPA';
+  const tagStatus = isPassoEfetuado ? 'ETAPA JÁ CONCLUÍDA' : 'PRÓXIMO PASSO';
+
+  return `
+  <div class="exec-step-card">
+    <div class="exec-step-head">
+      <div class="exec-num-badge">${step.ordem}</div>
+      <div>
+        <div class="exec-step-title">${esc(step.titulo)}</div>
+        <div style="font-family:var(--font-mono);font-size:9px;color:rgba(245,200,0,.5);text-transform:uppercase;letter-spacing:1px;margin-top:1px">${tagStatus}</div>
+      </div>
+    </div>
+    <div class="exec-step-body">
+      ${step.descricao ? `<div class="exec-step-desc">${esc(step.descricao)}</div>` : ''}
+      ${step.codigo ? `<pre class="code-block"><code>${esc(step.codigo)}</code></pre>` : ''}
+      ${fotosHtml}
+      ${step.alerta ? `<div class="warn-box">⚠ ${esc(step.alerta)}</div>` : ''}
+    </div>
+    <div class="exec-foot">
+      <button class="${classeBotao}" style="${estiloBotao}" onclick="A.marcarStepDone('${step.id}')">
+        ${textoBotao}
+      </button>
+    </div>
+  </div>`;
 }
 
 /* ══ ABA TREINO ══ */
@@ -911,6 +978,9 @@ function buildFluxoExec(){
   const nos=fluxo.nos||[];const noAtual=nos.find(n=>n.id===fe.noAtual);
   if(!noAtual)return`<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">NÓ NÃO ENCONTRADO</div></div>`;
   
+  // 🟢 SOLUÇÃO DO ERRO: Localiza o procedimento vinculado se ele existir para evitar o "proc is not defined"
+  const proc = noAtual.procId ? S.procedimentos.find(p => p.id === noAtual.procId) : null;
+
   const breadcrumb=fe.historico.length?`<div class="fluxo-breadcrumb">${fe.historico.map(h=>`<div class="bc-item"><span>${esc((h.pergunta||'').slice(0,20))}</span><span class="bc-resp"> ${esc(h.resposta)}</span></div>`).join('')}</div>`:'';
   
   const fotosExecHtml = (noAtual.fotos?.length) ? `<div class="exec-imgs" style="margin:12px 0">${noAtual.fotos.map((f,i)=>`<div class="exec-img" onclick="lightbox('${f}')"><img src="${f}"></div>`).join('')}</div>` : '';
@@ -918,9 +988,9 @@ function buildFluxoExec(){
 
   const isDiag = noAtual.tipo === 'diagnostico';
   
-  // 👇 BOTÃO DE PROCEDIMENTO APARECE PARA AMBOS AQUI:
+  // ⚙️ Uso seguro com proc?.nome para não quebrar se o procedimento for deletado
   const btnProcHtml = noAtual.procId ? `
-    <button class="btn yellow sm" style="margin-top:10px; border:2px solid var(--yellow); padding:8px 12px; font-size:12px; font-weight:bold; width:100%;" onclick="A.verProcNoFluxo(${noAtual.procId}, '${esc(S.procedimentos.find(x=>x.id===noAtual.procId)?.nome||'Técnico')}', ${noAtual.procValor || 0})">
+    <button class="btn yellow sm" style="margin-top:10px; border:2px solid var(--yellow); padding:8px 12px; font-size:12px; font-weight:bold; width:100%;" onclick="A.verProcNoFluxo(${noAtual.procId}, '${esc(proc?.nome || 'Técnico')}', ${noAtual.procValor || 0})">
       📋 VER PROCEDIMENTO ${noAtual.procValor > 0 ? `(R$ ${noAtual.procValor.toFixed(2).replace('.', ',')})` : ''}
     </button>` : '';
 
@@ -940,7 +1010,7 @@ function buildFluxoExec(){
     const opcoesHtml=(noAtual.opcoes||[]).map((o,i)=>`<button class="fluxo-opt-btn" onclick="A.fluxoResponder(${i})"><span style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.5px;min-width:20px;color:rgba(34,211,238,.5)">${String.fromCharCode(65+i)}</span> ${esc(o.label)}<span class="fluxo-opt-arrow">›</span></button>`).join('');
     conteudoPrincipal = `
     <div class="fluxo-node-card">
-      <div class="fluxo-node-head"><div class="fluxo-q-badge">  </div><div class="fluxo-question">${esc(noAtual.pergunta||noAtual.titulo||'')}</div></div>
+      <div class="fluxo-node-head"><div class="fluxo-q-badge"> </div><div class="fluxo-question">${esc(noAtual.pergunta||noAtual.titulo||'')}</div></div>
       <div style="padding: 0 16px;">${audioExecHtml} ${fotosExecHtml}</div>
       ${noAtual.descricao?`<div class="fluxo-desc" style="padding-top:0">${esc(noAtual.descricao)}</div>`:''}
       ${noAtual.codigo?`<div style="padding:0 16px"><pre class="code-block" style="margin-top:0"><code>${esc(noAtual.codigo)}</code></pre></div>`:''}
@@ -968,12 +1038,26 @@ function buildFluxoExec(){
           </div>
         </div>
       `).join('')}
-    </div>` : `<div style="font-size:11px; color:var(--chrome);">Nenhum valor adicionado. Clique no botão acima se houver custos nesta etapa.</div>`}
+    </div>` : `<div style="font-size:11px; color:var(--chrome);">Nenhum valor adicionado.</div>`}
+    
+    ${fe.orcamento?.length > 0 ? `
+      <button class="btn" onclick="A.enviarOrcamentoWhatsApp()" 
+              style="background:#25D366; color:#000; font-weight:bold; font-size:13px; width:100%; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:8px; border:none; padding:10px; border-radius:var(--r); cursor:pointer;">
+        <span style="font-size:16px;">🟢</span> ENVIAR ORÇAMENTO VIA WHATSAPP
+      </button>
+    ` : ''}
   </div>`;
 
   return `
   <div class="card" style="border-color:rgba(34,211,238,.15)">
-    <div class="card-head"><div class="card-title" style="color:var(--cyan2)">🔀 ${esc(fluxo.nome)}</div></div>
+    <div class="card-head" style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="card-title" style="color:var(--cyan2)">🔀 ${esc(fluxo.nome)}</div>
+      <button id="btnVozGlobal" onclick="window.ativarComandosVozOperacionais()" 
+              style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); color:var(--cyan2); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; transition:all 0.2s;" 
+                  title="Ativar Comando de Voz">
+        🎙️
+      </button>
+    </div>
     ${breadcrumb}
   </div>
   ${conteudoPrincipal}
@@ -989,7 +1073,7 @@ function buildFluxoExec(){
 /* ══ ABA BIBLIOTECA ══ */
 function buildBibliotecaLista() {
   const {items,total,pages} = bibPaginaItems();
-  const statsHtml=`<div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px;margin-bottom:8px"><span style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase">${S.bibBusca?`${total} resultado${total!==1?'s':''}`:total+' passo'+(total!==1?'s':'')+' no total'}</span>${pages>1?`<span style="font-family:var(--font-mono);font-size:10px;color:#fb923c">Pág ${S.bibPagina+1}/${pages}</span>`:''}</div>`;
+  const statsHtml=`<div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px;margin-bottom:8px"><span style="font-family:var(--font-mono);padding-left: 10px;font-size:10px;color:var(--chrome);text-transform:uppercase">${S.bibBusca?`${total} resultado${total!==1?'s':''}`:total+' passo'+(total!==1?'s':'')+' no total'}</span>${pages>1?`<span style="font-family:var(--font-mono);font-size:10px;color:#fb923c">Pág ${S.bibPagina+1}/${pages}</span>`:''}</div>`;
   
   const itensHtml = items.length ? `<div class="bib-card">${items.map(b=>{const fotos=b.fotos||[];return`<div class="bib-step-row" onclick="A.verBibItem(${b.id})">
     ${fotos.length?`<div class="bib-step-thumb"><img src="${fotos[0]}" alt="" loading="lazy"></div>`:`<div class="bib-step-thumb-empty">📄</div>`}
@@ -1202,14 +1286,14 @@ const A={
   acaoPrincipal(){A.novoProcedimento();},
   fecharProc(){S.viewProcId=null;S.tab='procedimentos';render();},
   fecharFluxo(){S.viewFluxoId=null;S.tab='fluxo';render();},
-/* ── Buscas Globais ── */
+  /* ── Buscas Globais ── */
   limparBusca(tipo){
     if(tipo==='bib'){ S.bibBusca=''; S.bibPagina=0; }
     if(tipo==='proc'){ S.procBusca=''; }
     if(tipo==='fluxo'){ S.fluxoBusca=''; }
     render(); // Ao limpar no X, não tem problema dar render geral
   },
-procBuscar(val){
+  procBuscar(val){
     S.procBusca = val;
     const btn = document.getElementById('procClearBtn'); if(btn) btn.style.display = val ? 'flex' : 'none';
     const lista = document.getElementById('procListContainer'); if(lista) lista.innerHTML = buildProcedimentosLista();
@@ -1288,6 +1372,102 @@ procBuscar(val){
     proc.steps=steps.sort((a,b)=>a.ordem-b.ordem);proc.steps.forEach((s,i)=>s.ordem=i+1);proc.atualizadoEm=Date.now();await DB.put('procedimentos',proc);
     document.getElementById('body').innerHTML=buildVerProcedimento(proc);document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   },
+  enviarOrcamentoWhatsApp() {
+    if (!S.fluxoExec) return;
+    const fe = S.fluxoExec;
+    const fluxo = S.fluxos.find(f => f.id === fe.fluxoId);
+    if (!fluxo) return;
+
+    const itens = fe.orcamento || [];
+    const total = itens.reduce((acc, cur) => acc + cur.valor, 0);
+
+    // Monta uma mensagem com formatação nativa do WhatsApp (*bold*)
+    let textoMsg = `*📋 ORÇAMENTO DE SERVIÇO / DIAGNÓSTICO*\n`;
+    textoMsg += `*Fluxo Executado:* ${fluxo.nome}\n`;
+    textoMsg += `-------------------------------------------\n\n`;
+
+    if (itens.length === 0) {
+      textoMsg += `Nenhum custo adicional gerado nesta verificação.\n`;
+    } else {
+      itens.forEach((item, idx) => {
+        textoMsg += `${idx + 1}. *${item.descricao}*\n   ↳ R$ ${item.valor.toFixed(2).replace('.', ',')}\n`;
+      });
+    }
+
+    textoMsg += `\n-------------------------------------------\n`;
+    textoMsg += `*💰 VALOR TOTAL ESTIMADO: R$ ${total.toFixed(2).replace('.', ',')}* \n\n`;
+    textoMsg += `_Gerado automaticamente via GuiaPro. Aguardamos sua aprovação para iniciar os procedimentos._`;
+
+    // Codifica para URL segura e dispara o link oficial do WhatsApp API
+    const urlLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(textoMsg)}`;
+    window.open(urlLink, '_blank');
+  },
+  async duplicarProcedimento(procId, event) {
+    if(event) event.stopPropagation(); // Impede de abrir o card ao clicar no botão
+    
+    const original = S.procedimentos.find(p => p.id === procId);
+    if (!original) return;
+
+    // Deep clone seguro para quebrar qualquer referência de memória dos arrays internos
+    const copia = JSON.parse(JSON.stringify(original));
+    
+    copia.id = Date.now(); // Gera uma nova chave primária única
+    copia.nome = `[CÓPIA] ${copia.nome}`;
+    copia.criadoEm = Date.now();
+    copia.atualizadoEm = Date.now();
+    
+    // Atualiza os IDs dos passos internos para não gerar conflito de chaves
+    if (copia.steps) {
+      copia.steps.forEach(s => s.id = 'st_' + Math.random().toString(36).substr(2, 9));
+    }
+
+    await DB.put('procedimentos', copia);
+    S.procedimentos.push(copia);
+    
+    render();
+    toast("📋 Sequência de passos duplicada com sucesso!", "ok");
+  },
+
+  async duplicarFluxo(fluxoId, event) {
+  if(event) event.stopPropagation();
+  
+  const original = S.fluxos.find(f => f.id === fluxoId);
+  if (!original) return;
+
+  const copia = JSON.parse(JSON.stringify(original));
+  copia.id = Date.now();
+  copia.nome = `[CÓPIA] ${copia.nome}`;
+  copia.criadoEm = Date.now();
+  
+  // Mapeamento para atualizar os IDs dos nós e manter a integridade das conexões dos destinos das opções
+  if (copia.nos) {
+    const mapaIdsAntigosParaNovos = new Map();
+
+    copia.nos.forEach(n => {
+      const novoId = 'no_' + Math.random().toString(36).substr(2, 9);
+
+      mapaIdsAntigosParaNovos.set(n.id, novoId);
+      n.id = novoId;
+    });
+    
+    // Atualiza os destinos (destinoId) das respostas para apontarem para as novas caixas clonadas
+    copia.nos.forEach(n => {
+      if (n.opcoes) {
+        n.opcoes.forEach(o => {
+          if (o.destinoId && mapaIdsAntigosParaNovos.has(o.destinoId)) {
+            o.destinoId = mapaIdsAntigosParaNovos.get(o.destinoId);
+          }
+        });
+      }
+    });
+  }
+
+  await DB.put('fluxos', copia);
+  S.fluxos.push(copia);
+  
+  render();
+  toast("🔀 Fluxograma de diagnóstico clonado com sucesso!", "ok");
+},
 
   /* ── Execução ── */
   iniciarExec(procId){
@@ -1392,13 +1572,13 @@ procBuscar(val){
   confirmarAbandonar(){if(!confirm('Abandonar a execução?'))return;S.execAtiva=null;render();},
 
   /* ── Treino ── */
-iniciarTreino(procId){
+  iniciarTreino(procId){
     const proc=S.procedimentos.find(p=>p.id===procId);if(!proc||!proc.steps?.length){toast('⚠ Sem passos!','');return;}
     const steps=proc.steps.slice().sort((a,b)=>a.ordem-b.ordem);
     const embaralhados=[...steps];for(let i=embaralhados.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[embaralhados[i],embaralhados[j]]=[embaralhados[j],embaralhados[i]];}
     S.treino={procId,steps:embaralhados,respostas:[],logTentativas:[],stepAtual:0,feedbacks:[],finalizado:false,acertos:0,erros:0};S.tab='treino';render();
   },
-treinoClicarStep(stepId){
+  treinoClicarStep(stepId){
     const tr=S.treino;if(tr.finalizado)return;const proc=S.procedimentos.find(p=>p.id===tr.procId);if(!proc)return;
     const stepsOrdenados=proc.steps.slice().sort((a,b)=>a.ordem-b.ordem);const step=tr.steps.find(s=>s.id===stepId);if(!step)return;
     const posicaoTentando=tr.respostas.length+1;const ordemCorreta=step.ordem;const correto=(ordemCorreta===posicaoTentando);
@@ -1465,7 +1645,7 @@ treinoClicarStep(stepId){
     S.viewFluxoId=null;fecharModal();toast('🗑 Fluxo excluído.','error');render();
   },
   verFluxo(id){S.viewFluxoId=id;S.tab='fluxo';render();},
-iniciarFluxo(fluxoId){
+  iniciarFluxo(fluxoId){
     const fluxo=S.fluxos.find(f=>f.id===fluxoId);if(!fluxo||!fluxo.nos?.length){toast('⚠ Fluxo sem nós!','');return;}
     const noRaiz=fluxo.nos.find(n=>n.id===fluxo.noRaizId)||fluxo.nos[0];
     // Adicionamos a array orcamento: [] vazia aqui
@@ -1473,7 +1653,7 @@ iniciarFluxo(fluxoId){
     S.tab='fluxo';render();
   },
 
-retomarFluxo(histId) {
+  retomarFluxo(histId) {
     const registro = S.historico.find(h => h.id === histId);
     if(!registro) { toast('⚠ Registro não encontrado!', 'error'); return; }
     const fluxo = S.fluxos.find(f => f.id === registro.fluxoId);
@@ -1511,7 +1691,7 @@ retomarFluxo(histId) {
     const noRaiz=fluxo.nos.find(n=>n.id===fluxo.noRaizId)||fluxo.nos[0];
     S.fluxoExec={fluxoId:S.fluxoExec.fluxoId,historico:[],procsVistos:[],noAtual:noRaiz.id};render();
   },
-verProcNoFluxo(procId, procNome, valorSugerido = 0) {
+  verProcNoFluxo(procId, procNome, valorSugerido = 0) {
     if(S.fluxoExec) {
         if(!S.fluxoExec.procsVistos) S.fluxoExec.procsVistos = [];
         S.fluxoExec.procsVistos.push({ id: procId, nome: procNome, ts: Date.now() }); 
@@ -1530,7 +1710,7 @@ verProcNoFluxo(procId, procNome, valorSugerido = 0) {
     if(valorSugerido > 0) render(); // Atualiza o saldo lá no fundo enquanto o modal abre
   },
   sairFluxo(){S.fluxoExec=null;if(S.viewFluxoId){const f=S.fluxos.find(x=>x.id===S.viewFluxoId);if(f){document.getElementById('body').innerHTML=buildVerFluxo(f);document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));return;}}S.tab='fluxo';render();},
-/* ── ORÇAMENTO & CLIENTE ── */
+  /* ── ORÇAMENTO & CLIENTE ── */
   abrirModalOrcamento() {
     fecharModal();
     const bg = document.createElement('div'); bg.className = 'modal-bg'; bg.onclick = e => { if(e.target === bg) fecharModal(); };
@@ -1594,7 +1774,7 @@ verProcNoFluxo(procId, procNome, valorSugerido = 0) {
     }
   },
   /* ── BIBLIOTECA ── */
-bibBuscar(val){
+  bibBuscar(val){
     S.bibBusca = val; S.bibPagina = 0;
     const btn = document.getElementById('bibClearBtn'); if(btn) btn.style.display = val ? 'flex' : 'none';
     const lista = document.getElementById('bibListContainer'); if(lista) lista.innerHTML = buildBibliotecaLista();
@@ -3089,6 +3269,59 @@ window.scrollParaNo = (noId) => {
         const target = document.getElementById('noeditor_' + noId);
         if(target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 60);
+};
+window.ativarComandosVozOperacionais = () => {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    toast("🎙️ Comando de voz não suportado neste navegador.", "error");
+    return;
+  }
+
+  if (window._reconhecedorAtivo) {
+    window._reconhecedorAtivo.stop();
+    window._reconhecedorAtivo = null;
+    toast("🎙️ Microfone Desativado", "error");
+    document.getElementById("btnVozGlobal")?.classList.remove("ativo");
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'pt-BR';
+  recognition.continuous = true;
+  recognition.interimResults = false;
+
+  recognition.onresult = (event) => {
+    const resultado = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+    console.log("🎙️ Comando capturado:", resultado);
+
+    // Regras de comandos para a Execução de Procedimento Linear
+    if (S.tab === 'executar' && S.execAtiva) {
+      if (resultado.includes("concluído") || resultado.includes("avançar") || resultado.includes("próximo")) {
+        if (S.execAtiva.stepAtual && S.execAtiva.stepAtual !== 'concluido') {
+          A.marcarStepDone(S.execAtiva.stepAtual);
+          toast("🎙️ Ouvido: Avançando passo...", "ok");
+        }
+      }
+    }
+    
+    // Regras de comandos para a Execução de Fluxogramas de Diagnóstico
+    if (S.fluxoExec) {
+      if (resultado.includes("voltar")) {
+        A.fluxoVoltar();
+        toast("🎙️ Ouvido: Voltando etapa...", "cyan");
+      }
+    }
+  };
+
+  recognition.onend = () => {
+    // Se fechar sozinho por tempo de inatividade, reinicia automaticamente para não desligar na oficina
+    if (window._reconhecedorAtivo) recognition.start();
+  };
+
+  window._reconhecedorAtivo = recognition;
+  recognition.start();
+  document.getElementById("btnVozGlobal")?.classList.add("ativo");
+  toast("🎙️ Microfone Ativo! Diga 'Concluído' ou 'Avançar'", "ok");
 };
 /* ══ INIT ══ */
 (async()=>{
