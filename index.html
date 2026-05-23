@@ -846,8 +846,19 @@ function buildExecStepCard(step, faltando){
   const tagStatus = isPassoEfetuado ? 'ETAPA JÁ CONCLUÍDA' : 'PRÓXIMO PASSO';
 
   return `
-  <div class="exec-step-card">
-    <div class="exec-step-head">
+  <div class="exec-step-card" style="position:relative;">
+    
+    <!-- 🎛️ PAINEL DE ÁUDIO MANUAL -->
+    <div style="position:absolute; right:12px; top:12px; display:flex; gap:6px; z-index:10;">
+      <button onclick="window.acionarLeituraTela()" style="background:rgba(245,200,0,0.1); border:1px solid var(--yellow); border-radius:6px; padding:4px 10px; color:var(--yellow); cursor:pointer; font-size:12px; font-weight:bold; display:flex; align-items:center; gap:4px;">
+        🔊 LER / ⏸
+      </button>
+      <button onclick="window.pararLeituraTela()" style="background:rgba(231,76,60,0.1); border:1px solid #e74c3c; border-radius:6px; padding:4px 8px; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold;" title="Parar Leitura">
+        ⏹
+      </button>
+    </div>
+
+    <div class="exec-step-head" style="padding-right: 110px;">
       <div class="exec-num-badge">${step.ordem}</div>
       <div>
         <div class="exec-step-title step-title">${esc(window.limparTagsTexto(step.titulo))}</div>
@@ -1046,15 +1057,26 @@ function buildFluxoExec(){
     ` : ''}
   </div>`;
 
-  return `
+return `
   <div class="card" style="border-color:rgba(34,211,238,.15)">
-    <div class="card-head" style="display:flex; justify-content:space-between; align-items:center;">
+    <div class="card-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
       <div class="card-title" style="color:var(--cyan2)">🔀 ${esc(window.limparTagsTexto(fluxo.nome))}</div>
-      <button id="btnVozGlobal" onclick="window.ativarComandosVozOperacionais()" 
-              style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); color:var(--cyan2); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; transition:all 0.2s;" 
-                  title="Ativar Comando de Voz">
-        🎙️
-      </button>
+      
+      <!-- 🎛️ ESTAÇÃO DE COMANDO (LER / PAUSAR / PARAR / MICROFONE) -->
+      <div style="display:flex; gap:6px; align-items:center;">
+        <button onclick="window.acionarLeituraTela()" style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); color:var(--cyan2); border-radius:6px; padding:4px 10px; cursor:pointer; font-size:11px; font-weight:bold;">
+          🔊 LER / ⏸
+        </button>
+        <button onclick="window.pararLeituraTela()" style="background:rgba(231,76,60,0.1); border:1px solid #e74c3c; color:#e74c3c; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:11px; font-weight:bold;">
+          ⏹
+        </button>
+        <button id="btnVozGlobal" onclick="window.ativarComandosVozOperacionais()" 
+                style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); color:var(--cyan2); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; transition:all 0.2s;" 
+                title="Ativar Comando de Voz">
+          🎙️
+        </button>
+      </div>
+      
     </div>
     ${breadcrumb}
   </div>
@@ -3580,7 +3602,60 @@ window.ativarComandosVozOperacionais = () => {
     console.log("Erro de inicialização:", e);
   }
 };
+/* ═════════════════════════════════════════════════════════════════
+   🔊 CONTROLES MANUAIS DE LEITURA EM TELA (PLAY / PAUSE / STOP)
+   ═════════════════════════════════════════════════════════════════ */
+/* ═════════════════════════════════════════════════════════════════
+   🔊 CONTROLES MANUAIS DE LEITURA EM TELA (PLAY / PAUSE / STOP)
+   ═════════════════════════════════════════════════════════════════ */
 
+// Variável blindada para não dependermos do navegador para saber se está pausado
+window._leituraPausada = false;
+
+window.acionarLeituraTela = () => {
+  // 1. Se o motor de voz tem algo na fila sendo processado...
+  if (window.speechSynthesis.speaking) {
+    
+    if (window._leituraPausada) {
+      // Se a NOSSA variável diz que está pausado, força a retomada
+      window.speechSynthesis.resume();
+      window._leituraPausada = false;
+      toast("▶ Retomando Leitura...", "ok");
+    } else {
+      // Se não estava pausado, manda pausar
+      window.speechSynthesis.pause();
+      window._leituraPausada = true;
+      toast("⏸ Leitura em Pausa", "ok");
+    }
+
+  } 
+  // 2. Se o motor estiver totalmente livre, inicia a leitura do zero
+  else {
+    window._leituraPausada = false; // Garante que comece com o status correto
+    const campos = window.coletarCamposEtapaAtualArray();
+    
+    if (campos && campos.length > 0) {
+      window.falarTextoGuiaPro(campos);
+      toast("🔊 Lendo informações da tela...", "ok");
+    } else {
+      toast("⚠ Nada para ler nesta etapa.", "error");
+    }
+  }
+};
+
+window.pararLeituraTela = () => {
+  // MACETE DE OURO: No Android, se você der 'cancel' com o áudio em 'pause', 
+  // o motor de voz trava para sempre. Precisamos dar um 'resume' rápido antes de cancelar!
+  if (window._leituraPausada) {
+    window.speechSynthesis.resume(); 
+  }
+  
+  window.speechSynthesis.cancel();
+  window._leituraPausada = false;
+  window._sistemaFalando = false;
+  toast("⏹ Leitura Parada", "error");
+};
+   
 /* ══ INIT ══ */
 (async()=>{
   try{
