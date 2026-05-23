@@ -3602,38 +3602,158 @@ window.ativarComandosVozOperacionais = () => {
     console.log("Erro de inicialização:", e);
   }
 };
+
 /* ═════════════════════════════════════════════════════════════════
-   🔊 CONTROLES MANUAIS DE LEITURA EM TELA (PLAY / PAUSE / STOP)
-   ═════════════════════════════════════════════════════════════════ */
-/* ═════════════════════════════════════════════════════════════════
-   🔊 CONTROLES MANUAIS DE LEITURA EM TELA (PLAY / PAUSE / STOP)
+   🔊 MOTOR DE VOZ COM MEMÓRIA DE PALAVRA (RESUMO CIRÚRGICO)
    ═════════════════════════════════════════════════════════════════ */
 
-// Variável blindada para não dependermos do navegador para saber se está pausado
+// Variáveis de controle da nossa Fila Customizada e Memória
+window._filaDeFalas = [];
+window._fraseAtual = null; // Guarda um objeto com texto e idioma
+window._charIndexAtual = 0; // Guarda a posição global na frase
+window._charIndexParcial = 0; // Guarda a posição da palavra sendo lida no momento
 window._leituraPausada = false;
+window._sistemaFalando = false;
 
-window.acionarLeituraTela = () => {
-  // 1. Se o motor de voz tem algo na fila sendo processado...
-  if (window.speechSynthesis.speaking) {
-    
+// 1. INICIA A FILA E LIMPA AS TAGS
+window.falarTextoGuiaPro = (camposArray) => {
+  window.speechSynthesis.cancel();
+  window._filaDeFalas = [];
+  window._fraseAtual = null;
+  window._charIndexAtual = 0;
+  window._charIndexParcial = 0;
+  window._leituraPausada = false;
+
+  if (window._reconhecedorAtivo) {
+    window._sistemaFalando = true; 
+    window._reconhecedorAtivo.stop();
+  } else {
+    window._sistemaFalando = true;
+  }
+
+  // Prepara as linhas, detecta o idioma original e limpa as tags ANTES de colocar na fila
+  camposArray.forEach(bloco => {
+    if (!bloco) return;
+    const linhas = bloco.split(/\n/); 
+    linhas.forEach(linha => {
+      const linhaLimpa = linha.replace(/[\u2714\u2715]|PASSO CONCLUÍDO|Abandonar/g, '').trim(); 
+      if (linhaLimpa.length > 0) {
+        
+        // Detecta o idioma lendo a tag (~en, ~pt) ou por palavras-chave
+        const idiomaDetectado = window.detectarIdiomaDoTexto(linhaLimpa);
+        
+        // Remove a tag visualmente para o leitor não ler "til e n"
+        const textoFormatado = linhaLimpa.replace(/~[a-zA-Z]{2}\s*/g, '').trim();
+        
+        if (textoFormatado.length > 0) {
+          window._filaDeFalas.push({ texto: textoFormatado, idioma: idiomaDetectado });
+        }
+      }
+    });
+  });
+
+  if (window._filaDeFalas.length === 0) {
+    window._sistemaFalando = false;
+    return;
+  }
+
+  window.tocarProximaFala();
+};
+
+// 2. TOCA A PRÓXIMA FRASE (OU RETOMA EXATAMENTE DA PALAVRA PAUSADA)
+window.tocarProximaFala = () => {
+  if (window._leituraPausada) return;
+  
+  if (window._filaDeFalas.length === 0 && !window._fraseAtual) {
+    window._sistemaFalando = false;
+    // Respiro para reativar o microfone de comandos de voz
+    setTimeout(() => {
+      if (window._reconhecedorAtivo && window.speechSynthesis.speaking === false) {
+        try {
+          window._ultimoStartVoz = Date.now();
+          window._reconhecedorAtivo.start();
+        } catch(e) {}
+      }
+    }, 800);
+    return;
+  }
+
+  // Puxa a frase salva na memória ou a próxima da fila
+  const item = window._fraseAtual || window._filaDeFalas.shift();
+  window._fraseAtual = item;
+
+  // CORTA O TEXTO: Se o usuário pausou antes, ele inicia a partir da palavra onde parou!
+  const textoParaLer = item.texto.substring(window._charIndexAtual).trim();
+
+  // Se já leu a linha toda, zera os contadores e chama a próxima
+  if (!textoParaLer) {
+    window._fraseAtual = null;
+    window._charIndexAtual = 0;
+    window.tocarProximaFala();
+    return;
+  }
+
+  const utterance = new SpeechSynthesisUtterance(textoParaLer);
+  utterance.lang = item.idioma;
+  utterance.rate = item.idioma === 'pt-BR' ? 1.15 : 0.88; 
+
+  if (window.speechSynthesis.getVoices) {
+    const vozesDisponiveis = window.speechSynthesis.getVoices();
+    const vozIdeal = vozesDisponiveis.find(v => v.lang.startsWith(item.idioma));
+    if (vozIdeal) utterance.voice = vozIdeal;
+  }
+
+  window._charIndexParcial = 0;
+
+  // 🧠 MÁGICA AQUI: O evento "onboundary" rastreia a posição de cada palavra que está sendo dita
+  utterance.onboundary = (e) => {
+    if (e.name === 'word') {
+      window._charIndexParcial = e.charIndex;
+    }
+  };
+
+  // Se finalizou com sucesso ou foi interrompido, salvamos a posição da palavra
+  utterance.onend = () => {
     if (window._leituraPausada) {
-      // Se a NOSSA variável diz que está pausado, força a retomada
-      window.speechSynthesis.resume();
+      window._charIndexAtual += window._charIndexParcial;
+      return;
+    }
+    // Se não está pausado, leu até o fim. Limpa para a próxima linha.
+    window._fraseAtual = null;
+    window._charIndexAtual = 0;
+    window.tocarProximaFala();
+  };
+
+  utterance.onerror = (e) => {
+    // Blindagem de Erros: Independente do tipo de erro do Android, se clicou em pause, salva a posição!
+    if (window._leituraPausada) {
+      window._charIndexAtual += window._charIndexParcial;
+      return;
+    }
+    // Se foi um erro aleatório sem ser pause, tenta pular para não travar
+    window._fraseAtual = null;
+    window._charIndexAtual = 0;
+    window.tocarProximaFala();
+  };
+
+  window.speechSynthesis.speak(utterance);
+};
+
+// 3. CONTROLES DOS BOTÕES E COMANDOS (PLAY / PAUSE SIMULADO)
+window.acionarLeituraTela = () => {
+  if (window._sistemaFalando) {
+    if (window._leituraPausada) {
       window._leituraPausada = false;
+      window.tocarProximaFala();
       toast("▶ Retomando Leitura...", "ok");
     } else {
-      // Se não estava pausado, manda pausar
-      window.speechSynthesis.pause();
       window._leituraPausada = true;
+      window.speechSynthesis.cancel(); 
       toast("⏸ Leitura em Pausa", "ok");
     }
-
-  } 
-  // 2. Se o motor estiver totalmente livre, inicia a leitura do zero
-  else {
-    window._leituraPausada = false; // Garante que comece com o status correto
+  } else {
+    window._leituraPausada = false;
     const campos = window.coletarCamposEtapaAtualArray();
-    
     if (campos && campos.length > 0) {
       window.falarTextoGuiaPro(campos);
       toast("🔊 Lendo informações da tela...", "ok");
@@ -3644,18 +3764,16 @@ window.acionarLeituraTela = () => {
 };
 
 window.pararLeituraTela = () => {
-  // MACETE DE OURO: No Android, se você der 'cancel' com o áudio em 'pause', 
-  // o motor de voz trava para sempre. Precisamos dar um 'resume' rápido antes de cancelar!
-  if (window._leituraPausada) {
-    window.speechSynthesis.resume(); 
-  }
-  
-  window.speechSynthesis.cancel();
+  window._filaDeFalas = [];
+  window._fraseAtual = null;
+  window._charIndexAtual = 0;
+  window._charIndexParcial = 0;
   window._leituraPausada = false;
   window._sistemaFalando = false;
+  window.speechSynthesis.cancel();
   toast("⏹ Leitura Parada", "error");
 };
-   
+
 /* ══ INIT ══ */
 (async()=>{
   try{
