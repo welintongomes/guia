@@ -762,13 +762,11 @@ function buildExecAtiva(){
   
   const done=new Set(exec.stepsDone||[]);const total=steps.length,ndone=done.size;
 
-  // Garante que existe um passo ativo selecionado no início
   if (!exec.stepAtual) {
     const primeiroIncompleto = steps.find(s => !done.has(s.id));
     exec.stepAtual = primeiroIncompleto ? primeiroIncompleto.id : steps[0].id;
   }
 
-  // 🔀 NAVEGAÇÃO LIVRE NAS BOLINHAS: Chama a função irParaPassoProcedimento ao clicar
   const dotRow=steps.map((s,i)=>`${i>0?`<div class="exec-line${done.has(s.id)?' done':''}"></div>`:''}
     <div class="exec-dot${done.has(s.id)?' done':exec.stepAtual===s.id?' active':''}" 
          onclick="window.irParaPassoProcedimento('${s.id}')" 
@@ -777,29 +775,46 @@ function buildExecAtiva(){
 
   let conteudo='';
   
-  // Se o usuário concluiu o último passo ou marcou todos como feito
   if (exec.stepAtual === 'concluido' || (done.size === total && exec.mostrarConcluido)) {
     conteudo=`<div style="text-align:center;padding:28px 16px;display:flex;flex-direction:column;align-items:center;gap:14px"><div style="font-size:52px">✅</div><div style="font-family:var(--font-head);font-size:26px;letter-spacing:2px;color:var(--green2)">TRABALHO CONCLUÍDO!</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;letter-spacing:1px">${total} passos executados</div><button class="btn green" style="max-width:240px" onclick="A.finalizarExec(true)">✔ FINALIZAR EXECUÇÃO</button></div>`;
   } else {
-    // Busca o passo exato correspondente à bolinha ativa para renderizar na tela
     const passoVisivel = steps.find(s => s.id === exec.stepAtual) || steps[0];
-    
-    // Passa uma lista vazia [] no segundo parâmetro para eliminar bloqueios de sequência
     conteudo = buildExecStepCard(passoVisivel, []);
   }
 
+  const autoAtivo = window._leituraAutomatica;
+  const corAuto = autoAtivo ? 'var(--green2)' : 'var(--chrome)';
+  const bgAuto = autoAtivo ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.05)';
+
   return`<div class="card">
   <div class="card-head" style="display:flex; justify-content:space-between; align-items:center;">
-    <div class="card-title">⚙ ${esc(proc.nome)}</div>
-    <button id="btnVozGlobal" onclick="window.ativarComandosVozOperacionais()" 
-            style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); color:var(--cyan2); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; transition:all 0.2s;" 
-            title="Ativar Comando de Voz">
-      🎙️
-    </button>
+    <div class="card-title" style="cursor:pointer;" data-raw="${esc(proc.nome)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">⚙ ${esc(window.limparTagsTexto(proc.nome))}</div>
   </div><span style="font-family:var(--font-mono);font-size:10px;padding-left: 10px;color:var(--chrome)">${ndone}/${total}</span></div><div style="padding:8px 14px 5px"><div class="exec-progress">${dotRow}</div><div style="display:flex;justify-content:space-between;padding:0 2px;margin-top:3px"><span style="font-family:var(--font-mono);font-size:9px;color:var(--chrome)">PROGRESSO</span><span style="font-family:var(--font-mono);font-size:9px;color:var(--yellow)">${Math.round((ndone/total)*100)}%</span></div></div></div>
-  <div style="display:flex;flex-direction:column;gap:8px;padding-bottom:20px">${conteudo}<button class="btn ghost sm" onclick="A.confirmarAbandonar()">✕ Abandonar</button></div>`;
+  
+  <div style="display:flex;flex-direction:column;gap:8px;padding-bottom:20px">
+    ${conteudo}
+    
+    <!-- 🎛️ ESTAÇÃO DE COMANDO GLOBAL INFERIOR -->
+    <div style="display:flex; justify-content:flex-start; align-items:center; margin-top:12px; margin-bottom:12px; gap:8px; flex-wrap:wrap; padding: 0 4px;">
+      <button onclick="window.toggleLeituraAuto()" style="background:${bgAuto}; border:1px solid ${autoAtivo?'var(--green2)':'rgba(255,255,255,0.1)'}; border-radius:12px; padding:8px 12px; color:${corAuto}; cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:6px;">
+        ${autoAtivo ? '🤖 AUTO: ON' : '🤖 AUTO: OFF'}
+      </button>
+      <button onclick="window.acionarLeituraTela()" style="background:rgba(245,200,0,0.1); border:1px solid var(--yellow); border-radius:6px; padding:8px 12px; color:var(--yellow); cursor:pointer; font-size:12px; font-weight:bold; display:flex; align-items:center; gap:6px;">
+        🔊 LER / ⏸
+      </button>
+      <button onclick="window.pararLeituraTela()" style="background:rgba(231,76,60,0.1); border:1px solid #e74c3c; border-radius:6px; padding:8px 12px; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold;" title="Parar Leitura">
+        ⏹
+      </button>
+      <button id="btnVozGlobal" onclick="window.ativarComandosVozOperacionais()" style="background:rgba(245,200,0,0.1); border:1px solid var(--yellow); color:var(--yellow); border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; transition:all 0.2s;">
+        🎙️
+      </button>
+    </div>
+    
+    <div style="display:flex; justify-content:flex-start; padding: 0 4px;">
+      <button class="btn ghost sm" style="width:auto; padding:8px 16px; border-color:rgba(231,76,60,.3); color:#e74c3c;" onclick="A.confirmarAbandonar()">✕ Abandonar</button>
+    </div>
+  </div>`;
 }
-
 // window.voltarPassoProcedimento = (stepId) => {
 //   if (!S.execAtiva) return;
 //   const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
@@ -825,11 +840,15 @@ function buildExecAtiva(){
 window.irParaPassoProcedimento = (stepId) => {
   if (!S.execAtiva) return;
   
-  // Altera o foco da tela para a bolinha clicada (seja ela no passado ou no futuro)
   S.execAtiva.stepAtual = stepId;
   S.execAtiva.mostrarConcluido = false;
   
-  render(); // Atualiza a renderização do cartão imediatamente
+  render(); 
+
+  // 🤖 GATILHO DO PILOTO AUTOMÁTICO (Navegação Livre)
+  if (window._leituraAutomatica) {
+    setTimeout(() => window.acionarLeituraTela(), 400);
+  }
 };
 
 function buildExecStepCard(step, faltando){
@@ -841,181 +860,34 @@ function buildExecStepCard(step, faltando){
   
   const isPassoEfetuado = S.execAtiva?.stepsDone?.includes(step.id);
   const classeBotao = isPassoEfetuado ? 'btn green' : 'btn steel';
-  const estiloBotao = isPassoEfetuado ? '' : 'background: var(--cyan2); color: #000; font-weight: bold;';
+  const estiloBotao = isPassoEfetuado ? '' : 'background: var(--yellow); color: #000; font-weight: bold;';
   const textoBotao = isPassoEfetuado ? '✔ PASSO CONCLUÍDO' : 'CONCLUIR ESTA ETAPA';
   const tagStatus = isPassoEfetuado ? 'ETAPA JÁ CONCLUÍDA' : 'PRÓXIMO PASSO';
 
   return `
-<div class="exec-step-card" style="
-  position:relative;
-  border-radius:16px;
-  overflow:hidden;
-  padding:6px;
-  display:flex;
-  flex-direction:column;
-  gap:14px;
-">
-
-  <!-- 🔥 HEADER -->
-  <div class="exec-step-head" style="
-    display:flex;
-    align-items:flex-start;
-    gap:12px;
-  ">
-
-    <div class="exec-num-badge" style="
-      min-width:42px;
-      height:42px;
-      border-radius:12px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:15px;
-      font-weight:800;
-      flex-shrink:0;
-    ">
-      ${step.ordem}
+  <div class="exec-step-card">
+    <div class="exec-step-head">
+      <div class="exec-num-badge">${step.ordem}</div>
+      <div>
+        <div class="exec-step-title step-title" style="cursor:pointer;" data-raw="${esc(step.titulo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(step.titulo))}</div>
+        <div style="font-family:var(--font-mono);font-size:9px;color:rgba(245,200,0,.5);text-transform:uppercase;letter-spacing:1px;margin-top:1px">${tagStatus}</div>
+      </div>
     </div>
-
-    <div style="
-      flex:1;
-      min-width:0;
-    ">
-      
-      <div class="exec-step-title step-title" style="
-        font-size:15px;
-        line-height:1.4;
-        font-weight:700;
-        word-break:break-word;
-      ">
-        ${esc(window.limparTagsTexto(step.titulo))}
-      </div>
-
-      <div style="
-        font-family:var(--font-mono);
-        font-size:10px;
-        color:rgba(245,200,0,.65);
-        text-transform:uppercase;
-        letter-spacing:1px;
-        margin-top:6px;
-        line-height:1.3;
-      ">
-        ${tagStatus}
-      </div>
-
+    <div class="exec-step-body">
+      ${step.descricao ? `<div class="exec-step-desc" id="sDesc" style="cursor:pointer;" data-raw="${esc(step.descricao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(step.descricao))}</div>` : ''}
+      ${step.codigo ? `<pre class="code-block"><code style="cursor:pointer;" data-raw="${esc(step.codigo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(step.codigo))}</code></pre>` : ''}
+      ${fotosHtml}
+      ${step.alerta ? `<div class="warn-box" style="cursor:pointer;" data-raw="${esc(step.alerta)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">⚠ ${esc(window.limparTagsTexto(step.alerta))}</div>` : ''}
     </div>
-  </div>
-
-  <!-- 📦 BODY -->
-  <div class="exec-step-body" style="
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-  ">
-
-    ${step.descricao ? `
-      <div 
-        class="exec-step-desc"
-        id="sDesc"
-        style="
-          font-size:14px;
-          line-height:1.7;
-          word-break:break-word;
-        "
-      >
-        ${esc(window.limparTagsTexto(step.descricao))}
-      </div>
-    ` : ''}
-
-    ${step.codigo ? `<pre class="code-block"><code>${esc(window.limparTagsTexto(step.codigo))}</code></pre>` : ''}
-
-    ${fotosHtml}
-
-    ${step.alerta ? `
-      <div class="warn-box" style="
-        border-radius:12px;
-        padding:12px;
-        font-size:13px;
-        line-height:1.5;
-        word-break:break-word;
-      ">
-        ⚠ ${esc(window.limparTagsTexto(step.alerta))}
-      </div>
-    ` : ''}
-
-  </div>
-
-  <!-- ✅ FOOTER -->
-  <div class="exec-foot" style="
-    display:flex;
-    justify-content:stretch;
-  ">
     
-    <button 
-      class="${classeBotao}"
-      style="
-        ${estiloBotao};
-        width:100%;
-        min-height:46px;
-        border-radius:12px;
-        font-size:14px;
-        font-weight:700;
-      "
-      onclick="A.marcarStepDone('${step.id}')"
-    >
-      ${textoBotao}
-    </button>
-
-  </div>
-<div style="
-    display:flex;
-    justify-content:flex-end;
-    gap:8px;
-    flex-wrap:wrap;
-  ">
-    
-    <button onclick="window.acionarLeituraTela()" style="
-        background:rgba(245,200,0,0.12);
-        border:1px solid rgba(245,200,0,0.45);
-        border-radius:10px;
-        padding:8px 12px;
-        color:var(--yellow);
-        cursor:pointer;
-        font-size:12px;
-        font-weight:700;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        gap:6px;
-        min-height:38px;
-        backdrop-filter:blur(4px);
-        transition:.2s;
-        flex:1;
-        min-width:120px;
-      ">
-      🔊 LER / ⏸
-    </button>
-
-    <button onclick="window.pararLeituraTela()" title="Parar Leitura" style="
-        background:rgba(231,76,60,0.12);
-        border:1px solid rgba(231,76,60,0.45);
-        border-radius:10px;
-        padding:8px 12px;
-        color:#e74c3c;
-        cursor:pointer;
-        font-size:13px;
-        font-weight:700;
-        min-height:38px;
-        min-width:48px;
-        backdrop-filter:blur(4px);
-        transition:.2s;
-      ">
-      ⏹
-    </button>
-
-  </div>
-</div>`;
+    <div class="exec-foot">
+      <button class="${classeBotao}" style="${estiloBotao} width:100%; padding:14px; font-size:14px;" onclick="A.marcarStepDone('${step.id}')">
+        ${textoBotao}
+      </button>
+    </div>
+  </div>`;
 }
+
 /* ══ ABA TREINO ══ */
 function buildTreino(){
   const tr=S.treino;
@@ -1126,42 +998,51 @@ function buildFluxoExec(){
   if(!noAtual)return`<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">NÓ NÃO ENCONTRADO</div></div>`;
   
   const proc = noAtual.procId ? S.procedimentos.find(p => p.id === noAtual.procId) : null;
-
-  // Filtra as tags do histórico de navegação superior (Breadcrumbs)
   const breadcrumb=fe.historico.length?`<div class="fluxo-breadcrumb">${fe.historico.map(h=>`<div class="bc-item"><span>${esc(window.limparTagsTexto(h.pergunta).slice(0,20))}</span><span class="bc-resp"> ${esc(window.limparTagsTexto(h.resposta))}</span></div>`).join('')}</div>`:'';
   
   const fotosExecHtml = (noAtual.fotos?.length) ? `<div class="exec-imgs" style="margin:12px 0">${noAtual.fotos.map((f,i)=>`<div class="exec-img" onclick="lightbox('${f}')"><img src="${f}"></div>`).join('')}</div>` : '';
   const audioExecHtml = noAtual.audio ? `<div style="margin:12px 0; background:rgba(34,211,238,0.1); padding:10px; border-radius:var(--r); border-left:3px solid var(--cyan2);"><div style="font-family:var(--font-mono);font-size:10px;color:var(--cyan2);text-transform:uppercase;margin-bottom:6px;">🎙️ Instrução em Áudio</div><audio controls src="${noAtual.audio}" style="width:100%; height:40px;" onplay="tocarAudioLockScreen('${esc(window.limparTagsTexto(noAtual.pergunta || noAtual.titulo || ''))}')"></audio></div>` : '';
 
   const isDiag = noAtual.tipo === 'diagnostico';
-  
   const btnProcHtml = noAtual.procId ? `
     <button class="btn yellow sm" style="margin-top:10px; border:2px solid var(--yellow); padding:8px 12px; font-size:12px; font-weight:bold; width:100%;" onclick="A.verProcNoFluxo(${noAtual.procId}, '${esc(proc?.nome || 'Técnico')}', ${noAtual.procValor || 0})">
       📋 VER PROCEDIMENTO ${noAtual.procValor > 0 ? `(R$ ${noAtual.procValor.toFixed(2).replace('.', ',')})` : ''}
     </button>` : '';
+
+  const botoesLeituraHtml = `
+    <div style="display:flex; gap:8px; margin-top:16px; margin-bottom:8px; justify-content:flex-start;">
+      <button onclick="window.acionarLeituraTela()" style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); border-radius:6px; padding:8px 12px; color:var(--cyan2); cursor:pointer; font-size:12px; font-weight:bold; display:flex; align-items:center; gap:6px;">
+        🔊 LER / ⏸
+      </button>
+      <button onclick="window.pararLeituraTela()" style="background:rgba(231,76,60,0.1); border:1px solid #e74c3c; border-radius:6px; padding:8px 12px; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold;" title="Parar Leitura">
+        ⏹
+      </button>
+    </div>
+  `;
 
   let conteudoPrincipal = '';
   if(isDiag){
     conteudoPrincipal = `
     <div class="fluxo-diag-card">
       <div style="font-family:var(--font-mono);font-size:10px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">✅ FINAL DO FLUXO</div>
-      <div class="fluxo-diag-title">${esc(window.limparTagsTexto(noAtual.titulo||noAtual.pergunta||''))}</div>
+      <div class="fluxo-diag-title" style="cursor:pointer;" data-raw="${esc(noAtual.titulo||noAtual.pergunta||'')}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.titulo||noAtual.pergunta||''))}</div>
       ${audioExecHtml} ${fotosExecHtml}
-      ${noAtual.descricao?`<div class="fluxo-diag-desc">${esc(window.limparTagsTexto(noAtual.descricao))}</div>`:''}
-      ${noAtual.codigo?`<pre class="code-block"><code>${esc(window.limparTagsTexto(noAtual.codigo))}</code></pre>`:''}
-      ${noAtual.solucao?`<div style="background:rgba(0,0,0,.3);border-radius:var(--r);padding:10px 12px;border-left:3px solid var(--cyan2);margin-top:4px"><div style="font-family:var(--font-mono);font-size:9px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">SOLUÇÃO RECOMENDADA</div><div style="font-size:13px;color:var(--chrome2);line-height:1.6">${esc(window.limparTagsTexto(noAtual.solucao))}</div></div>`:''}
+      ${noAtual.descricao?`<div class="fluxo-diag-desc" style="cursor:pointer;" data-raw="${esc(noAtual.descricao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.descricao))}</div>`:''}
+      ${noAtual.codigo?`<pre class="code-block"><code style="cursor:pointer;" data-raw="${esc(noAtual.codigo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.codigo))}</code></pre>`:''}
+      ${noAtual.solucao?`<div style="background:rgba(0,0,0,.3);border-radius:var(--r);padding:10px 12px;border-left:3px solid var(--cyan2);margin-top:4px"><div style="font-family:var(--font-mono);font-size:9px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">SOLUÇÃO RECOMENDADA</div><div style="font-size:13px;color:var(--chrome2);line-height:1.6;cursor:pointer;" data-raw="${esc(noAtual.solucao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.solucao))}</div></div>`:''}
       ${btnProcHtml}
+      ${botoesLeituraHtml}
     </div>`;
   } else {
-    // Filtra as tags dos botões de opções clicáveis (A, B, C...)
     const opcoesHtml=(noAtual.opcoes||[]).map((o,i)=>`<button class="fluxo-opt-btn" onclick="A.fluxoResponder(${i})"><span style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.5px;min-width:20px;color:rgba(34,211,238,.5)">${String.fromCharCode(65+i)}</span> ${esc(window.limparTagsTexto(o.label))}<span class="fluxo-opt-arrow">›</span></button>`).join('');
     conteudoPrincipal = `
     <div class="fluxo-node-card">
-      <div class="fluxo-node-head"><div class="fluxo-q-badge"> </div><div class="fluxo-question">${esc(window.limparTagsTexto(noAtual.pergunta || noAtual.titulo || ''))}</div></div>
+      <div class="fluxo-node-head"><div class="fluxo-q-badge"> </div><div class="fluxo-question" style="cursor:pointer;" data-raw="${esc(noAtual.pergunta || noAtual.titulo || '')}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.pergunta || noAtual.titulo || ''))}</div></div>
       <div style="padding: 0 16px;">${audioExecHtml} ${fotosExecHtml}</div>
-      ${noAtual.descricao?`<div class="fluxo-desc" style="padding-top:0">${esc(window.limparTagsTexto(noAtual.descricao))}</div>`:''}
-      ${noAtual.codigo?`<div style="padding:0 16px"><pre class="code-block" style="margin-top:0"><code>${esc(window.limparTagsTexto(noAtual.codigo))}</code></pre></div>`:''}
+      ${noAtual.descricao?`<div class="fluxo-desc" style="padding-top:0;cursor:pointer;" data-raw="${esc(noAtual.descricao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.descricao))}</div>`:''}
+      ${noAtual.codigo?`<div style="padding:0 16px"><pre class="code-block"><code style="cursor:pointer;" data-raw="${esc(noAtual.codigo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.codigo))}</code></pre></div>`:''}
       ${btnProcHtml ? `<div style="padding: 0 16px;">${btnProcHtml}</div>` : ''}
+      <div style="padding: 0 16px;">${botoesLeituraHtml}</div>
       <div class="fluxo-opts">${opcoesHtml||'<div style="color:var(--chrome);font-size:13px">Sem opções</div>'}</div>
     </div>`;
   }
@@ -1170,7 +1051,7 @@ function buildFluxoExec(){
   const totalOrcamento = fe.orcamento.reduce((acc, item) => acc + item.valor, 0);
 
   const orcamentoHtml = `
-  <div style="margin-top:3px; background:rgba(46,204,113,.05); border:1px solid rgba(46,204,113,.3); border-radius:var(--r); padding:10px;">
+  <div style="margin-top:16px; background:rgba(46,204,113,.05); border:1px solid rgba(46,204,113,.3); border-radius:var(--r); padding:10px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
       <div style="font-family:var(--font-head); font-size:18px; color:var(--green2); letter-spacing:1px;">💰 TOTAL: R$ ${totalOrcamento.toFixed(2).replace('.', ',')}</div>
       <button class="btn green sm" style="width:auto; padding:4px 10px; font-size:10px;margin-left: 40px;" onclick="A.abrirModalOrcamento()">＋ ADICIONAR VALOR</button>
@@ -1186,42 +1067,37 @@ function buildFluxoExec(){
         </div>
       `).join('')}
     </div>` : `<div style="font-size:11px; color:var(--chrome);">Nenhum valor adicionado.</div>`}
-    
     ${fe.orcamento?.length > 0 ? `
-      <button class="btn" onclick="A.enviarOrcamentoWhatsApp()" 
-              style="background:#25D366; color:#000; font-weight:bold; font-size:13px; width:100%; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:8px; border:none; padding:10px; border-radius:var(--r); cursor:pointer;">
+      <button class="btn" onclick="A.enviarOrcamentoWhatsApp()" style="background:#25D366; color:#000; font-weight:bold; font-size:13px; width:100%; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:8px; border:none; padding:10px; border-radius:var(--r); cursor:pointer;">
         <span style="font-size:16px;">🟢</span> ENVIAR ORÇAMENTO VIA WHATSAPP
-      </button>
-    ` : ''}
+      </button>` : ''}
   </div>`;
 
-return `
-  
-  ${conteudoPrincipal}
+  const autoAtivo = window._leituraAutomatica;
+  const corAuto = autoAtivo ? 'var(--green2)' : 'var(--chrome)';
+  const bgAuto = autoAtivo ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.05)';
+
+  return `
   <div class="card" style="border-color:rgba(34,211,238,.15)">
     <div class="card-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-      <div class="card-title" style="color:var(--cyan2)">🔀 ${esc(window.limparTagsTexto(fluxo.nome))}</div>
-      
-      <!-- 🎛️ ESTAÇÃO DE COMANDO (LER / PAUSAR / PARAR / MICROFONE) -->
-      <div style="display:flex; gap:6px; align-items:center;">
-        <button onclick="window.acionarLeituraTela()" style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); color:var(--cyan2); border-radius:6px; padding:4px 10px; cursor:pointer; font-size:11px; font-weight:bold;">
-          🔊 LER / ⏸
-        </button>
-        <button onclick="window.pararLeituraTela()" style="background:rgba(231,76,60,0.1); border:1px solid #e74c3c; color:#e74c3c; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:11px; font-weight:bold;">
-          ⏹
-        </button>
-        <button id="btnVozGlobal" onclick="window.ativarComandosVozOperacionais()" 
-                style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); color:var(--cyan2); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; transition:all 0.2s;" 
-                title="Ativar Comando de Voz">
-          🎙️
-        </button>
-      </div>
-      
+      <div class="card-title" style="color:var(--cyan2); cursor:pointer;" data-raw="${esc(fluxo.nome)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">🔀 ${esc(window.limparTagsTexto(fluxo.nome))}</div>
     </div>
     ${breadcrumb}
   </div>
+  ${conteudoPrincipal}
   ${orcamentoHtml}
-  <div style="display:flex;gap:6px; flex-wrap:wrap; margin-top:0px;">
+  
+  <!-- 🎛️ BARRA GLOBAL INFERIOR (ESQUERDA) -->
+  <div style="display:flex; justify-content:flex-start; align-items:center; margin-top:16px; margin-bottom:8px; gap:8px;">
+    <button onclick="window.toggleLeituraAuto()" style="background:${bgAuto}; border:1px solid ${autoAtivo?'var(--green2)':'rgba(255,255,255,0.1)'}; border-radius:12px; padding:8px 12px; color:${corAuto}; cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:6px;">
+      ${autoAtivo ? '🤖 AUTO: ON' : '🤖 AUTO: OFF'}
+    </button>
+    <button id="btnVozGlobal" onclick="window.ativarComandosVozOperacionais()" style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); color:var(--cyan2); border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; transition:all 0.2s;">
+      🎙️
+    </button>
+  </div>
+
+  <div style="display:flex;gap:6px; flex-wrap:wrap; margin-top:10px;">
     ${fe.historico.length?`<button class="btn steel sm" onclick="A.fluxoVoltar()" style="flex:1">← VOLTAR</button>`:''}
     <button class="btn ghost-cyan sm" onclick="A.fluxoReiniciar()" style="flex:1">🔄 REINICIAR</button>
     <button class="btn green sm" onclick="A.salvarFluxoHistorico()" style="flex:2">💾 SALVAR </button>
@@ -1649,33 +1525,52 @@ const A={
     
     const steps = (proc.steps || []).slice().sort((a, b) => a.ordem - b.ordem);
     
-    // Adiciona o passo atual aos concluídos (bolinha fica verde)
     if (!S.execAtiva.stepsDone) S.execAtiva.stepsDone = [];
     if (!S.execAtiva.stepsDone.includes(stepId)) {
       S.execAtiva.stepsDone.push(stepId);
     }
     
-    // Descobre qual é a próxima bolinha da sequência
     const idxAtual = steps.findIndex(s => s.id === stepId);
     if (idxAtual !== -1 && idxAtual < steps.length - 1) {
-      // Avança para a próxima bolinha
       S.execAtiva.stepAtual = steps[idxAtual + 1].id;
     } else {
-      // Se era a última bolinha, verifica se tudo foi feito para encerrar
       if (S.execAtiva.stepsDone.length === steps.length) {
         S.execAtiva.stepAtual = 'concluido';
       } else {
-        // Se faltou algum passo que o usuário pulou, volta para o primeiro incompleto
         const pendente = steps.find(s => !S.execAtiva.stepsDone.includes(s.id));
         S.execAtiva.stepAtual = pendente ? pendente.id : 'concluido';
       }
     }
     
-    // Atualiza o cronômetro do Analytics se estiver ativo
     if(S.execAtiva.ultimoTimestamp) S.execAtiva.ultimoTimestamp = Date.now();
     render();
+
+    // 🤖 GATILHO DO PILOTO AUTOMÁTICO (Procedimentos)
+    if (window._leituraAutomatica && S.execAtiva.stepAtual !== 'concluido') {
+      setTimeout(() => window.acionarLeituraTela(), 400); // 400ms para a tela desenhar suavemente
+    }
   },
 
+  fluxoResponder(opcaoIdx){
+    if(!S.fluxoExec)return;const fluxo=S.fluxos.find(f=>f.id===S.fluxoExec.fluxoId);if(!fluxo)return;
+    const nos=fluxo.nos||[];const noAtual=nos.find(n=>n.id===S.fluxoExec.noAtual);if(!noAtual)return;
+    const opcao=noAtual.opcoes?.[opcaoIdx];if(!opcao)return;
+    S.fluxoExec.historico.push({noId:noAtual.id,pergunta:noAtual.pergunta||noAtual.titulo||'',resposta:opcao.label,opcaoIdx});
+    
+    if(opcao.destino==='diagnostico_direto'||!opcao.destinoId){
+      const diagId='diag_'+opcaoIdx+'_'+noAtual.id;const diagExist=nos.find(n=>n.id===diagId);
+      if(!diagExist){nos.push({id:diagId,tipo:'diagnostico',titulo:opcao.diagnostico||'Diagnóstico',descricao:opcao.descricaoFinal||'',solucao:opcao.solucao||'',procId:opcao.procId||null});}
+      S.fluxoExec.noAtual=diagId;
+    }else{S.fluxoExec.noAtual=opcao.destinoId;}
+    
+    render();
+
+    // 🤖 GATILHO DO PILOTO AUTOMÁTICO (Fluxos)
+    if (window._leituraAutomatica) {
+      setTimeout(() => window.acionarLeituraTela(), 400);
+    }
+  },
+  
   async finalizarExec(concluido){
     if(!S.execAtiva)return;
     S.execAtiva=null;
@@ -1833,19 +1728,6 @@ const A={
     };
     S.tab = 'fluxo'; render();
     toast('🔄 Fluxo retomado com orçamento intacto.', 'cyan');
-  },
-  fluxoResponder(opcaoIdx){
-    if(!S.fluxoExec)return;const fluxo=S.fluxos.find(f=>f.id===S.fluxoExec.fluxoId);if(!fluxo)return;
-    const nos=fluxo.nos||[];const noAtual=nos.find(n=>n.id===S.fluxoExec.noAtual);if(!noAtual)return;
-    const opcao=noAtual.opcoes?.[opcaoIdx];if(!opcao)return;
-    S.fluxoExec.historico.push({noId:noAtual.id,pergunta:noAtual.pergunta||noAtual.titulo||'',resposta:opcao.label,opcaoIdx});
-    if(opcao.destino==='diagnostico_direto'||!opcao.destinoId){
-      // Criar nó de diagnóstico inline se não existe
-      const diagId='diag_'+opcaoIdx+'_'+noAtual.id;const diagExist=nos.find(n=>n.id===diagId);
-      if(!diagExist){nos.push({id:diagId,tipo:'diagnostico',titulo:opcao.diagnostico||'Diagnóstico',descricao:opcao.descricaoFinal||'',solucao:opcao.solucao||'',procId:opcao.procId||null});}
-      S.fluxoExec.noAtual=diagId;
-    }else{S.fluxoExec.noAtual=opcao.destinoId;}
-    render();
   },
   fluxoVoltar(){
     if(!S.fluxoExec||!S.fluxoExec.historico.length)return;
@@ -3633,8 +3515,7 @@ window.executarAvancoLinearVoz = () => {
   }
 };
 
-/* 🎙️ ATIVADOR E GERENCIADOR DO RECONHECIMENTO DE VOZ */
-/* 🎙️ GERENCIADOR DE RECONHECIMENTO DE VOZ COM TRAVA OPERACIONAL ANTI-BIPE */
+/* 🎙️ GERENCIADOR DE RECONHECIMENTO DE VOZ COM TRAVA OPERACIONAL ANTI-BIPE E ANTI-LOOP */
 window.ativarComandosVozOperacionais = () => {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
@@ -3657,6 +3538,9 @@ window.ativarComandosVozOperacionais = () => {
   recognition.lang = 'pt-BR';
   recognition.continuous = false; 
   recognition.interimResults = false;
+  
+  // 🟢 VARIÁVEL SALVA-VIDAS: Reseta o status de erro crítico toda vez que o botão é clicado
+  window._erroCriticoVoz = false; 
 
   recognition.onresult = (event) => {
     const resultado = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
@@ -3691,10 +3575,28 @@ window.ativarComandosVozOperacionais = () => {
     }
   };
 
+  recognition.onerror = (event) => {
+    if (event.error === 'no-speech') return; 
+    if (event.error === 'aborted') return;   
+
+    // 🔥 TRAVA ANTI-LOOP: Se o navegador negou a permissão, nós abortamos a missão imediatamente
+    if (event.error === 'not-allowed') {
+      window._erroCriticoVoz = true; 
+      window._reconhecedorAtivo = null;
+      document.getElementById("btnVozGlobal")?.classList.remove("ativo");
+      console.error("⛔ Acesso ao Microfone Negado pelo navegador/sistema.");
+      toast("⛔ Microfone Bloqueado! Libere a permissão no navegador.", "error");
+      return;
+    }
+
+    console.error("Erro capturado:", event.error);
+  };
+
   recognition.onend = () => {
-    // 🔥 BLOQUEIO DO LAÇO: Se o celular está lendo o texto, impede o reinício e corta os bipes!
+    // 🔥 BLOQUEIO DO LAÇO: Se o erro foi de permissão, impede o reinício infinito
+    if (window._erroCriticoVoz) return;
+
     if (window._sistemaFalando) {
-      console.log("🎙️ Reinício suspenso enquanto o áudio está tocando.");
       return; 
     }
 
@@ -3706,11 +3608,10 @@ window.ativarComandosVozOperacionais = () => {
       
       let tempoEspera = 1200; 
       if (tempoDesdeUltimoStart < 3000) {
-        tempoEspera = 3000; // Proteção para o hardware do celular respirar
+        tempoEspera = 3000; 
       }
 
       window._timerEstabilizadorVozMobile = setTimeout(() => {
-        // Nova validação antes de disparar o hardware de captura
         if (window._reconhecedorAtivo && !window._sistemaFalando) {
           try {
             window._ultimoStartVoz = Date.now();
@@ -3723,12 +3624,6 @@ window.ativarComandosVozOperacionais = () => {
     }
   };
 
-  recognition.onerror = (event) => {
-    if (event.error === 'no-speech') return; // Ignora silêncio
-    if (event.error === 'aborted') return;   // Ignora fechamentos manuais controlados
-    console.error("Erro capturado:", event.error);
-  };
-
   window._reconhecedorAtivo = recognition;
   
   try {
@@ -3736,12 +3631,11 @@ window.ativarComandosVozOperacionais = () => {
     window._ultimoStartVoz = Date.now();
     recognition.start();
     document.getElementById("btnVozGlobal")?.classList.add("ativo");
-    toast("🎙️ Voz Inteligente Estabilizada!", "ok");
+    toast("🎙️ Microfone Ativado!", "ok");
   } catch(e) {
     console.log("Erro de inicialização:", e);
   }
 };
-
 /* ═════════════════════════════════════════════════════════════════
    🔊 MOTOR DE VOZ COM MEMÓRIA DE PALAVRA (RESUMO CIRÚRGICO)
    ═════════════════════════════════════════════════════════════════ */
@@ -3912,7 +3806,30 @@ window.pararLeituraTela = () => {
   window.speechSynthesis.cancel();
   toast("⏹ Leitura Parada", "error");
 };
+/* ═════════════════════════════════════════════════════════════════
+   🤖 LEITURA SOB DEMANDA (CLIQUE) E PILOTO AUTOMÁTICO
+   ═════════════════════════════════════════════════════════════════ */
 
+// Puxa da memória se o usuário deixou o Piloto Automático ligado na última vez
+window._leituraAutomatica = lsGet('leituraAuto', false);
+
+// 1. Alterna a Chave Seletora (Liga/Desliga o Automático)
+window.toggleLeituraAuto = () => {
+  window._leituraAutomatica = !window._leituraAutomatica;
+  localStorage.setItem('mp_leituraAuto', JSON.stringify(window._leituraAutomatica));
+  toast(window._leituraAutomatica ? "🤖 Piloto Automático LIGADO" : "🔇 Piloto Automático DESLIGADO", window._leituraAutomatica ? "ok" : "error");
+  render(); // Atualiza a tela para pintar o botão
+};
+
+// 2. Leitura Direta pelo Clique
+window.lerTextoDireto = (texto) => {
+  if (!texto) return;
+  if (event) event.stopPropagation(); // Impede de clicar em botões que estejam atrás do texto
+  
+  window.pararLeituraTela(); // Para e zera qualquer áudio que esteja rolando
+  window.falarTextoGuiaPro([texto]); // Envia apenas a frase clicada para o leitor
+  toast("🔊 Lendo trecho selecionado...", "ok");
+};
 /* ══ INIT ══ */
 (async()=>{
   try{
