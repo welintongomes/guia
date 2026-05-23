@@ -103,15 +103,15 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .exec-line{flex:1;min-width:6px;height:2px;background:rgba(255,255,255,.08);}
 .exec-line.done{background:var(--green);}
 .exec-step-card{background:var(--steel);border-radius:var(--r2);overflow:hidden;border:2px solid rgba(245,200,0,.2);box-shadow:var(--glow);}
-.exec-step-head{background:linear-gradient(90deg,rgba(245,200,0,.1),rgba(245,200,0,.02));padding:12px 16px;border-bottom:1px solid rgba(245,200,0,.15);display:flex;gap:12px;}
+.exec-step-head{background:linear-gradient(90deg,rgba(245,200,0,.1),rgba(245,200,0,.02));padding:12px 16px;border-radius: 10px;border-bottom:1px solid rgba(245,200,0,.15);display:flex;gap:12px;}
 .exec-num-badge{width:36px;height:36px;border-radius:var(--r);background:var(--yellow);color:var(--ink);font-family:var(--font-head);font-size:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .exec-step-title{font-family:var(--font-head);font-size:20px;letter-spacing:1px;color:white;}
-.exec-step-body{padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
+.exec-step-body{padding:1px 1px;display:flex;flex-direction:column;gap:10px;}
 .exec-step-desc{font-size:14px;color:var(--chrome2);line-height:1.7;font-weight:500;}
 .exec-imgs{display:flex;flex-wrap:wrap;gap:8px;}
 .exec-img{border-radius:var(--r);overflow:hidden;border:1px solid rgba(255,255,255,.1);cursor:pointer;background:var(--steel2);max-width:100%;}
 .exec-img img{width:100%;display:block;max-height:200px;object-fit:contain;background:#000;}
-.exec-foot{padding:10px 16px;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:8px;}
+.exec-foot{padding:2px 0px;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:8px;}
 .step-done-card{border-radius:var(--r2);border:1px solid rgba(39,174,96,.2);background:rgba(39,174,96,.04);display:flex;align-items:center;gap:10px;padding:8px 12px;}
 .done-check{width:28px;height:28px;border-radius:50%;background:var(--green);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
 .done-num{font-family:var(--font-head);font-size:13px;color:var(--green2);flex-shrink:0;}
@@ -846,37 +846,175 @@ function buildExecStepCard(step, faltando){
   const tagStatus = isPassoEfetuado ? 'ETAPA JÁ CONCLUÍDA' : 'PRÓXIMO PASSO';
 
   return `
-  <div class="exec-step-card" style="position:relative;">
-    
-    <!-- 🎛️ PAINEL DE ÁUDIO MANUAL -->
-    <div style="position:absolute; right:12px; top:12px; display:flex; gap:6px; z-index:10;">
-      <button onclick="window.acionarLeituraTela()" style="background:rgba(245,200,0,0.1); border:1px solid var(--yellow); border-radius:6px; padding:4px 10px; color:var(--yellow); cursor:pointer; font-size:12px; font-weight:bold; display:flex; align-items:center; gap:4px;">
-        🔊 LER / ⏸
-      </button>
-      <button onclick="window.pararLeituraTela()" style="background:rgba(231,76,60,0.1); border:1px solid #e74c3c; border-radius:6px; padding:4px 8px; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold;" title="Parar Leitura">
-        ⏹
-      </button>
+<div class="exec-step-card" style="
+  position:relative;
+  border-radius:16px;
+  overflow:hidden;
+  padding:6px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+">
+
+  <!-- 🔥 HEADER -->
+  <div class="exec-step-head" style="
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+  ">
+
+    <div class="exec-num-badge" style="
+      min-width:42px;
+      height:42px;
+      border-radius:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:15px;
+      font-weight:800;
+      flex-shrink:0;
+    ">
+      ${step.ordem}
     </div>
 
-    <div class="exec-step-head" style="padding-right: 140px;">
-      <div class="exec-num-badge">${step.ordem}</div>
-      <div>
-        <div class="exec-step-title step-title">${esc(window.limparTagsTexto(step.titulo))}</div>
-        <div style="font-family:var(--font-mono);font-size:9px;color:rgba(245,200,0,.5);text-transform:uppercase;letter-spacing:1px;margin-top:1px">${tagStatus}</div>
+    <div style="
+      flex:1;
+      min-width:0;
+    ">
+      
+      <div class="exec-step-title step-title" style="
+        font-size:15px;
+        line-height:1.4;
+        font-weight:700;
+        word-break:break-word;
+      ">
+        ${esc(window.limparTagsTexto(step.titulo))}
       </div>
+
+      <div style="
+        font-family:var(--font-mono);
+        font-size:10px;
+        color:rgba(245,200,0,.65);
+        text-transform:uppercase;
+        letter-spacing:1px;
+        margin-top:6px;
+        line-height:1.3;
+      ">
+        ${tagStatus}
+      </div>
+
     </div>
-    <div class="exec-step-body">
-      ${step.descricao ? `<div class="exec-step-desc" id="sDesc">${esc(window.limparTagsTexto(step.descricao))}</div>` : ''}
-      ${step.codigo ? `<pre class="code-block"><code>${esc(window.limparTagsTexto(step.codigo))}</code></pre>` : ''}
-      ${fotosHtml}
-      ${step.alerta ? `<div class="warn-box">⚠ ${esc(window.limparTagsTexto(step.alerta))}</div>` : ''}
-    </div>
-    <div class="exec-foot">
-      <button class="${classeBotao}" style="${estiloBotao}" onclick="A.marcarStepDone('${step.id}')">
-        ${textoBotao}
-      </button>
-    </div>
-  </div>`;
+  </div>
+
+  <!-- 📦 BODY -->
+  <div class="exec-step-body" style="
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  ">
+
+    ${step.descricao ? `
+      <div 
+        class="exec-step-desc"
+        id="sDesc"
+        style="
+          font-size:14px;
+          line-height:1.7;
+          word-break:break-word;
+        "
+      >
+        ${esc(window.limparTagsTexto(step.descricao))}
+      </div>
+    ` : ''}
+
+    ${step.codigo ? `<pre class="code-block"><code>${esc(window.limparTagsTexto(step.codigo))}</code></pre>` : ''}
+
+    ${fotosHtml}
+
+    ${step.alerta ? `
+      <div class="warn-box" style="
+        border-radius:12px;
+        padding:12px;
+        font-size:13px;
+        line-height:1.5;
+        word-break:break-word;
+      ">
+        ⚠ ${esc(window.limparTagsTexto(step.alerta))}
+      </div>
+    ` : ''}
+
+  </div>
+
+  <!-- ✅ FOOTER -->
+  <div class="exec-foot" style="
+    display:flex;
+    justify-content:stretch;
+  ">
+    
+    <button 
+      class="${classeBotao}"
+      style="
+        ${estiloBotao};
+        width:100%;
+        min-height:46px;
+        border-radius:12px;
+        font-size:14px;
+        font-weight:700;
+      "
+      onclick="A.marcarStepDone('${step.id}')"
+    >
+      ${textoBotao}
+    </button>
+
+  </div>
+<div style="
+    display:flex;
+    justify-content:flex-end;
+    gap:8px;
+    flex-wrap:wrap;
+  ">
+    
+    <button onclick="window.acionarLeituraTela()" style="
+        background:rgba(245,200,0,0.12);
+        border:1px solid rgba(245,200,0,0.45);
+        border-radius:10px;
+        padding:8px 12px;
+        color:var(--yellow);
+        cursor:pointer;
+        font-size:12px;
+        font-weight:700;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        gap:6px;
+        min-height:38px;
+        backdrop-filter:blur(4px);
+        transition:.2s;
+        flex:1;
+        min-width:120px;
+      ">
+      🔊 LER / ⏸
+    </button>
+
+    <button onclick="window.pararLeituraTela()" title="Parar Leitura" style="
+        background:rgba(231,76,60,0.12);
+        border:1px solid rgba(231,76,60,0.45);
+        border-radius:10px;
+        padding:8px 12px;
+        color:#e74c3c;
+        cursor:pointer;
+        font-size:13px;
+        font-weight:700;
+        min-height:38px;
+        min-width:48px;
+        backdrop-filter:blur(4px);
+        transition:.2s;
+      ">
+      ⏹
+    </button>
+
+  </div>
+</div>`;
 }
 /* ══ ABA TREINO ══ */
 function buildTreino(){
