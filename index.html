@@ -785,6 +785,9 @@ function buildExecAtiva(){
   const autoAtivo = window._leituraAutomatica;
   const corAuto = autoAtivo ? 'var(--green2)' : 'var(--chrome)';
   const bgAuto = autoAtivo ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.05)';
+  
+  // 🧠 MEMÓRIA VISUAL: Verifica se o microfone já está ligado rodando no fundo
+  const piscarMic = window._reconhecedorAtivo ? ' ativo' : '';
 
   return`<div class="card">
   <div class="card-head" style="display:flex; justify-content:space-between; align-items:center;">
@@ -795,7 +798,7 @@ function buildExecAtiva(){
     ${conteudo}
     
     <!-- 🎛️ ESTAÇÃO DE COMANDO GLOBAL INFERIOR -->
-    <div style="display:flex; justify-content:flex-start; align-items:center; margin-top:12px; margin-bottom:12px; gap:8px; flex-wrap:wrap; padding: 0 4px;">
+    <div style="display:flex; justify-content:center; align-items:center;flex-direction: row-reverse; margin-top:12px; margin-bottom:12px; gap:8px; flex-wrap:wrap; padding: 0 4px;">
       <button onclick="window.toggleLeituraAuto()" style="background:${bgAuto}; border:1px solid ${autoAtivo?'var(--green2)':'rgba(255,255,255,0.1)'}; border-radius:12px; padding:8px 12px; color:${corAuto}; cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:6px;">
         ${autoAtivo ? '🤖 AUTO: ON' : '🤖 AUTO: OFF'}
       </button>
@@ -805,7 +808,9 @@ function buildExecAtiva(){
       <button onclick="window.pararLeituraTela()" style="background:rgba(231,76,60,0.1); border:1px solid #e74c3c; border-radius:6px; padding:8px 12px; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold;" title="Parar Leitura">
         ⏹
       </button>
-      <button id="btnVozGlobal" onclick="window.ativarComandosVozOperacionais()" style="background:rgba(245,200,0,0.1); border:1px solid var(--yellow); color:var(--yellow); border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; transition:all 0.2s;">
+      
+      <!-- 🎙️ MICROFONE COM MEMÓRIA DE PISCAR INJETADA AQUI -->
+      <button id="btnVozGlobal" class="${piscarMic}" onclick="window.ativarComandosVozOperacionais()" style="background:rgba(245,200,0,0.1); border:1px solid var(--yellow); color:var(--yellow); border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; transition:all 0.2s;">
         🎙️
       </button>
     </div>
@@ -815,6 +820,7 @@ function buildExecAtiva(){
     </div>
   </div>`;
 }
+
 // window.voltarPassoProcedimento = (stepId) => {
 //   if (!S.execAtiva) return;
 //   const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
@@ -837,6 +843,7 @@ function buildExecAtiva(){
 
 //   render(); // Atualiza a tela imediatamente
 // };
+// SOLTA NO ARQUIVO, ANTES DA ABA TREINO
 window.irParaPassoProcedimento = (stepId) => {
   if (!S.execAtiva) return;
   
@@ -845,11 +852,10 @@ window.irParaPassoProcedimento = (stepId) => {
   
   render(); 
 
-  // 🤖 GATILHO DO PILOTO AUTOMÁTICO (Navegação Livre)
-  if (window._leituraAutomatica) {
-    setTimeout(() => window.acionarLeituraTela(), 400);
-  }
+  // 🤖 TRANSIÇÃO SEGURA: Corta áudio atual e lê/reativa a próxima
+  window.navegarComAudio(true);
 };
+
 
 function buildExecStepCard(step, faltando){
   if(faltando.length > 0) {
@@ -887,7 +893,6 @@ function buildExecStepCard(step, faltando){
     </div>
   </div>`;
 }
-
 /* ══ ABA TREINO ══ */
 function buildTreino(){
   const tr=S.treino;
@@ -1009,17 +1014,6 @@ function buildFluxoExec(){
       📋 VER PROCEDIMENTO ${noAtual.procValor > 0 ? `(R$ ${noAtual.procValor.toFixed(2).replace('.', ',')})` : ''}
     </button>` : '';
 
-  const botoesLeituraHtml = `
-    <div style="display:flex; gap:8px; margin-top:16px; margin-bottom:8px; justify-content:flex-start;">
-      <button onclick="window.acionarLeituraTela()" style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); border-radius:6px; padding:8px 12px; color:var(--cyan2); cursor:pointer; font-size:12px; font-weight:bold; display:flex; align-items:center; gap:6px;">
-        🔊 LER / ⏸
-      </button>
-      <button onclick="window.pararLeituraTela()" style="background:rgba(231,76,60,0.1); border:1px solid #e74c3c; border-radius:6px; padding:8px 12px; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold;" title="Parar Leitura">
-        ⏹
-      </button>
-    </div>
-  `;
-
   let conteudoPrincipal = '';
   if(isDiag){
     conteudoPrincipal = `
@@ -1031,7 +1025,6 @@ function buildFluxoExec(){
       ${noAtual.codigo?`<pre class="code-block"><code style="cursor:pointer;" data-raw="${esc(noAtual.codigo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.codigo))}</code></pre>`:''}
       ${noAtual.solucao?`<div style="background:rgba(0,0,0,.3);border-radius:var(--r);padding:10px 12px;border-left:3px solid var(--cyan2);margin-top:4px"><div style="font-family:var(--font-mono);font-size:9px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">SOLUÇÃO RECOMENDADA</div><div style="font-size:13px;color:var(--chrome2);line-height:1.6;cursor:pointer;" data-raw="${esc(noAtual.solucao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.solucao))}</div></div>`:''}
       ${btnProcHtml}
-      ${botoesLeituraHtml}
     </div>`;
   } else {
     const opcoesHtml=(noAtual.opcoes||[]).map((o,i)=>`<button class="fluxo-opt-btn" onclick="A.fluxoResponder(${i})"><span style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.5px;min-width:20px;color:rgba(34,211,238,.5)">${String.fromCharCode(65+i)}</span> ${esc(window.limparTagsTexto(o.label))}<span class="fluxo-opt-arrow">›</span></button>`).join('');
@@ -1042,7 +1035,6 @@ function buildFluxoExec(){
       ${noAtual.descricao?`<div class="fluxo-desc" style="padding-top:0;cursor:pointer;" data-raw="${esc(noAtual.descricao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.descricao))}</div>`:''}
       ${noAtual.codigo?`<div style="padding:0 16px"><pre class="code-block"><code style="cursor:pointer;" data-raw="${esc(noAtual.codigo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.codigo))}</code></pre></div>`:''}
       ${btnProcHtml ? `<div style="padding: 0 16px;">${btnProcHtml}</div>` : ''}
-      <div style="padding: 0 16px;">${botoesLeituraHtml}</div>
       <div class="fluxo-opts">${opcoesHtml||'<div style="color:var(--chrome);font-size:13px">Sem opções</div>'}</div>
     </div>`;
   }
@@ -1050,8 +1042,9 @@ function buildFluxoExec(){
   if(!fe.orcamento) fe.orcamento = [];
   const totalOrcamento = fe.orcamento.reduce((acc, item) => acc + item.valor, 0);
 
+  // NOTA: Ajustei as margens aqui para encaixar perfeitamente abaixo do cabeçalho
   const orcamentoHtml = `
-  <div style="margin-top:16px; background:rgba(46,204,113,.05); border:1px solid rgba(46,204,113,.3); border-radius:var(--r); padding:10px;">
+  <div style="margin-top:8px; margin-bottom:12px; background:rgba(46,204,113,.05); border:1px solid rgba(46,204,113,.3); border-radius:var(--r); padding:10px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
       <div style="font-family:var(--font-head); font-size:18px; color:var(--green2); letter-spacing:1px;">💰 TOTAL: R$ ${totalOrcamento.toFixed(2).replace('.', ',')}</div>
       <button class="btn green sm" style="width:auto; padding:4px 10px; font-size:10px;margin-left: 40px;" onclick="A.abrirModalOrcamento()">＋ ADICIONAR VALOR</button>
@@ -1076,6 +1069,9 @@ function buildFluxoExec(){
   const autoAtivo = window._leituraAutomatica;
   const corAuto = autoAtivo ? 'var(--green2)' : 'var(--chrome)';
   const bgAuto = autoAtivo ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.05)';
+  
+  // 🧠 MEMÓRIA VISUAL: Verifica se o microfone já está ligado rodando no fundo
+  const piscarMic = window._reconhecedorAtivo ? ' ativo' : '';
 
   return `
   <div class="card" style="border-color:rgba(34,211,238,.15)">
@@ -1084,15 +1080,24 @@ function buildFluxoExec(){
     </div>
     ${breadcrumb}
   </div>
-  ${conteudoPrincipal}
-  ${orcamentoHtml}
   
-  <!-- 🎛️ BARRA GLOBAL INFERIOR (ESQUERDA) -->
-  <div style="display:flex; justify-content:flex-start; align-items:center; margin-top:16px; margin-bottom:8px; gap:8px;">
+  ${orcamentoHtml}
+  ${conteudoPrincipal}
+  
+  <!-- 🎛️ ESTAÇÃO DE COMANDO GLOBAL INFERIOR -->
+  <div style="display:flex; justify-content:flex-start; align-items:center; margin-top:16px; margin-bottom:8px; gap:8px; flex-wrap:wrap;">
     <button onclick="window.toggleLeituraAuto()" style="background:${bgAuto}; border:1px solid ${autoAtivo?'var(--green2)':'rgba(255,255,255,0.1)'}; border-radius:12px; padding:8px 12px; color:${corAuto}; cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:6px;">
       ${autoAtivo ? '🤖 AUTO: ON' : '🤖 AUTO: OFF'}
     </button>
-    <button id="btnVozGlobal" onclick="window.ativarComandosVozOperacionais()" style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); color:var(--cyan2); border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; transition:all 0.2s;">
+    <button onclick="window.acionarLeituraTela()" style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); border-radius:6px; padding:8px 12px; color:var(--cyan2); cursor:pointer; font-size:12px; font-weight:bold; display:flex; align-items:center; gap:6px;">
+      🔊 LER / ⏸
+    </button>
+    <button onclick="window.pararLeituraTela()" style="background:rgba(231,76,60,0.1); border:1px solid #e74c3c; border-radius:6px; padding:8px 12px; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold;" title="Parar Leitura">
+      ⏹
+    </button>
+    
+    <!-- 🎙️ MICROFONE COM MEMÓRIA DE PISCAR INJETADA AQUI -->
+    <button id="btnVozGlobal" class="${piscarMic}" onclick="window.ativarComandosVozOperacionais()" style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); color:var(--cyan2); border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; transition:all 0.2s;">
       🎙️
     </button>
   </div>
@@ -1517,7 +1522,8 @@ const A={
     S.execAtiva={procId,stepsDone:[],stepAtual:steps[0]?.id||null,startTs:Date.now(),ultimoTimestamp:Date.now(),tempos:{}};S.tab='executar';render();
   },
   iniciarExecDoFluxo(procId){S.fluxoExec=null;A.iniciarExec(procId);},
-  
+
+  // DENTRO DO CONST A = {
   marcarStepDone(stepId){
     if(!S.execAtiva) return;
     const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
@@ -1545,10 +1551,8 @@ const A={
     if(S.execAtiva.ultimoTimestamp) S.execAtiva.ultimoTimestamp = Date.now();
     render();
 
-    // 🤖 GATILHO DO PILOTO AUTOMÁTICO (Procedimentos)
-    if (window._leituraAutomatica && S.execAtiva.stepAtual !== 'concluido') {
-      setTimeout(() => window.acionarLeituraTela(), 400); // 400ms para a tela desenhar suavemente
-    }
+    // 🤖 TRANSIÇÃO SEGURA: Substitui o antigo setTimeout do gatilho
+    window.navegarComAudio(S.execAtiva.stepAtual !== 'concluido');
   },
 
   fluxoResponder(opcaoIdx){
@@ -1565,12 +1569,10 @@ const A={
     
     render();
 
-    // 🤖 GATILHO DO PILOTO AUTOMÁTICO (Fluxos)
-    if (window._leituraAutomatica) {
-      setTimeout(() => window.acionarLeituraTela(), 400);
-    }
+    // 🤖 TRANSIÇÃO SEGURA: Substitui o antigo setTimeout do gatilho
+    window.navegarComAudio(true);
   },
-  
+
   async finalizarExec(concluido){
     if(!S.execAtiva)return;
     S.execAtiva=null;
@@ -3515,7 +3517,8 @@ window.executarAvancoLinearVoz = () => {
   }
 };
 
-/* 🎙️ GERENCIADOR DE RECONHECIMENTO DE VOZ COM TRAVA OPERACIONAL ANTI-BIPE E ANTI-LOOP */
+/* 🎙️ ATIVADOR E GERENCIADOR DO RECONHECIMENTO DE VOZ */
+/* 🎙️ GERENCIADOR DE RECONHECIMENTO DE VOZ COM TRAVA OPERACIONAL ANTI-BIPE */
 window.ativarComandosVozOperacionais = () => {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
@@ -3538,9 +3541,6 @@ window.ativarComandosVozOperacionais = () => {
   recognition.lang = 'pt-BR';
   recognition.continuous = false; 
   recognition.interimResults = false;
-  
-  // 🟢 VARIÁVEL SALVA-VIDAS: Reseta o status de erro crítico toda vez que o botão é clicado
-  window._erroCriticoVoz = false; 
 
   recognition.onresult = (event) => {
     const resultado = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
@@ -3575,28 +3575,10 @@ window.ativarComandosVozOperacionais = () => {
     }
   };
 
-  recognition.onerror = (event) => {
-    if (event.error === 'no-speech') return; 
-    if (event.error === 'aborted') return;   
-
-    // 🔥 TRAVA ANTI-LOOP: Se o navegador negou a permissão, nós abortamos a missão imediatamente
-    if (event.error === 'not-allowed') {
-      window._erroCriticoVoz = true; 
-      window._reconhecedorAtivo = null;
-      document.getElementById("btnVozGlobal")?.classList.remove("ativo");
-      console.error("⛔ Acesso ao Microfone Negado pelo navegador/sistema.");
-      toast("⛔ Microfone Bloqueado! Libere a permissão no navegador.", "error");
-      return;
-    }
-
-    console.error("Erro capturado:", event.error);
-  };
-
   recognition.onend = () => {
-    // 🔥 BLOQUEIO DO LAÇO: Se o erro foi de permissão, impede o reinício infinito
-    if (window._erroCriticoVoz) return;
-
+    // 🔥 BLOQUEIO DO LAÇO: Se o celular está lendo o texto, impede o reinício e corta os bipes!
     if (window._sistemaFalando) {
+      console.log("🎙️ Reinício suspenso enquanto o áudio está tocando.");
       return; 
     }
 
@@ -3608,10 +3590,11 @@ window.ativarComandosVozOperacionais = () => {
       
       let tempoEspera = 1200; 
       if (tempoDesdeUltimoStart < 3000) {
-        tempoEspera = 3000; 
+        tempoEspera = 3000; // Proteção para o hardware do celular respirar
       }
 
       window._timerEstabilizadorVozMobile = setTimeout(() => {
+        // Nova validação antes de disparar o hardware de captura
         if (window._reconhecedorAtivo && !window._sistemaFalando) {
           try {
             window._ultimoStartVoz = Date.now();
@@ -3624,6 +3607,12 @@ window.ativarComandosVozOperacionais = () => {
     }
   };
 
+  recognition.onerror = (event) => {
+    if (event.error === 'no-speech') return; // Ignora silêncio
+    if (event.error === 'aborted') return;   // Ignora fechamentos manuais controlados
+    console.error("Erro capturado:", event.error);
+  };
+
   window._reconhecedorAtivo = recognition;
   
   try {
@@ -3631,11 +3620,12 @@ window.ativarComandosVozOperacionais = () => {
     window._ultimoStartVoz = Date.now();
     recognition.start();
     document.getElementById("btnVozGlobal")?.classList.add("ativo");
-    toast("🎙️ Microfone Ativado!", "ok");
+    toast("🎙️ Voz Inteligente Estabilizada!", "ok");
   } catch(e) {
     console.log("Erro de inicialização:", e);
   }
 };
+
 /* ═════════════════════════════════════════════════════════════════
    🔊 MOTOR DE VOZ COM MEMÓRIA DE PALAVRA (RESUMO CIRÚRGICO)
    ═════════════════════════════════════════════════════════════════ */
@@ -3829,6 +3819,38 @@ window.lerTextoDireto = (texto) => {
   window.pararLeituraTela(); // Para e zera qualquer áudio que esteja rolando
   window.falarTextoGuiaPro([texto]); // Envia apenas a frase clicada para o leitor
   toast("🔊 Lendo trecho selecionado...", "ok");
+};
+/* ═════════════════════════════════════════════════════════════════
+   🔄 TRANSIÇÃO SEGURA DE TELA (Mata áudio velho e religa sensores)
+   ═════════════════════════════════════════════════════════════════ */
+window.navegarComAudio = (deveLerNovaTela) => {
+  // 1. Mata silenciosamente o áudio da tela velha sem disparar Toast
+  window._filaDeFalas = [];
+  window._fraseAtual = null;
+  window._charIndexAtual = 0;
+  window._charIndexParcial = 0;
+  window._leituraPausada = false;
+  window._sistemaFalando = false;
+  window.speechSynthesis.cancel();
+  
+  // 2. Aguarda a tela nova terminar de desenhar
+  setTimeout(() => {
+    if (window._leituraAutomatica && deveLerNovaTela) {
+      // Se o AUTO estiver ON, lê a tela nova forçadamente (sem passar pelo botão de Play/Pause)
+      const campos = window.coletarCamposEtapaAtualArray();
+      if (campos && campos.length > 0) {
+        window.falarTextoGuiaPro(campos);
+      }
+    } else {
+      // Se o AUTO estiver OFF, devolve o controle imediatamente para o microfone
+      if (window._reconhecedorAtivo && !window.speechSynthesis.speaking) {
+        try {
+          window._ultimoStartVoz = Date.now();
+          window._reconhecedorAtivo.start();
+        } catch(e) {}
+      }
+    }
+  }, 400);
 };
 /* ══ INIT ══ */
 (async()=>{
