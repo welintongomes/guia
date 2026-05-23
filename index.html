@@ -103,7 +103,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .exec-line{flex:1;min-width:6px;height:2px;background:rgba(255,255,255,.08);}
 .exec-line.done{background:var(--green);}
 .exec-step-card{background:var(--steel);border-radius:var(--r2);overflow:hidden;border:2px solid rgba(245,200,0,.2);box-shadow:var(--glow);}
-.exec-step-head{background:linear-gradient(90deg,rgba(245,200,0,.1),rgba(245,200,0,.02));padding:12px 16px;border-bottom:1px solid rgba(245,200,0,.15);display:flex;align-items:center;gap:12px;}
+.exec-step-head{background:linear-gradient(90deg,rgba(245,200,0,.1),rgba(245,200,0,.02));padding:12px 16px;border-bottom:1px solid rgba(245,200,0,.15);display:flex;gap:12px;}
 .exec-num-badge{width:36px;height:36px;border-radius:var(--r);background:var(--yellow);color:var(--ink);font-family:var(--font-head);font-size:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .exec-step-title{font-family:var(--font-head);font-size:20px;letter-spacing:1px;color:white;}
 .exec-step-body{padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
@@ -858,7 +858,7 @@ function buildExecStepCard(step, faltando){
       </button>
     </div>
 
-    <div class="exec-step-head" style="padding-right: 110px;">
+    <div class="exec-step-head" style="padding-right: 140px;">
       <div class="exec-num-badge">${step.ordem}</div>
       <div>
         <div class="exec-step-title step-title">${esc(window.limparTagsTexto(step.titulo))}</div>
