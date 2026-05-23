@@ -107,7 +107,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .exec-num-badge{width:36px;height:36px;border-radius:var(--r);background:var(--yellow);color:var(--ink);font-family:var(--font-head);font-size:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .exec-step-title{font-family:var(--font-head);font-size:20px;letter-spacing:1px;color:white;}
 .exec-step-body{padding:1px 1px;display:flex;flex-direction:column;gap:10px;}
-.exec-step-desc{font-size:14px;color:var(--chrome2);line-height:1.7;font-weight:500;}
+.exec-step-desc{font-size:14px;padding: 10px;color:var(--chrome2);line-height:1.7;font-weight:500;}
 .exec-imgs{display:flex;flex-wrap:wrap;gap:8px;}
 .exec-img{border-radius:var(--r);overflow:hidden;border:1px solid rgba(255,255,255,.1);cursor:pointer;background:var(--steel2);max-width:100%;}
 .exec-img img{width:100%;display:block;max-height:200px;object-fit:contain;background:#000;}
@@ -3467,43 +3467,71 @@ window.coletarCamposEtapaAtualArray = () => {
   }
   return listaCampos;
 };
-/* 🛠️ REGISTRO CENTRAL DE COMANDOS DE VOZ (Adicione novos aqui facilmente!) */
+/* ═════════════════════════════════════════════════════════════════
+   🎙️ DICIONÁRIO DE COMANDOS DE VOZ INTELIGENTES E ATUALIZADOS
+   ═════════════════════════════════════════════════════════════════ */
 window.registroComandosVoz = {
-  // --- NOVOS COMANDOS DE LEITURA (SÍNTESE DE VOZ) ---
-// Substitua apenas esta linha dentro do seu window.registroComandosVoz
+  
+  // --- COMANDOS DE LEITURA (Conectados ao novo sistema anti-bug) ---
   "leia para mim": () => {
-    const campos = window.coletarCamposEtapaAtualArray();
-    if (campos.length > 0) {
-      window.falarTextoGuiaPro(campos);
-      toast("🔊 Lendo informações no idioma nativo...", "ok");
-    } else {
-      toast("⚠ Nada para ler nesta tela.", "error");
+    if (!window._sistemaFalando) {
+      window.acionarLeituraTela(); // Usa a nossa nova função centralizada!
     }
   },
   "pausar": () => {
-    if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-      window.speechSynthesis.pause();
-      toast("⏸️ Leitura Pausada", "cyan");
+    // Na prática o mic tá desligado durante a fala, mas se você disser isso no milissegundo de respiro:
+    if (window._sistemaFalando && !window._leituraPausada) {
+      window.acionarLeituraTela(); // A nossa função já serve como Pause inteligente
     }
   },
   "continue": () => {
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-      toast("▶️ A retomar leitura...", "ok");
+    // Esse funciona perfeitamente! Se você pausou pelo botão na tela, pode mandar retomar por voz.
+    if (window._sistemaFalando && window._leituraPausada) {
+      window.acionarLeituraTela(); // Retoma de onde parou a palavra
     }
   },
-  
+  "parar leitura": () => {
+    window.pararLeituraTela();
+  },
+
   // --- COMANDOS DE AVANÇO DE ETAPAS (PROCEDIMENTOS) ---
-  "concluído": () => window.executarAvancoLinearVoz(),
-  "avançar": () => window.executarAvancoLinearVoz(),
-  "próximo": () => window.executarAvancoLinearVoz(),
+  "concluído": () => {
+    if (S.execAtiva && S.execAtiva.stepAtual && S.execAtiva.stepAtual !== 'concluido') {
+      window.pararLeituraTela(); // Para de ler a etapa atual imediatamente
+      A.marcarStepDone(S.execAtiva.stepAtual); 
+      toast("🎙️ Passo concluído por voz!", "ok");
+    } else if (typeof window.executarAvancoLinearVoz === 'function') {
+      window.executarAvancoLinearVoz(); // Fallback para sua função antiga caso precise
+    } else {
+      toast("⚠ Nenhuma etapa ativa para concluir.", "error");
+    }
+  },
+  "avançar": () => window.registroComandosVoz["concluído"](),
+  "próximo": () => window.registroComandosVoz["concluído"](),
   
-  // --- COMANDOS DE RETORNO (FLUXOGRAMAS / PROCEDIMENTOS) ---
+  // --- COMANDOS DE RETORNO E REINÍCIO (FLUXOGRAMAS) ---
   "voltar": () => {
-    if (S.fluxoExec) {
+    if (S.fluxoExec && S.fluxoExec.historico.length > 0) {
+      window.pararLeituraTela(); // Mata o áudio antes de trocar de tela
       A.fluxoVoltar();
-      window.speechSynthesis.cancel(); // Para a leitura se mudar de página
-      toast("🎙️ Voltando etapa...", "cyan");
+      toast("🎙️ Voltando uma etapa...", "cyan");
+    } else {
+      toast("⚠ Não há para onde voltar.", "error");
+    }
+  },
+  "reiniciar": () => {
+    if (S.fluxoExec) {
+      window.pararLeituraTela();
+      A.fluxoReiniciar();
+      toast("🎙️ Fluxo Reiniciado!", "ok");
+    }
+  },
+
+  // --- COMANDOS GERAIS ---
+  "abandonar": () => {
+    if (S.execAtiva || S.fluxoExec) {
+      window.pararLeituraTela(); // Fica em silêncio ao sair
+      A.confirmarAbandonar();
     }
   }
 };
@@ -3852,6 +3880,25 @@ window.navegarComAudio = (deveLerNovaTela) => {
     }
   }, 400);
 };
+
+/* ═════════════════════════════════════════════════════════════════
+   🛡️ SENSOR DE TELA BLOQUEADA / MINIMIZADA (Resolve o falso piscar)
+   ═════════════════════════════════════════════════════════════════ */
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    // Se o usuário bloqueou a tela ou trocou de app
+    if (window._reconhecedorAtivo) {
+      window._erroCriticoVoz = true; // Trava o nosso loop de estabilização
+      window._reconhecedorAtivo.stop();
+      window._reconhecedorAtivo = null;
+      
+      // Remove o efeito piscante visualmente na mesma hora
+      document.getElementById("btnVozGlobal")?.classList.remove("ativo");
+      
+      console.log("Tela bloqueada: Microfone desligado por segurança.");
+    }
+  }
+});
 /* ══ INIT ══ */
 (async()=>{
   try{
