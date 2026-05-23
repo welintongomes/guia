@@ -1170,7 +1170,7 @@ function buildFluxoExec(){
   const totalOrcamento = fe.orcamento.reduce((acc, item) => acc + item.valor, 0);
 
   const orcamentoHtml = `
-  <div style="margin-top:16px; background:rgba(46,204,113,.05); border:1px solid rgba(46,204,113,.3); border-radius:var(--r); padding:10px;">
+  <div style="margin-top:3px; background:rgba(46,204,113,.05); border:1px solid rgba(46,204,113,.3); border-radius:var(--r); padding:10px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
       <div style="font-family:var(--font-head); font-size:18px; color:var(--green2); letter-spacing:1px;">💰 TOTAL: R$ ${totalOrcamento.toFixed(2).replace('.', ',')}</div>
       <button class="btn green sm" style="width:auto; padding:4px 10px; font-size:10px;margin-left: 40px;" onclick="A.abrirModalOrcamento()">＋ ADICIONAR VALOR</button>
@@ -1196,6 +1196,8 @@ function buildFluxoExec(){
   </div>`;
 
 return `
+  
+  ${conteudoPrincipal}
   <div class="card" style="border-color:rgba(34,211,238,.15)">
     <div class="card-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
       <div class="card-title" style="color:var(--cyan2)">🔀 ${esc(window.limparTagsTexto(fluxo.nome))}</div>
@@ -1218,9 +1220,8 @@ return `
     </div>
     ${breadcrumb}
   </div>
-  ${conteudoPrincipal}
   ${orcamentoHtml}
-  <div style="display:flex;gap:6px; flex-wrap:wrap; margin-top:10px;">
+  <div style="display:flex;gap:6px; flex-wrap:wrap; margin-top:0px;">
     ${fe.historico.length?`<button class="btn steel sm" onclick="A.fluxoVoltar()" style="flex:1">← VOLTAR</button>`:''}
     <button class="btn ghost-cyan sm" onclick="A.fluxoReiniciar()" style="flex:1">🔄 REINICIAR</button>
     <button class="btn green sm" onclick="A.salvarFluxoHistorico()" style="flex:2">💾 SALVAR </button>
