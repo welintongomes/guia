@@ -1921,7 +1921,7 @@ function buildNosEditor(nos) {
       const noFoco = nosMap.get(noInicialId);
       topoFocoHtml = `
       <div class="focus-badge-ativo">
-         <span style="min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">🔍 <b>VISÃO FOCADA:</b> Editando ramo de: <strong style="color:var(--yellow)">"${esc(noFoco.pergunta || noFoco.titulo)}"</strong></span>
+         <span style="overflow:hidden;overflow: scroll;width: 60%; white-space:nowrap;">🔍 <b>VISÃO FOCADA:</b> Editando ramo de: <strong style="color:var(--yellow)">"${esc(noFoco.pergunta || noFoco.titulo)}"</strong></span>
          <button class="btn yellow sm" style="width:auto; padding:4px 8px; font-size:11px; margin-left:12px;" onclick="window.limparFocoFluxo()">VER TUDO</button>
       </div>`;
   }
