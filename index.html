@@ -775,21 +775,91 @@ function buildExecAtiva(){
          style="cursor:pointer;" 
          title="Ir para o Passo #${s.ordem}">${s.ordem}</div>`).join('');
 
-  let conteudo='';
+let conteudo='';
   
   if (exec.stepAtual === 'concluido' || (done.size === total && exec.mostrarConcluido)) {
-    conteudo=`<div style="text-align:center;padding:28px 16px;display:flex;flex-direction:column;align-items:center;gap:14px"><div style="font-size:52px">✅</div><div style="font-family:var(--font-head);font-size:26px;letter-spacing:2px;color:var(--green2)">TRABALHO CONCLUÍDO!</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;letter-spacing:1px">${total} passos executados</div><button class="btn green" style="max-width:240px" onclick="A.finalizarExec(true)">✔ FINALIZAR EXECUÇÃO</button></div>`;
+    // 🏆 PAINEL DE RESULTADO FINAL DO SPEEDRUN
+    let speedrunReportHtml = '';
+    if (exec.tempos && exec.tempos.total) {
+        const tempoFinal = exec.tempos.total;
+        const pbTotal = exec.pbTempos?.total;
+        let deltaHtml = '';
+
+        if (pbTotal) {
+            const diff = tempoFinal - pbTotal;
+            const corDiff = diff <= 0 ? 'var(--green2)' : '#e74c3c';
+            const sinal = diff <= 0 ? '▼' : '▲';
+            const msg = diff <= 0 ? 'NOVO RECORDE!' : 'Abaixo do Fantasma';
+            
+            deltaHtml = `
+            <div style="font-size:14px; margin-top:8px; color:${corDiff}; font-weight:bold; background:rgba(0,0,0,0.2); padding:4px 10px; border-radius:12px;">
+                ${sinal} ${window.formatarTempoMs(Math.abs(diff))} (${msg})
+            </div>
+            <div style="font-size:11px; color:var(--chrome); text-decoration:line-through; margin-top:4px;">Fantasma: ${window.formatarTempoMs(pbTotal)}</div>
+            `;
+        }
+
+        speedrunReportHtml = `
+        <div style="background:#0a0a0a; border:2px solid ${pbTotal && tempoFinal <= pbTotal ? 'var(--green2)' : '#a855f7'}; border-radius:var(--r); padding:16px; width:100%; max-width:280px; margin:10px 0; box-shadow:0 0 20px ${pbTotal && tempoFinal <= pbTotal ? 'rgba(46,204,113,0.3)' : 'rgba(168,85,247,0.3)'};">
+            <div style="color:${pbTotal && tempoFinal <= pbTotal ? 'var(--green2)' : '#a855f7'}; font-size:10px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">⏱️ TEMPO FINAL DA CORRIDA</div>
+            <div style="font-family:var(--font-mono); font-size:36px; color:#fff; font-weight:bold;">
+                ${window.formatarTempoMs(tempoFinal)}
+            </div>
+            ${deltaHtml}
+        </div>
+        `;
+    }
+
+    conteudo=`<div style="text-align:center;padding:28px 16px;display:flex;flex-direction:column;align-items:center;gap:14px">
+      <div style="font-size:52px">🏁</div>
+      <div style="font-family:var(--font-head);font-size:26px;letter-spacing:2px;color:var(--green2)">TRABALHO CONCLUÍDO!</div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;letter-spacing:1px">${total} passos executados</div>
+      ${speedrunReportHtml}
+      <button class="btn green" style="max-width:240px; margin-top:10px;" onclick="A.finalizarExec(true)">✔ SALVAR RESULTADO</button>
+    </div>`;
+    
   } else {
     const passoVisivel = steps.find(s => s.id === exec.stepAtual) || steps[0];
     conteudo = buildExecStepCard(passoVisivel, []);
   }
 
+  // Variáveis dos botões globais
   const autoAtivo = window._leituraAutomatica;
   const corAuto = autoAtivo ? 'var(--green2)' : 'var(--chrome)';
   const bgAuto = autoAtivo ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.05)';
-  
-  // 🧠 MEMÓRIA VISUAL: Verifica se o microfone já está ligado rodando no fundo
   const piscarMic = window._reconhecedorAtivo ? ' ativo' : '';
+
+  // ⏱️ VARIÁVEIS DO SPEEDRUN
+  const srAtivo = window._modoSpeedrun;
+  const corSr = srAtivo ? '#fff' : 'var(--chrome)';
+  const bgSr = srAtivo ? '#a855f7' : 'rgba(255,255,255,0.05)';
+  const borderSr = srAtivo ? '#a855f7' : 'rgba(255,255,255,0.1)';
+
+// ⏱️ PAINEL DE CRONÔMETRO (Agora com suporte ao Fantasma)
+  const painelSpeedrunHtml = srAtivo ? `
+    <div style="background:#0a0a0a; border:2px solid ${S.execAtiva.pbTempos ? 'var(--cyan2)' : '#a855f7'}; border-radius:var(--r); padding:12px; margin-top:8px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 0 20px ${S.execAtiva.pbTempos ? 'rgba(34,211,238,0.2)' : 'rgba(168,85,247,0.2)'};">
+      <div style="display:flex; flex-direction:column;">
+        <span style="color:${S.execAtiva.pbTempos ? 'var(--cyan2)' : '#a855f7'}; font-size:10px; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">
+          ${S.execAtiva.pbTempos ? '👻 MODO DESAFIO ATIVO' : '⏱️ PASSO ATUAL'}
+        </span>
+        <div style="display:flex; align-items:baseline; gap:8px; margin-top:2px;">
+          <span id="sr_passo" style="font-family:var(--font-mono); font-size:28px; color:#fff; font-weight:bold;">00:00.0</span>
+          <span id="sr_delta" style="font-family:var(--font-mono); font-size:14px; font-weight:bold;"></span>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:flex-end;">
+        <span style="color:var(--chrome); font-size:10px; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">🏁 Tempo Total</span>
+        <span id="sr_total" style="font-family:var(--font-mono); font-size:20px; color:var(--yellow); font-weight:bold;">00:00.0</span>
+      </div>
+    </div>
+  ` : '';
+
+  // ⚡ ZONA DE TOQUE CEGA GIGANTE (Só aparece se ativado e não estiver concluído)
+  const giantButtonHtml = (srAtivo && exec.stepAtual !== 'concluido') ? `
+    <div onclick="A.marcarStepDone('${exec.stepAtual}')" style="background:rgba(168,85,247,0.1); border:3px dashed #a855f7; color:#a855f7; margin-top:10px; padding:35px 10px; text-align:center; border-radius:var(--r); cursor:pointer; font-weight:bold; font-size:22px; transition:all 0.1s; text-transform:uppercase; letter-spacing:2px;" onmousedown="this.style.background='rgba(168,85,247,0.3)'" ontouchstart="this.style.background='rgba(168,85,247,0.3)'" onmouseup="this.style.background='rgba(168,85,247,0.1)'" ontouchend="this.style.background='rgba(168,85,247,0.1)'">
+      ⚡ TOQUE CEGO: AVANÇAR ⚡
+    </div>
+  ` : '';
 
   return`<div class="card">
   <div class="card-head" style="display:flex; justify-content:space-between; align-items:center;">
@@ -797,10 +867,17 @@ function buildExecAtiva(){
   </div><span style="font-family:var(--font-mono);font-size:10px;padding-left: 10px;color:var(--chrome)">${ndone}/${total}</span></div><div style="padding:8px 14px 5px"><div class="exec-progress">${dotRow}</div><div style="display:flex;justify-content:space-between;padding:0 2px;margin-top:3px"><span style="font-family:var(--font-mono);font-size:9px;color:var(--chrome)">PROGRESSO</span><span style="font-family:var(--font-mono);font-size:9px;color:var(--yellow)">${Math.round((ndone/total)*100)}%</span></div></div></div>
   
   <div style="display:flex;flex-direction:column;gap:8px;padding-bottom:20px">
-    ${conteudo}
     
-    <!-- 🎛️ ESTAÇÃO DE COMANDO GLOBAL INFERIOR -->
-    <div style="display:flex; justify-content:center; align-items:center;flex-direction: row-reverse; margin-top:12px; margin-bottom:12px; gap:8px; flex-wrap:wrap; padding: 0 4px;">
+    ${painelSpeedrunHtml}
+    ${conteudo}
+    ${giantButtonHtml}
+    
+    <div style="display:flex; justify-content:flex-start; align-items:center; margin-top:12px; margin-bottom:12px; gap:8px; flex-wrap:wrap; padding: 0 4px;">
+      
+      <button onclick="window.toggleSpeedrun()" style="background:${bgSr}; border:1px solid ${borderSr}; border-radius:12px; padding:8px 12px; color:${corSr}; cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:6px;">
+        ${srAtivo ? '🏃 SPEED: ON' : '🏃 SPEED: OFF'}
+      </button>
+
       <button onclick="window.toggleLeituraAuto()" style="background:${bgAuto}; border:1px solid ${autoAtivo?'var(--green2)':'rgba(255,255,255,0.1)'}; border-radius:12px; padding:8px 12px; color:${corAuto}; cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:6px;">
         ${autoAtivo ? '🤖 AUTO: ON' : '🤖 AUTO: OFF'}
       </button>
@@ -810,8 +887,6 @@ function buildExecAtiva(){
       <button onclick="window.pararLeituraTela()" style="background:rgba(231,76,60,0.1); border:1px solid #e74c3c; border-radius:6px; padding:8px 12px; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold;" title="Parar Leitura">
         ⏹
       </button>
-      
-      <!-- 🎙️ MICROFONE COM MEMÓRIA DE PISCAR INJETADA AQUI -->
       <button id="btnVozGlobal" class="${piscarMic}" onclick="window.ativarComandosVozOperacionais()" style="background:rgba(245,200,0,0.1); border:1px solid var(--yellow); color:var(--yellow); border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; transition:all 0.2s;">
         🎙️
       </button>
@@ -1181,139 +1256,211 @@ function formataDataRelativa(ts) {
   return d.toLocaleDateString('pt-BR');
 }
 
-
 function buildHistorico() {
-    const body=document.getElementById('body');
-    let historico = S.historico || [];
-    
-    historico = historico.filter(h => h.tipo === 'fluxo' || h.tipo === 'treino'); 
+  const body = document.getElementById('body');
+  let historico = S.historico || [];
+  
+  historico = historico.filter(h => h.tipo === 'fluxo' || h.tipo === 'treino' || h.tipo === 'procedimento'); 
 
-    if (historico.length === 0) {
-      body.innerHTML = `<div class="empty" style="margin-top:40px"><div class="empty-icon" style="font-size:40px; opacity:0.3; margin-bottom:10px">⏳</div><div class="empty-title">NENHUM HISTÓRICO</div><div style="font-size:12px; color:var(--chrome); text-align:center; margin-top:5px;">Seus diagnósticos e boletins de treino aparecerão aqui.</div></div>`;
-      return;
-    }
+  if (historico.length === 0) {
+    body.innerHTML = `<div class="empty" style="margin-top:40px"><div class="empty-icon" style="font-size:40px; opacity:0.3; margin-bottom:10px">⏳</div><div class="empty-title">NENHUM HISTÓRICO</div><div style="font-size:12px; color:var(--chrome); text-align:center; margin-top:5px;">Seus diagnósticos e boletins de treino aparecerão aqui.</div></div>`;
+    return;
+  }
 
-    const sorted = [...historico].sort((a, b) => (b.data || 0) - (a.data || 0)).slice(0, 50);
-    const grupos = {};
-    sorted.forEach(h => {
-      const dataStr = formataDataRelativa(h.data);
-      if (!grupos[dataStr]) grupos[dataStr] = [];
-      grupos[dataStr].push(h);
-    });
+  const sorted = [...historico].sort((a, b) => (b.data || 0) - (a.data || 0)).slice(0, 50);
+  const grupos = {};
+  sorted.forEach(h => {
+    const dataStr = formataDataRelativa(h.data);
+    if (!grupos[dataStr]) grupos[dataStr] = [];
+    grupos[dataStr].push(h);
+  });
 
-    let html = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:0 4px;">
-      <div style="font-size:12px;margin-right:22px; color:var(--chrome);">Exibindo últimos registros</div>
-      <button class="btn red sm" onclick="A.limparTodoHistorico()">✕ LIMPAR TUDO</button>
-    </div>`;
+  let html = `
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:0 4px;">
+    <div style="font-size:12px;margin-right:22px; color:var(--chrome);">Exibindo últimos registros</div>
+    <button class="btn red sm" onclick="A.limparTodoHistorico()">✕ LIMPAR TUDO</button>
+  </div>`;
 
-    for (const data in grupos) {
-      html += `<div style="font-family: var(--font-mono); font-size: 11px; color: var(--chrome); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px dashed rgba(255,255,255,.1); padding-bottom: 4px; margin: 16px 0 8px 0;">${data}</div>`;
+  for (const data in grupos) {
+    html += `<div style="font-family: var(--font-mono); font-size: 11px; color: var(--chrome); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px dashed rgba(255,255,255,.1); padding-bottom: 4px; margin: 16px 0 8px 0;">${data}</div>`;
 
-      grupos[data].forEach(h => {
-          const isFluxo = h.tipo === 'fluxo';
-          const isTreino = h.tipo === 'treino';
-          
-          const icon = isFluxo ? '🔀' : '🎓';
-          const corHeader = isFluxo ? 'var(--cyan2)' : '#a855f7';
-          const cor = isFluxo ? 'var(--cyan2)' : (h.taxa >= 80 ? 'var(--green2)' : (h.taxa >= 50 ? 'var(--yellow)' : '#e74c3c'));
-          
-          const dataHora = new Date(h.data);
-          const horaStr = dataHora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+    grupos[data].forEach(h => {
+        const isFluxo = h.tipo === 'fluxo';
+        const isTreino = h.tipo === 'treino';
+        const isProc = h.tipo === 'procedimento'; 
+        
+        let icon = '📋';
+        let corHeader = 'var(--yellow)';
+        if (isFluxo) { icon = '🔀'; corHeader = 'var(--cyan2)'; }
+        if (isTreino) { icon = '🎓'; corHeader = '#a855f7'; }
+        
+        const dataHora = new Date(h.data);
+        const horaStr = dataHora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
 
-          let detalhesHtml = '';
-          
-          if (isFluxo && h.historico && h.historico.length) {
-              const statusCor = h.status === 'CONCLUÍDO' ? 'var(--green2)' : 'var(--yellow)';
-              const podeRetomar = h.status === 'INTERROMPIDO'; 
-              
-              const clienteTag = h.cliente ? `<span style="background:rgba(245,200,0,.15); color:var(--yellow); border:1px solid rgba(245,200,0,.3); padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; margin-right:6px;">👤 ${esc(h.cliente)}</span>` : '';
-              
-              const totalOrcStr = (h.totalOrcamento > 0) ? `<span style="color:var(--green2); font-weight:bold; font-size:14px; margin-left:auto;">💰 R$ ${h.totalOrcamento.toFixed(2).replace('.', ',')}</span>` : '';
+        let detalhesHtml = '';
+        
+        if (isFluxo && h.historico && h.historico.length) {
+            const statusCor = h.status === 'CONCLUÍDO' ? 'var(--green2)' : 'var(--yellow)';
+            const podeRetomar = h.status === 'INTERROMPIDO'; 
+            const clienteTag = h.cliente ? `<span style="background:rgba(245,200,0,.15); color:var(--yellow); border:1px solid rgba(245,200,0,.3); padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; margin-right:6px;">👤 ${esc(h.cliente)}</span>` : '';
+            const totalOrcStr = (h.totalOrcamento > 0) ? `<span style="color:var(--green2); font-weight:bold; font-size:14px; margin-left:auto;">💰 R$ ${h.totalOrcamento.toFixed(2).replace('.', ',')}</span>` : '';
 
-              let procsHtml = '';
-              if (h.procsVistos && h.procsVistos.length > 0) {
-                  procsHtml = `<div style="margin-top:10px; padding:10px; background:rgba(245,200,0,.1); border-radius:4px; border-left:3px solid var(--yellow);">
-                    <div style="font-size:10px; color:var(--yellow); text-transform:uppercase; font-weight:bold; margin-bottom:6px;">📋 Procedimentos Consultados:</div>
-                    ${h.procsVistos.map(pv => `<div style="font-size:12px; color:var(--chrome2); margin-bottom:3px;">• ${esc(pv.nome)}</div>`).join('')}
-                  </div>`;
-              }
-              
-              // 💰 Seção do Orçamento Modificada com o Compartilhamento do WhatsApp
-              let orcamentoListHtml = '';
-              if (h.orcamento && h.orcamento.length > 0) {
-                  orcamentoListHtml = `<div style="margin-top:10px; padding:10px; background:rgba(46,204,113,.05); border-radius:4px; border-left:3px solid var(--green2);">
-                    <div style="font-size:10px; color:var(--green2); text-transform:uppercase; font-weight:bold; margin-bottom:6px;">💰 Detalhamento do Orçamento:</div>
-                    ${h.orcamento.map(o => `<div style="display:flex; justify-content:space-between; font-size:12px; color:var(--chrome2); margin-bottom:3px; background:rgba(0,0,0,.1); padding:4px 6px; border-radius:3px;">
-                       <span>• ${esc(o.descricao)}</span><span style="color:var(--green2); font-weight:bold;">R$ ${o.valor.toFixed(2).replace('.', ',')}</span>
-                    </div>`).join('')}
-                    <div style="display:flex; justify-content:flex-end; font-size:14px; color:var(--green2); font-weight:bold; margin-top:8px; border-top:1px dashed rgba(46,204,113,.3); padding-top:6px;">TOTAL: R$ ${h.totalOrcamento.toFixed(2).replace('.', ',')}</div>
+            let procsHtml = '';
+            if (h.procsVistos && h.procsVistos.length > 0) {
+                procsHtml = `<div style="margin-top:10px; padding:10px; background:rgba(245,200,0,.1); border-radius:4px; border-left:3px solid var(--yellow);">
+                  <div style="font-size:10px; color:var(--yellow); text-transform:uppercase; font-weight:bold; margin-bottom:6px;">📋 Procedimentos Consultados:</div>
+                  ${h.procsVistos.map(pv => `<div style="font-size:12px; color:var(--chrome2); margin-bottom:3px;">• ${esc(pv.nome)}</div>`).join('')}
+                </div>`;
+            }
+            
+            let orcamentoListHtml = '';
+            if (h.orcamento && h.orcamento.length > 0) {
+                orcamentoListHtml = `<div style="margin-top:10px; padding:10px; background:rgba(46,204,113,.05); border-radius:4px; border-left:3px solid var(--green2);">
+                  <div style="font-size:10px; color:var(--green2); text-transform:uppercase; font-weight:bold; margin-bottom:6px;">💰 Detalhamento do Orçamento:</div>
+                  ${h.orcamento.map(o => `<div style="display:flex; justify-content:space-between; font-size:12px; color:var(--chrome2); margin-bottom:3px; background:rgba(0,0,0,.1); padding:4px 6px; border-radius:3px;">
+                     <span>• ${esc(o.descricao)}</span><span style="color:var(--green2); font-weight:bold;">R$ ${o.valor.toFixed(2).replace('.', ',')}</span>
+                  </div>`).join('')}
+                  <div style="display:flex; justify-content:flex-end; font-size:14px; color:var(--green2); font-weight:bold; margin-top:8px; border-top:1px dashed rgba(46,204,113,.3); padding-top:6px;">TOTAL: R$ ${h.totalOrcamento.toFixed(2).replace('.', ',')}</div>
+                  <button class="btn" onclick="A.enviarOrcamentoWhatsApp('${esc(h.nome)}', ${JSON.stringify(h.orcamento).replace(/"/g, '&quot;')})" style="background:#25D366; color:#000; font-weight:bold; font-size:12px; width:100%; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:6px; border:none; padding:8px; border-radius:var(--r); cursor:pointer;">
+                    🟢 ENVIAR ESTE ORÇAMENTO VIA WHATSAPP
+                  </button>
+                </div>`;
+            }
+            
+            detalhesHtml = `
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+              <span style="font-family:var(--font-mono); font-size:9px; padding:2px 6px; border-radius:4px; background:rgba(0,0,0,.3); border:1px solid ${statusCor}; color:${statusCor}">${h.status || 'FINALIZADO'}</span>
+              ${clienteTag}
+              <div style="color:var(--cyan2); font-weight:bold; font-size:13px;">${esc(h.diagnostico)}</div>
+              ${totalOrcStr}
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:10px;">
+              <button class="btn yellow sm" onclick="A.editarClienteHistorico(${h.id})" style="flex:1; padding:6px 12px; font-size:10px;">👤 IDENTIFICAR</button>
+              ${podeRetomar ? `<button class="btn cyan sm" onclick="A.retomarFluxo(${h.id})" style="flex:1; padding:6px 12px; font-size:10px;">▶ RETOMAR EXECUÇÃO</button>` : ''}
+            </div>` +
+            h.historico.map(x => `
+              <div style="font-size: 12px; margin-bottom: 6px; color: var(--chrome); padding-left: 10px; border-left: 2px solid rgba(255,255,255,.1);">
+                 <div style="font-size:10px; color:var(--chrome2); margin-bottom:2px">P: ${esc(x.pergunta)}</div>
+                 <div style="color:var(--cyan2);">↳ R: ${esc(x.resposta)}</div>
+              </div>
+            `).join('') + procsHtml + orcamentoListHtml;
+        
+        } else if (isTreino && h.historico) {
+            detalhesHtml = `
+            <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center;">
+              <span style="background:rgba(46,204,113,.1); border:1px solid rgba(46,204,113,.2); color:var(--green2); padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;">✓ ${h.acertos} Certos</span>
+              <span style="background:rgba(192,57,43,.1); border:1px solid rgba(192,57,43,.2); color:#e74c3c; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;">✗ ${h.erros} Erros</span>
+              <span style="background:rgba(255,255,255,.1); color:var(--chrome2); padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:auto;">Nota Final: ${h.taxa}%</span>
+            </div>
+            <div style="font-family:var(--font-mono); font-size:10px; color:var(--chrome); text-transform:uppercase; margin-bottom:6px;">Auditoria de Cliques (Cronológico):</div>
+            ` +
+            h.historico.map((x, index) => `
+              <div style="font-size: 12px; margin-bottom: 6px; padding: 8px 10px; background:rgba(0,0,0,.2); border-radius:4px; border-left: 3px solid ${x.correto ? 'var(--green2)' : '#e74c3c'}; display:flex; align-items:center; gap:8px;">
+                 <span style="font-size:16px; color:${x.correto ? 'var(--green2)' : '#e74c3c'}">${x.correto ? '✓' : '✗'}</span>
+                 <div style="flex:1;">
+                     <div style="color:var(--chrome2); font-weight:bold;"><span style="color:var(--chrome); font-weight:normal; font-size:10px; margin-right:4px;">${index + 1}º Clique:</span> ${esc(window.limparTagsTexto(x.titulo))}</div>
+                     ${!x.correto ? `<div style="font-size:10px; color:var(--chrome); margin-top:2px;">Tentou colocar na posição #${x.ordemDada} <span style="color:#e74c3c">(A ordem correta era #${x.ordemCorreta})</span></div>` : `<div style="font-size:10px; color:var(--chrome); margin-top:2px;">Encaixou na posição #${x.ordemDada} com sucesso.</div>`}
+                 </div>
+              </div>
+            `).join('');
+            
+        // --- 🏁 RELATÓRIO DO SPEEDRUN COM COMPARAÇÃO DO FANTASMA ---
+        } else if (isProc) {
+            const hasTempos = h.tempos && h.tempos.total > 0;
+            const hasFantasma = h.fantasmaTempos && h.fantasmaTempos.total > 0;
+            const corStatus = h.concluido ? 'var(--green2)' : 'var(--yellow)';
+
+            let tempoHtml = '';
+            if (hasTempos) {
+                if (hasFantasma) {
+                    const diffTotal = h.tempos.total - h.fantasmaTempos.total;
+                    const corTotalAtual = diffTotal <= 0 ? 'var(--green2)' : '#e74c3c'; // Verde se foi mais rápido (menor), Vermelho se demorou mais
+                    const sinalTotal = diffTotal <= 0 ? '▼' : '▲';
                     
-                    <button class="btn" onclick="A.enviarOrcamentoWhatsApp('${esc(h.nome)}', ${JSON.stringify(h.orcamento).replace(/"/g, '&quot;')})" 
-                            style="background:#25D366; color:#000; font-weight:bold; font-size:12px; width:100%; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:6px; border:none; padding:8px; border-radius:var(--r); cursor:pointer;">
-                      🟢 ENVIAR ESTE ORÇAMENTO VIA WHATSAPP
-                    </button>
-                  </div>`;
+                    tempoHtml = `
+                        <div style="display:flex; align-items:center; gap:6px; margin-left:auto; flex-wrap:wrap;">
+                            <span style="color:${corTotalAtual}; font-weight:bold; font-size:15px; text-shadow:0 0 10px ${corTotalAtual}44;">⏱️ ${window.formatarTempoMs(h.tempos.total)} ${sinalTotal}</span>
+                            <span style="font-size:10px; color:var(--chrome); margin-left:2px;">vs</span>
+                            <span style="color:var(--chrome2); font-size:11px; text-decoration:line-through; opacity:0.8;">⏱️ ${window.formatarTempoMs(h.fantasmaTempos.total)}</span>
+                        </div>
+                    `;
+                } else {
+                    tempoHtml = `<div style="color:#a855f7; font-weight:bold; font-size:14px; margin-left:auto; display:flex; align-items:center; gap:6px;">⏱️ ${window.formatarTempoMs(h.tempos.total)}</div>`;
+                }
+            } else {
+                tempoHtml = `<div style="color:var(--chrome); font-weight:bold; font-size:14px; margin-left:auto;">--:--.-</div>`;
+            }
+
+            detalhesHtml = `
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+              <span style="font-family:var(--font-mono); font-size:9px; padding:2px 6px; border-radius:4px; background:rgba(0,0,0,.3); border:1px solid ${corStatus}; color:${corStatus}">${h.concluido ? 'CONCLUÍDO' : 'INTERROMPIDO'}</span>
+              ${tempoHtml}
+            </div>`;
+            
+            if (hasTempos && h.tempos.passos) {
+              const procReal = S.procedimentos.find(p => p.id === h.procId);
+              if (procReal && procReal.steps) {
+                 detalhesHtml += `<div style="font-family:var(--font-mono); font-size:10px; color:var(--chrome); text-transform:uppercase; margin-bottom:6px;">Splits (Tempos por Passo):</div>`;
+                 const stepsSorted = procReal.steps.slice().sort((a,b) => a.ordem - b.ordem);
+                 
+                 stepsSorted.forEach(step => {
+                    const t = h.tempos.passos[step.id];
+                    if(t) {
+                      let splitHtml = `<span style="font-family:var(--font-mono); color:#fff; font-weight:bold; font-size:13px;">${window.formatarTempoMs(t)}</span>`;
+                      
+                      // 👻 COMPARAÇÃO DOS SPLITS (PASSO A PASSO)
+                      if (hasFantasma && h.fantasmaTempos.passos[step.id]) {
+                          const tFantasma = h.fantasmaTempos.passos[step.id];
+                          const diff = t - tFantasma;
+                          const corSplit = diff <= 0 ? 'var(--green2)' : '#e74c3c'; // Menos tempo = Verde = Melhor
+                          const sinalSplit = diff <= 0 ? '▼' : '▲';
+                          
+                          splitHtml = `
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span style="font-family:var(--font-mono); color:${corSplit}; font-weight:bold; font-size:13px;">${window.formatarTempoMs(t)} ${sinalSplit}</span>
+                                <span style="font-family:var(--font-mono); color:var(--chrome); font-size:10px; text-decoration:line-through; opacity:0.6;">${window.formatarTempoMs(tFantasma)}</span>
+                            </div>
+                          `;
+                      }
+
+                      detalhesHtml += `
+                      <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-bottom:4px; padding:6px 10px; background:rgba(0,0,0,.15); border-radius:4px; border-left:2px solid #a855f7;">
+                         <span style="color:var(--chrome2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-right:10px;"><strong style="color:var(--chrome); font-size:10px;">#${step.ordem}</strong> ${esc(window.limparTagsTexto(step.titulo))}</span>
+                         ${splitHtml}
+                      </div>`;
+                    }
+                 });
+                 
+                 detalhesHtml += `
+                 <button class="btn" onclick="A.desafiarFantasma(${h.id})" style="background:rgba(168,85,247,0.1); border:1px solid #a855f7; color:#a855f7; font-weight:bold; font-size:12px; width:100%; margin-top:10px; padding:10px; border-radius:var(--r); cursor:pointer;">
+                    👻 CORRER CONTRA ESTE FANTASMA (SPEEDRUN)
+                 </button>`;
               }
-              
-              detalhesHtml = `
-              <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
-                <span style="font-family:var(--font-mono); font-size:9px; padding:2px 6px; border-radius:4px; background:rgba(0,0,0,.3); border:1px solid ${statusCor}; color:${statusCor}">${h.status || 'FINALIZADO'}</span>
-                ${clienteTag}
-                <div style="color:${cor}; font-weight:bold; font-size:13px;">${esc(h.diagnostico)}</div>
-                ${totalOrcStr}
-              </div>
-              <div style="display:flex; gap:6px; margin-bottom:10px;">
-                <button class="btn yellow sm" onclick="A.editarClienteHistorico(${h.id})" style="flex:1; padding:6px 12px; font-size:10px;">👤 IDENTIFICAR</button>
-                ${podeRetomar ? `<button class="btn cyan sm" onclick="A.retomarFluxo(${h.id})" style="flex:1; padding:6px 12px; font-size:10px;">▶ RETOMAR EXECUÇÃO</button>` : ''}
-              </div>` +
-              h.historico.map(x => `
-                <div style="font-size: 12px; margin-bottom: 6px; color: var(--chrome); padding-left: 10px; border-left: 2px solid rgba(255,255,255,.1);">
-                   <div style="font-size:10px; color:var(--chrome2); margin-bottom:2px">P: ${esc(x.pergunta)}</div>
-                   <div style="color:${cor};">↳ R: ${esc(x.resposta)}</div>
-                </div>
-              `).join('') + procsHtml + orcamentoListHtml;
-          
-          } else if (isTreino && h.historico) {
-              detalhesHtml = `
-              <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center;">
-                <span style="background:rgba(46,204,113,.1); border:1px solid rgba(46,204,113,.2); color:var(--green2); padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;">✓ ${h.acertos} Certos</span>
-                <span style="background:rgba(192,57,43,.1); border:1px solid rgba(192,57,43,.2); color:#e74c3c; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;">✗ ${h.erros} Erros</span>
-                <span style="background:rgba(255,255,255,.1); color:var(--chrome2); padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:auto;">Nota Final: ${h.taxa}%</span>
-              </div>
-              <div style="font-family:var(--font-mono); font-size:10px; color:var(--chrome); text-transform:uppercase; margin-bottom:6px;">Auditoria de Cliques (Cronológico):</div>
-              ` +
-              h.historico.map((x, index) => `
-                <div style="font-size: 12px; margin-bottom: 6px; padding: 8px 10px; background:rgba(0,0,0,.2); border-radius:4px; border-left: 3px solid ${x.correto ? 'var(--green2)' : '#e74c3c'}; display:flex; align-items:center; gap:8px;">
-                   <span style="font-size:16px; color:${x.correto ? 'var(--green2)' : '#e74c3c'}">${x.correto ? '✓' : '✗'}</span>
-                   <div style="flex:1;">
-                       <div style="color:var(--chrome2); font-weight:bold;"><span style="color:var(--chrome); font-weight:normal; font-size:10px; margin-right:4px;">${index + 1}º Clique:</span> ${esc(x.titulo)}</div>
-                       ${!x.correto ? `<div style="font-size:10px; color:var(--chrome); margin-top:2px;">Tentou colocar na posição #${x.ordemDada} <span style="color:#e74c3c">(A ordem correta era #${x.ordemCorreta})</span></div>` : `<div style="font-size:10px; color:var(--chrome); margin-top:2px;">Encaixou na posição #${x.ordemDada} com sucesso.</div>`}
-                   </div>
-                </div>
-              `).join('');
-          }
+            } else {
+               detalhesHtml += `<div style="font-size:12px; color:var(--chrome);">Sem registros de tempo para esta execução.</div>`;
+            }
+        }
 
-          html += `
-          <div style="background: var(--steel2); border: 1px solid rgba(255,255,255,.05); border-left: 3px solid ${corHeader}; border-radius: var(--r); margin-bottom: 8px; overflow: hidden;">
-            <div onclick="const b=document.getElementById('hb_${h.id}'); b.style.display = b.style.display==='block' ? 'none' : 'block';" style="padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: background 0.2s;">
-               <div style="font-size: 14px; font-weight: bold; color: var(--chrome2); display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size:16px;">${icon}</span>
-                  <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${esc(h.nome)}</span>
-               </div>
-               <div style="display:flex; align-items:center;">
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--chrome); background: rgba(0,0,0,.3); padding: 3px 6px; border-radius: 4px;">${horaStr}</span>
-                  <button style="background: rgba(192,57,43,.1); color: #e74c3c; border: 1px solid rgba(192,57,43,.2); border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer; margin-left: 10px;" onclick="event.stopPropagation(); A.apagarItemHistorico(${h.id})">✕</button>
-               </div>
-            </div>
-            <div id="hb_${h.id}" style="padding: 0 12px 12px 12px; display: none; border-top: 1px solid rgba(255,255,255,.05); margin-top: 4px; padding-top: 10px;">
-               ${detalhesHtml}
-            </div>
-          </div>`;
-      });
-    }
+        html += `
+        <div style="background: var(--steel2); border: 1px solid rgba(255,255,255,.05); border-left: 3px solid ${corHeader}; border-radius: var(--r); margin-bottom: 8px; overflow: hidden;">
+          <div onclick="const b=document.getElementById('hb_${h.id}'); b.style.display = b.style.display==='block' ? 'none' : 'block';" style="padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: background 0.2s;">
+             <div style="font-size: 14px; font-weight: bold; color: var(--chrome2); display: flex; align-items: center; gap: 8px;">
+                <span style="font-size:16px;">${icon}</span>
+                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${esc(h.nome)}</span>
+             </div>
+             <div style="display:flex; align-items:center;">
+                <span style="font-family: var(--font-mono); font-size: 10px; color: var(--chrome); background: rgba(0,0,0,.3); padding: 3px 6px; border-radius: 4px;">${horaStr}</span>
+                <button style="background: rgba(192,57,43,.1); color: #e74c3c; border: 1px solid rgba(192,57,43,.2); border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer; margin-left: 10px;" onclick="event.stopPropagation(); A.apagarItemHistorico(${h.id})">✕</button>
+             </div>
+          </div>
+          <div id="hb_${h.id}" style="padding: 0 12px 12px 12px; display: none; border-top: 1px solid rgba(255,255,255,.05); margin-top: 4px; padding-top: 10px;">
+             ${detalhesHtml}
+          </div>
+        </div>`;
+    });
+  }
 
-    body.innerHTML = `<div style="padding-bottom:80px; padding-top:10px;">${html}</div>`;
+  body.innerHTML = `<div style="padding-bottom:80px; padding-top:10px;">${html}</div>`;
 }
 /* ══ AÇÕES ══ */
 const A={
@@ -1574,12 +1721,27 @@ const A={
     }
     
     if(S.execAtiva.ultimoTimestamp) S.execAtiva.ultimoTimestamp = Date.now();
+    
+    // ⏱️ GATILHO DO SPEEDRUN COM FREIO DE CHEGADA
+    if (window._modoSpeedrun) {
+      if (!S.execAtiva.tempos) S.execAtiva.tempos = {};
+      if (!S.execAtiva.tempos.passos) S.execAtiva.tempos.passos = {};
+      
+      S.execAtiva.tempos.passos[stepId] = Date.now() - window._srInicioPasso;
+      window._srInicioPasso = Date.now(); 
+
+      // 🏁 SE CRUZOU A LINHA DE CHEGADA, CONGELA O TEMPO TOTAL!
+      if (S.execAtiva.stepAtual === 'concluido') {
+        S.execAtiva.tempos.total = Date.now() - window._srInicioTotal;
+        clearInterval(window._srTimer); // Para o relógio da tela imediatamente
+      }
+    }
+
     render();
 
-    // 🤖 TRANSIÇÃO SEGURA: Substitui o antigo setTimeout do gatilho
     window.navegarComAudio(S.execAtiva.stepAtual !== 'concluido');
   },
-
+  
   fluxoResponder(opcaoIdx){
     if(!S.fluxoExec)return;const fluxo=S.fluxos.find(f=>f.id===S.fluxoExec.fluxoId);if(!fluxo)return;
     const nos=fluxo.nos||[];const noAtual=nos.find(n=>n.id===S.fluxoExec.noAtual);if(!noAtual)return;
@@ -1598,13 +1760,86 @@ const A={
     window.navegarComAudio(true);
   },
 
-  async finalizarExec(concluido){
-    if(!S.execAtiva)return;
-    S.execAtiva=null;
-    toast(concluido?'✅ Procedimento concluído!':'Execução encerrada.','ok');
-    render();
-  },
+  // async finalizarExec(concluido){
+  //   if(!S.execAtiva)return;
+  //   S.execAtiva=null;
+  //   toast(concluido?'✅ Procedimento concluído!':'Execução encerrada.','ok');
+  //   render();
+  // },
 
+  async finalizarExec(concluido){
+    if(!S.execAtiva) return;
+    
+    // Trava o relógio total do Speedrun APENAS se tiver desistido no meio
+    if (window._modoSpeedrun) {
+      if (!S.execAtiva.tempos) S.execAtiva.tempos = {};
+      if (!S.execAtiva.tempos.total) S.execAtiva.tempos.total = Date.now() - window._srInicioTotal;
+      clearInterval(window._srTimer);
+      window._modoSpeedrun = false;
+    }
+
+    const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
+    
+    if (concluido && proc) {
+      const novoRegistro = {
+        id: Date.now(),
+        tipo: 'procedimento',
+        procId: proc.id,
+        nome: proc.nome,
+        data: Date.now(),
+        concluido: concluido,
+        tempos: S.execAtiva.tempos || null, 
+        fantasmaTempos: S.execAtiva.pbTempos || null 
+      };
+
+      try {
+        await DB.put('historico', novoRegistro);
+        if(!S.historico) S.historico = [];
+        S.historico.push(novoRegistro);
+        toast("✅ Relatório de corrida salvo!", "ok");
+      } catch (e) {
+        console.error("Erro ao salvar histórico:", e);
+      }
+    } else {
+      toast("Execução encerrada.", "ok");
+    }
+
+    S.execAtiva = null;
+    render(); 
+  },
+  
+  desafiarFantasma: function(histId) {
+    const registroAnterior = (S.historico || []).find(h => h.id === histId);
+    if (!registroAnterior || registroAnterior.tipo !== 'procedimento' || !registroAnterior.tempos) {
+      toast("⚠ Não há tempos salvos nesta execução para desafiar.", "error");
+      return;
+    }
+    
+    const proc = S.procedimentos.find(p => p.id === registroAnterior.procId);
+    if (!proc) return;
+
+    // Inicia a execução carregando os recordes anteriores como o Fantasma (PB)
+    S.execAtiva = {
+      procId: proc.id,
+      stepsDone: [],
+      stepAtual: null,
+      pbTempos: registroAnterior.tempos 
+    };
+
+    // Ativa o motor de corrida e inicia os relógios
+    window._modoSpeedrun = true;
+    window._srInicioTotal = Date.now();
+    window._srInicioPasso = Date.now();
+    clearInterval(window._srTimer);
+    window._srTimer = setInterval(window.atualizarTimersSpeedrun, 80);
+
+    // 🏁 REDIRECIONAMENTO AUTOMÁTICO: Joga você direto na tela de ação
+    S.tab = 'executar'; 
+    
+    toast("👻 DESAFIO ACEITO! CORRA CONTRA O SEU FANTASMA!", "cyan");
+    render(); 
+  },
+  
   async salvarFluxoHistorico() {
     if(!S.fluxoExec) return;
     const fluxo = S.fluxos.find(f => f.id === S.fluxoExec.fluxoId);
@@ -3993,6 +4228,69 @@ window.renderizarTextoOculto = (texto, limite = 0) => {
   }
   
   return textoLimpo;
+};
+/* ═════════════════════════════════════════════════════════════════
+   ⏱️ MOTOR DE SPEEDRUN (SPLITS E CRONÔMETRO)
+   ═════════════════════════════════════════════════════════════════ */
+window._modoSpeedrun = false;
+window._srTimer = null;
+window._srInicioTotal = 0;
+window._srInicioPasso = 0;
+
+window.toggleSpeedrun = () => {
+  window._modoSpeedrun = !window._modoSpeedrun;
+  if (window._modoSpeedrun) {
+    window._srInicioTotal = Date.now();
+    window._srInicioPasso = Date.now();
+    // Atualiza a tela a cada 80ms para os milissegundos girarem de forma bem fluida!
+    window._srTimer = setInterval(window.atualizarTimersSpeedrun, 80); 
+    toast("🏃 MODO SPEEDRUN ATIVADO!", "ok");
+  } else {
+    clearInterval(window._srTimer);
+    toast("🛑 Modo Speedrun Desativado", "error");
+  }
+  render(); // Força a tela a se redesenhar com o painel novo
+};
+
+window.atualizarTimersSpeedrun = () => {
+  if (!window._modoSpeedrun || !S.execAtiva) return;
+  const elTotal = document.getElementById('sr_total');
+  const elPasso = document.getElementById('sr_passo');
+  const elDelta = document.getElementById('sr_delta'); 
+  
+  const agora = Date.now();
+  const tempoTotal = agora - window._srInicioTotal;
+  const tempoPasso = agora - window._srInicioPasso;
+
+  if (elTotal) elTotal.innerText = window.formatarTempoMs(tempoTotal);
+  if (elPasso) elPasso.innerText = window.formatarTempoMs(tempoPasso);
+
+  // 👻 PAINEL COMPARADOR DO FANTASMA (REAL-TIME DELTA SPLITS)
+  if (elDelta && S.execAtiva.pbTempos && S.execAtiva.pbTempos.passos) {
+    const tempoFantasma = S.execAtiva.pbTempos.passos[S.execAtiva.stepAtual] || 0;
+    
+    if (tempoFantasma > 0) {
+      const diferenca = tempoPasso - tempoFantasma;
+      
+      if (diferenca > 0) {
+        // PIOR: Mostra seta para cima (▲) em vermelho indicando tempo adicionado
+        elDelta.innerHTML = `<span style="color:#e74c3c; background:rgba(231,76,60,0.12); padding:3px 8px; border-radius:4px; font-size:12px; font-weight:bold; letter-spacing:0.5px;">▲ +${window.formatarTempoMs(diferenca)}</span>`;
+      } else {
+        // MELHOR: Mostra seta para baixo (▼) em verde indicando tempo economizado
+        elDelta.innerHTML = `<span style="color:var(--green2); background:rgba(46,204,113,0.12); padding:3px 8px; border-radius:4px; font-size:12px; font-weight:bold; letter-spacing:0.5px;">▼ -${window.formatarTempoMs(Math.abs(diferenca))}</span>`;
+      }
+    } else {
+      // Caso seja um passo novo adicionado depois que não possua recorde
+      elDelta.innerHTML = `<span style="color:var(--chrome); font-size:11px; font-style:italic;">🆕 Sem split</span>`;
+    }
+  }
+};
+
+window.formatarTempoMs = (ms) => {
+  const minutos = Math.floor(ms / 60000);
+  const segundos = Math.floor((ms % 60000) / 1000);
+  const decis = Math.floor((ms % 1000) / 100); // Decisegundos (1 dígito)
+  return `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}.${decis}`;
 };
 /* ══ INIT ══ */
 (async()=>{
