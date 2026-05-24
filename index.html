@@ -2484,20 +2484,33 @@ window.usarBib = (id, tipo, refId) => {
     const no = window._nosEditor.find(n => n.id === refId);
     
     if(no) { 
-        no.pergunta = item.titulo; 
-        no.titulo = item.titulo; 
-        no.descricao = item.descricao || ''; 
-        no.solucao = item.descricao || '';
-        no.codigo = item.codigo || '';
-        
-        if(item.fotos && item.fotos.length > 0) no.fotos = [...item.fotos]; 
-        if(item.audio) no.audio = item.audio; 
+        // ── Textos ──
+        no.pergunta  = item.titulo   || no.pergunta;
+        no.titulo    = item.titulo   || no.titulo;
+        no.descricao = item.descricao || '';
+        no.solucao   = item.descricao || '';   // compatibilidade com nó diagnóstico
+        no.codigo    = item.codigo   || '';
+        no.alerta    = item.alerta   || '';
+
+        // ── Mídia ──
+        if (item.fotos && item.fotos.length > 0) no.fotos = [...item.fotos];
+        if (item.audio) no.audio = item.audio;
     }
-    
-    document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor, null);
-    toast('✅ Importado!', 'cyan');
-    
-  } else if(tipo === 'fluxo_opt') {
+
+    // Re-renderiza o construtor de blocos para mostrar fotos/áudio importados
+    document.getElementById('nosEditorContainer').innerHTML =
+        buildNosEditor(window._nosEditor, null);
+
+    // Limpa o campo de busca
+    const resEl = document.getElementById('bibResults_' + refId);
+    if (resEl) {
+        resEl.innerHTML = '';
+        const inputBusca = resEl.previousElementSibling;
+        if (inputBusca) inputBusca.value = '';
+    }
+
+    toast('✅ Tudo importado: título, descrição, código, alerta, fotos e áudio!', 'cyan');
+} else if(tipo === 'fluxo_opt') {
     const inputEl = document.getElementById('opt_label_' + refId);
     if(inputEl) inputEl.value = item.titulo || '';
     
@@ -3017,9 +3030,23 @@ function buildNoEditorCard(no,idx,todos,path){
     <div style="padding:10px; background:rgba(0,0,0,0.05)">
       ${caminhoHtml}
       <div style="display:flex; justify-content:flex-end; margin-bottom:6px;">
+        <div style="background:rgba(34,211,238,.05);padding:10px;border-radius:var(--r);margin-bottom:10px;border:1px solid rgba(34,211,238,.25)">
+  <div class="label" style="color:var(--cyan2);margin-bottom:6px">🔍 IMPORTAR DA BIBLIOTECA</div>
+  <input type="text" class="input" placeholder="Buscar título na biblioteca…" 
+    oninput="filtrarBibModal(this.value, 'fluxo', '${no.id}')" 
+    style="border-color:rgba(34,211,238,.3)">
+  <div id="bibResults_${no.id}" style="display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:140px;overflow-y:auto"></div>
+</div>
          <button class="btn cyan sm" style="width:auto; padding:4px 8px; font-size:11px;" onclick="window.focarNoFluxo('${no.id}')">🔍 ISOLAR E FOCAR NESTE RAMO</button>
       </div>
-      ${!isPerguntar ? `<div><div class="label">Laudo Técnico Final / Solução do Problema:</div><textarea class="textarea" id="no_desc_${no.id}" style="min-height:50px" placeholder="Escreva os detalhes da resolução aqui...">${esc(no.descricao || no.solucao || '')}</textarea></div>` : ''}
+${!isPerguntar 
+  ? `<div><div class="label">Laudo Técnico Final / Solução:</div>
+     <textarea class="textarea" id="no_desc_${no.id}" style="min-height:50px" 
+       placeholder="Detalhes da resolução...">${esc(no.descricao || no.solucao || '')}</textarea></div>` 
+  : `<div><div class="label">Descrição / Contexto (Opcional)</div>
+     <textarea class="textarea" id="no_desc_${no.id}" style="min-height:50px" 
+       placeholder="Contexto adicional para esta pergunta...">${esc(no.descricao || '')}</textarea></div>`
+}
       <div style="margin-top:6px;">
         <div class="label" style="color:var(--yellow)">💻 SCRIPT OPERACIONAL / NOTAS COMPLEMENTARES (Opcional)</div>
         <textarea class="textarea code-input" id="no_cod_${no.id}" style="min-height:50px;" placeholder="Diretrizes complementares para o operador...">${esc(no.codigo||'')}</textarea>
