@@ -133,8 +133,8 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .treino-slot.filled{color:var(--yellow);background:rgba(245,200,0,.06);}
 .treino-slot.correct-slot{color:var(--green2);background:rgba(46,204,113,.06);}
 .treino-step-body{flex:1;padding:9px 11px;}
-.treino-step-title{font-family:var(--font-head);font-size:15px;letter-spacing:.8px;color: orange;}
-.treino-step-desc{font-size:11px;color: lawngreen;margin-top:15px;}
+.treino-step-title{padding: 10px 0px 5px 0px;font-family:var(--font-head);font-size:15px;letter-spacing:.8px;color: orange;}
+.treino-step-desc{font-size:14px;color: lawngreen;padding: 4px 0px 15px 0px;}
 .treino-step-thumb{width:48px;height:40px;border-radius:4px;overflow:hidden;flex-shrink:0;margin-right:8px;background:var(--steel3);}
 .treino-step-thumb img{width:100%;height:100%;object-fit:cover;}
 .treino-feedback{background:rgba(192,57,43,.07);border:2px solid rgba(192,57,43,.35);border-radius:var(--r2);padding:12px;display:flex;flex-direction:column;gap:8px;animation:slideIn .25s ease;}
@@ -872,7 +872,7 @@ let conteudo='';
     ${conteudo}
     ${giantButtonHtml}
     
-    <div style="display:flex; justify-content:flex-start; align-items:center; margin-top:12px; margin-bottom:12px; gap:8px; flex-wrap:wrap; padding: 0 4px;">
+    <div style="display:flex; justify-content:center; align-items:center; margin-top:12px; margin-bottom:12px; gap:8px; flex-wrap:nowrap; padding: 0px;">
       
       <button onclick="window.toggleSpeedrun()" style="background:${bgSr}; border:1px solid ${borderSr}; border-radius:12px; padding:8px 12px; color:${corSr}; cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:6px;">
         ${srAtivo ? '🏃 SPEED: ON' : '🏃 SPEED: OFF'}
@@ -881,8 +881,8 @@ let conteudo='';
       <button onclick="window.toggleLeituraAuto()" style="background:${bgAuto}; border:1px solid ${autoAtivo?'var(--green2)':'rgba(255,255,255,0.1)'}; border-radius:12px; padding:8px 12px; color:${corAuto}; cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:6px;">
         ${autoAtivo ? '🤖 AUTO: ON' : '🤖 AUTO: OFF'}
       </button>
-      <button onclick="window.acionarLeituraTela()" style="background:rgba(245,200,0,0.1); border:1px solid var(--yellow); border-radius:6px; padding:8px 12px; color:var(--yellow); cursor:pointer; font-size:12px; font-weight:bold; display:flex; align-items:center; gap:6px;">
-        🔊 LER / ⏸
+      <button onclick="window.acionarLeituraTela()" style="background:rgba(245,200,0,0.1); border:1px solid var(--yellow); border-radius:12px; padding:8px 12px; color:var(--yellow); cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:6px;">
+        🔊 LER ⏸
       </button>
       <button onclick="window.pararLeituraTela()" style="background:rgba(231,76,60,0.1); border:1px solid #e74c3c; border-radius:6px; padding:8px 12px; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold;" title="Parar Leitura">
         ⏹
@@ -1381,7 +1381,7 @@ function buildHistorico() {
                         <div style="display:flex; align-items:center; gap:6px; margin-left:auto; flex-wrap:wrap;">
                             <span style="color:${corTotalAtual}; font-weight:bold; font-size:15px; text-shadow:0 0 10px ${corTotalAtual}44;">⏱️ ${window.formatarTempoMs(h.tempos.total)} ${sinalTotal}</span>
                             <span style="font-size:10px; color:var(--chrome); margin-left:2px;">vs</span>
-                            <span style="color:var(--chrome2); font-size:11px; text-decoration:line-through; opacity:0.8;">⏱️ ${window.formatarTempoMs(h.fantasmaTempos.total)}</span>
+                            <span style="color:var(--chrome2); font-size:11px; text-decoration:underline; opacity:0.8;">⏱️ ${window.formatarTempoMs(h.fantasmaTempos.total)}</span>
                         </div>
                     `;
                 } else {
@@ -1418,7 +1418,7 @@ function buildHistorico() {
                           splitHtml = `
                             <div style="display:flex; align-items:center; gap:6px;">
                                 <span style="font-family:var(--font-mono); color:${corSplit}; font-weight:bold; font-size:13px;">${window.formatarTempoMs(t)} ${sinalSplit}</span>
-                                <span style="font-family:var(--font-mono); color:var(--chrome); font-size:10px; text-decoration:line-through; opacity:0.6;">${window.formatarTempoMs(tFantasma)}</span>
+                                <span style="font-family:var(--font-mono); color:var(--chrome); font-size:10px; text-decoration:underline; opacity:0.6;">${window.formatarTempoMs(tFantasma)}</span>
                             </div>
                           `;
                       }
@@ -2815,12 +2815,14 @@ function fecharModal(){document.querySelectorAll('.modal-bg').forEach(e=>e.remov
 let _exportSelecionados = new Set(); // Para Procedimentos
 let _exportFluxosSel = new Set();    // Para Fluxos
 let _exportBibCompleta = true;       // Para a Biblioteca
+let _exportHistoricoCompleto = true; // Para os Recordes (Fantasmas)
 
 function abrirModalExportImport(){
   fecharModal();
   _exportSelecionados = new Set(S.procedimentos.map(p=>p.id));
   _exportFluxosSel = new Set(S.fluxos.map(f=>f.id));
   _exportBibCompleta = true;
+  _exportHistoricoCompleto = true; // Já vem marcado por padrão para segurança
   
   const bg=document.createElement('div');bg.className='modal-bg';bg.onclick=e=>{if(e.target===bg)fecharModal();};
   renderExportModal(bg);
@@ -2836,7 +2838,7 @@ function renderExportModal(bg){
     <h2><span style="color:var(--yellow)">⇅</span> BACKUP DO SISTEMA</h2>
     
     <div style="font-size:12px;color:var(--chrome);margin-bottom:8px;line-height:1.5;">
-      Escolha o que deseja exportar. Recomendamos sempre exportar a <b>Biblioteca</b> junto, pois os procedimentos e fluxos dependem dela.
+      Escolha o que deseja exportar. Recomendamos sempre exportar a <b>Biblioteca</b> e os <b>Recordes</b> para manter seus fantasmas e mídias salvos.
     </div>
 
     <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
@@ -2871,6 +2873,14 @@ function renderExportModal(bg){
        </div>
     </div>
 
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(168,85,247,.1);border-radius:var(--r);border:1px solid rgba(168,85,247,.3);cursor:pointer;margin-top:8px;" onclick="toggleHistoricoExport()">
+       <div class="export-cb${_exportHistoricoCompleto?' on':''}" style="border-color:#a855f7; color:#a855f7; background:${_exportHistoricoCompleto?'rgba(168,85,247,.2)':'transparent'}">${_exportHistoricoCompleto?'✓':''}</div>
+       <div style="flex:1;">
+         <div class="export-name" style="color:#a855f7;">🏅 Exportar Recordes (Fantasmas)</div>
+         <div style="font-size:10px;color:var(--chrome);margin-top:2px;">Salva os seus tempos de Speedrun no arquivo.</div>
+       </div>
+    </div>
+
     <div style="display:flex;gap:6px;margin-top:14px">
       <button class="btn steel sm" onclick="selecionarTodosExport(true)">✓ Tudo</button>
       <button class="btn steel sm" onclick="selecionarTodosExport(false)">✗ Nada</button>
@@ -2900,28 +2910,38 @@ window.toggleBibExport = () => {
    renderExportModal();
 };
 
+window.toggleHistoricoExport = () => {
+   _exportHistoricoCompleto = !_exportHistoricoCompleto;
+   renderExportModal();
+};
+
 window.selecionarTodosExport = (sel) => {
   if(sel){
     S.procedimentos.forEach(p=>_exportSelecionados.add(p.id));
     S.fluxos.forEach(f=>_exportFluxosSel.add(f.id));
     _exportBibCompleta = true;
+    _exportHistoricoCompleto = true;
   } else {
     _exportSelecionados.clear();
     _exportFluxosSel.clear();
     _exportBibCompleta = false;
+    _exportHistoricoCompleto = false;
   }
   renderExportModal();
 };
 
 window.executarExport = () => {
-  if(!_exportSelecionados.size && !_exportFluxosSel.size && !_exportBibCompleta){
+  if(!_exportSelecionados.size && !_exportFluxosSel.size && !_exportBibCompleta && !_exportHistoricoCompleto){
     toast('⚠ Selecione pelo menos um item para fazer backup!',''); return;
   }
   
-  // Limpa os IDs locais para não dar conflito em outro aparelho
+  // Limpa os IDs locais para não dar conflito
   const procs = S.procedimentos.filter(p=>_exportSelecionados.has(p.id)).map(p=>{const{id,...rest}=p;return{...rest,_exportId:id};});
   const fluxos = S.fluxos.filter(f=>_exportFluxosSel.has(f.id)).map(f=>{const{id,...rest}=f;return{...rest,_exportId:id};});
   const bib = _exportBibCompleta ? S.biblioteca.map(b=>{const{id,...rest}=b;return{...rest,_exportId:id};}) : [];
+  
+  // Se o botão de histórico estiver ligado, salva todo o progresso do jogador
+  const hist = _exportHistoricoCompleto ? (S.historico || []) : [];
 
   const json = JSON.stringify({
     guiaPro: true, 
@@ -2929,7 +2949,8 @@ window.executarExport = () => {
     exportadoEm: Date.now(),
     procedimentos: procs,
     fluxos: fluxos,
-    biblioteca: bib
+    biblioteca: bib,
+    historico: hist // 👻 O FANTASMA AGORA VIAJA JUNTO NO ARQUIVO!
   });
   
   const blob = new Blob([json], {type:'application/json'});
@@ -2951,7 +2972,6 @@ window.importarArquivo = async e => {
   if(!file) return;
   e.target.value = ''; // Reseta o input file
   
-  // Exibe a tela de carregamento, pois importar fotos grandes pode demorar 1 ou 2 segundos
   const loading = document.getElementById('loading');
   if(loading) loading.style.display = 'flex';
   
@@ -2965,9 +2985,9 @@ window.importarArquivo = async e => {
       return;
     }
     
-    let importProc = 0, importFluxo = 0, importBib = 0;
+    let importProc = 0, importFluxo = 0, importBib = 0, importHist = 0;
 
-    // 1. IMPORTAR BIBLIOTECA (Passa pela função inteligente anti-duplicata)
+    // 1. IMPORTAR BIBLIOTECA
     if(dados.biblioteca && Array.isArray(dados.biblioteca)){
         for(const b of dados.biblioteca){
            const id = await salvarNaBiblioteca(b); 
@@ -2989,7 +3009,6 @@ window.importarArquivo = async e => {
           S.procedimentos.push(proc);
           importProc++;
           
-          // Se o proc tiver passos internos que não estavam na array de biblioteca, ele puxa também
           for(const s of proc.steps||[]){
              await salvarNaBiblioteca({titulo:s.titulo, descricao:s.descricao||'', categoria:proc.categoria||'', fotos:s.fotos||[], alerta:s.alerta||'', origem:'Procedimento', origemId:proc.id+':'+s.id});
           }
@@ -3012,11 +3031,31 @@ window.importarArquivo = async e => {
         }
     }
 
+    // 👻 4. IMPORTAR HISTÓRICO DE RECORDES
+    if(dados.historico && Array.isArray(dados.historico)){
+        for(const h of dados.historico){
+          // Verifica se este recorde exato já existe para evitar duplicar
+          const jaExiste = S.historico.some(x => x.id === h.id);
+          if(!jaExiste){
+            await DB.put('historico', h);
+            S.historico.push(h);
+            importHist++;
+          }
+        }
+    }
+
     S.biblioteca = await DB.getAll('biblioteca');
     fecharModal();
     if(loading) loading.style.display = 'none';
-    toast(`✅ RESTAURADO: ${importProc} Procedimentos, ${importFluxo} Fluxos e ${importBib} Itens na Biblioteca!`, 'ok');
-    render();
+    
+    toast(`✅ RESTAURADO: ${importProc} Procs, ${importFluxo} Fluxos e ${importHist} Recordes!`, 'ok');
+    
+    // Se o usuário já estiver na tela de histórico, atualiza a lista ao vivo
+    if (S.tab === 'historico' && typeof buildHistorico === 'function') {
+       buildHistorico();
+    } else {
+       render();
+    }
     
   } catch(err) {
     console.error(err);
