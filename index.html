@@ -556,11 +556,13 @@ async function propagarEdicaoBiblioteca(bib, tituloAntigo) {
                   no.fotos = bib.fotos ? [...bib.fotos] : [];
                   no.audio = bib.audio || null;
               } else {
-                  no.titulo = bib.titulo;
-                  no.pergunta = bib.titulo;
-                  no.codigo = bib.codigo || '';
-                  no.fotos = bib.fotos ? [...bib.fotos] : [];
-                  no.audio = bib.audio || null;
+                  no.titulo    = bib.titulo;
+                  no.pergunta  = bib.titulo;
+                  no.descricao = bib.descricao || '';  // ✅ estava faltando
+                  no.alerta    = bib.alerta    || '';  // ✅ estava faltando
+                  no.codigo    = bib.codigo    || '';
+                  no.fotos     = bib.fotos ? [...bib.fotos] : [];
+                  no.audio     = bib.audio || null;
               }
               alterouFluxo = true;
           }
@@ -1022,6 +1024,11 @@ function buildFluxoExec(){
       <div class="fluxo-diag-title" style="cursor:pointer;" data-raw="${esc(noAtual.titulo||noAtual.pergunta||'')}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.titulo||noAtual.pergunta||''))}</div>
       ${audioExecHtml} ${fotosExecHtml}
       ${noAtual.descricao?`<div class="fluxo-diag-desc" style="cursor:pointer;" data-raw="${esc(noAtual.descricao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.descricao))}</div>`:''}
+      ${noAtual.alerta ? `<div class="warn-box" style="margin:8px 16px; cursor:pointer;" 
+          data-raw="${esc(noAtual.alerta)}" 
+          onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">
+          ⚠ ${esc(window.limparTagsTexto(noAtual.alerta))}
+      </div>` : ''}
       ${noAtual.codigo?`<pre class="code-block"><code style="cursor:pointer;" data-raw="${esc(noAtual.codigo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.codigo))}</code></pre>`:''}
       ${noAtual.solucao?`<div style="background:rgba(0,0,0,.3);border-radius:var(--r);padding:10px 12px;border-left:3px solid var(--cyan2);margin-top:4px"><div style="font-family:var(--font-mono);font-size:9px;color:var(--cyan2);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">SOLUÇÃO RECOMENDADA</div><div style="font-size:13px;color:var(--chrome2);line-height:1.6;cursor:pointer;" data-raw="${esc(noAtual.solucao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.solucao))}</div></div>`:''}
       ${btnProcHtml}
@@ -2182,15 +2189,33 @@ window.salvarFluxoComNos = async () => {
         }
       }
       
-      await salvarNaBiblioteca({
-        titulo, descricao:'', codigo: no.codigo || '', categoria:'Pergunta de Fluxo',
-        fotos: no.fotos || [], audio: no.audio || null, alerta:'', origem:'Fluxo', origemId:'fluxo_q_'+no.id
-      });
-      
-      nosColetados.push({
-        id: no.id, tipo: 'pergunta', pergunta: titulo, titulo, opcoes, 
-        procId: no.procId || null, procValor: no.procValor || 0, fotos: no.fotos || [], audio: no.audio || null, codigo: no.codigo || ''
-      });
+// ── DEPOIS ──
+await salvarNaBiblioteca({
+    titulo,
+    descricao : no.descricao || '',   // ✅ era ''
+    codigo    : no.codigo    || '',
+    categoria : 'Pergunta de Fluxo',
+    fotos     : no.fotos  || [],
+    audio     : no.audio  || null,
+    alerta    : no.alerta || '',       // ✅ era ''
+    origem    : 'Fluxo',
+    origemId  : 'fluxo_q_' + no.id
+});
+
+nosColetados.push({
+    id        : no.id,
+    tipo      : 'pergunta',
+    pergunta  : titulo,
+    titulo,
+    descricao : no.descricao || '',   // ✅ estava faltando
+    alerta    : no.alerta    || '',   // ✅ estava faltando
+    opcoes,
+    procId    : no.procId    || null,
+    procValor : no.procValor || 0,
+    fotos     : no.fotos  || [],
+    audio     : no.audio  || null,
+    codigo    : no.codigo || ''
+});
     }
   }
 
@@ -2758,29 +2783,33 @@ window.sincronizarDOMParaMemoria = () => {
     const cEl = document.getElementById('no_cod_'+no.id);
     if(cEl) no.codigo = cEl.value;
 
-    // 👇 Captura o ID do Procedimento e o Valor em TODOS os nós!
+    // ✅ CAPTURA DESCRIÇÃO PARA TODOS OS TIPOS (antes só capturava para diagnóstico)
+    const dEl = document.getElementById('no_desc_'+no.id);
+    if(dEl) {
+      no.descricao = dEl.value;
+      if(no.tipo === 'diagnostico') no.solucao = dEl.value;
+    }
+
     const pEl = document.getElementById('no_proc_'+no.id);
-    if(pEl) no.procId = pEl.value ? parseInt(pEl.value) : null; 
+    if(pEl) no.procId = pEl.value ? parseInt(pEl.value) : null;
     
     const vEl = document.getElementById('no_val_'+no.id);
     if(vEl) no.procValor = parseFloat(vEl.value) || 0;
 
-    if(no.tipo === 'diagnostico') {
-      const dEl = document.getElementById('no_desc_'+no.id);
-      if(dEl) { no.descricao = dEl.value; no.solucao = dEl.value; }
-    } else {
+    if(no.tipo !== 'diagnostico') {
       (no.opcoes || []).forEach((o, oi) => {
         const lEl = document.getElementById(`opt_label_${no.id}_${oi}`);
         if(lEl) o.label = lEl.value;
         const destEl = document.getElementById(`opt_dest_${no.id}_${oi}`);
         if(destEl) {
-           o.destinoId = destEl.value === 'diagnostico_direto' ? null : destEl.value;
-           o.destino = destEl.value === 'diagnostico_direto' ? 'diagnostico_direto' : '';
+          o.destinoId = destEl.value === 'diagnostico_direto' ? null : destEl.value;
+          o.destino   = destEl.value === 'diagnostico_direto' ? 'diagnostico_direto' : '';
         }
       });
     }
   });
 };
+
 window._noAbertoId = null; // Guarda quem está aberto
 
 window.toggleNoAberto = (id) => {
