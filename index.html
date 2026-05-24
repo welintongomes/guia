@@ -239,10 +239,10 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 @keyframes bgIn{from{opacity:0}to{opacity:1}}
 .modal{background:var(--steel);border:1px solid rgba(255,255,255,.1);border-radius:14px 14px 0 0;padding:16px 5px 36px;width:100%;max-width:540px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;gap:12px;animation:modalUp .3s cubic-bezier(.4,0,.2,1);border-top:3px solid var(--yellow);}
 .modal.cyan-top{border-top-color:var(--cyan2);}
-.modal.orange-top{border-top-color:#fb923c;}
+.modal.orange-top{border-top-color:#fb923c;padding: 12px;}
 @keyframes modalUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .modal-handle{width:36px;height:4px;background:rgba(255,255,255,.12);border-radius:2px;margin:0 auto 4px;}
-.modal h2{font-family:var(--font-head);font-size:22px;letter-spacing:2px;color:var(--chrome2);}
+.modal h2{font-family:var(--font-head);font-size:22px;padding-left: 10px; letter-spacing:2px;color:var(--chrome2);}
 .modal::-webkit-scrollbar{width:3px;}
 .modal::-webkit-scrollbar-thumb{background:rgba(245,200,0,.15);}
 .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:500;display:flex;align-items:center;justify-content:center;animation:bgIn .2s;cursor:pointer;}
@@ -858,10 +858,9 @@ window.irParaPassoProcedimento = (stepId) => {
   window.navegarComAudio(true);
 };
 
-
 function buildExecStepCard(step, faltando){
   if(faltando.length > 0) {
-    return `<div class="seq-error-box"><div class="seq-error-title">⛔ ERRO DE SEQUÊNCIA</div><div style="font-size:12px;color:var(--chrome);line-height:1.5">Passo <strong style="color:white">#${step.ordem} ${esc(window.limparTagsTexto(step.titulo))}</strong> — conclua antes:</div></div>`;
+    return `<div class="seq-error-box"><div class="seq-error-title">⛔ ERRO DE SEQUÊNCIA</div><div style="font-size:12px;color:var(--chrome);line-height:1.5">Passo <strong style="color:white">#${step.ordem} ${window.renderizarTextoOculto(step.titulo)}</strong> — conclua antes:</div></div>`;
   }
   
   const fotosHtml = step.fotos?.length ? `<div class="exec-imgs">${step.fotos.map((f,i)=>`<div class="exec-img" onclick="lightbox('${f}')"><img src="${f}" alt="${i+1}" loading="lazy"></div>`).join('')}</div>` : '';
@@ -877,15 +876,15 @@ function buildExecStepCard(step, faltando){
     <div class="exec-step-head">
       <div class="exec-num-badge">${step.ordem}</div>
       <div>
-        <div class="exec-step-title step-title" style="cursor:pointer;" data-raw="${esc(step.titulo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(step.titulo))}</div>
+        <div class="exec-step-title step-title" style="cursor:pointer;" data-raw="${esc(step.titulo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${window.renderizarTextoOculto(step.titulo)}</div>
         <div style="font-family:var(--font-mono);font-size:9px;color:rgba(245,200,0,.5);text-transform:uppercase;letter-spacing:1px;margin-top:1px">${tagStatus}</div>
       </div>
     </div>
     <div class="exec-step-body">
-      ${step.descricao ? `<div class="exec-step-desc" id="sDesc" style="cursor:pointer;" data-raw="${esc(step.descricao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(step.descricao))}</div>` : ''}
-      ${step.codigo ? `<pre class="code-block"><code style="cursor:pointer;" data-raw="${esc(step.codigo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(step.codigo))}</code></pre>` : ''}
+      ${step.descricao ? `<div class="exec-step-desc" id="sDesc" style="cursor:pointer;" data-raw="${esc(step.descricao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${window.renderizarTextoOculto(step.descricao)}</div>` : ''}
+      ${step.codigo ? `<pre class="code-block"><code style="cursor:pointer;" data-raw="${esc(step.codigo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${window.renderizarTextoOculto(step.codigo)}</code></pre>` : ''}
       ${fotosHtml}
-      ${step.alerta ? `<div class="warn-box" style="cursor:pointer;" data-raw="${esc(step.alerta)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">⚠ ${esc(window.limparTagsTexto(step.alerta))}</div>` : ''}
+      ${step.alerta ? `<div class="warn-box" style="cursor:pointer;" data-raw="${esc(step.alerta)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">⚠ ${window.renderizarTextoOculto(step.alerta)}</div>` : ''}
     </div>
     
     <div class="exec-foot">
@@ -895,6 +894,7 @@ function buildExecStepCard(step, faltando){
     </div>
   </div>`;
 }
+
 /* ══ ABA TREINO ══ */
 function buildTreino(){
   const tr=S.treino;
@@ -909,24 +909,42 @@ function buildSelecionarTreino(){
   return`<div class="treino-card"><div class="card-head"><div class="card-title" style="color:#a855f7">🎓 MODO TREINO</div></div><div class="card-body"><div class="info-box" style="background:rgba(168,85,247,.05);border-color:rgba(168,85,247,.2);color:#a855f7">Os passos aparecem embaralhados. Toque-os na ordem correta.</div></div></div>
   <div style="display:flex;flex-direction:column;gap:8px">${procs.map(p=>`<div class="proc-card" onclick="A.iniciarTreino(${p.id})"><div class="proc-card-body"><div class="proc-title">🎓 ${esc(window.limparTagsTexto(p.nome))}</div><div class="proc-meta">${(p.steps||[]).length} passos · ${p.categoria||'Geral'}</div><div class="proc-badge-row"><span class="proc-badge pb-purple">🔀 Embaralhado</span></div></div></div>`).join('')}</div>`;
 }
+
 function buildTreinoAtivo(){
   const tr=S.treino;const proc=S.procedimentos.find(p=>p.id===tr.procId);if(!proc)return buildSelecionarTreino();
   const total=tr.steps.length;const nResp=tr.respostas.length;const pct=Math.round((nResp/total)*100);
   const respondidosIds=new Set(tr.respostas.map(r=>r.stepId));const pendentes=tr.steps.filter(s=>!respondidosIds.has(s.id));
-  const stepsHtml=pendentes.map(s=>{const thumb=s.fotos?.length?`<div class="treino-step-thumb"><img src="${s.fotos[0]}" alt="" loading="lazy"></div>`:'';
-    return`<div class="treino-step" id="ts_${s.id}" onclick="A.treinoClicarStep('${s.id}')"><div style="display:flex;align-items:center;gap:0"><div class="treino-slot" id="slot_${s.id}">?</div><div class="treino-step-body"><div class="treino-step-title">${esc(window.limparTagsTexto(s.titulo))}</div>${s.descricao?`<div class="treino-step-desc">${esc(window.limparTagsTexto(s.descricao)).slice(0,70)}…</div>`:''}</div>${thumb}</div></div>`;
+  
+  const stepsHtml=pendentes.map(s=>{
+    const thumb=s.fotos?.length?`<div class="treino-step-thumb"><img src="${s.fotos[0]}" alt="" loading="lazy"></div>`:'';
+    
+    // 🧠 APLICA A NOVA MÁSCARA (Com limite de 70 caracteres na descrição para não quebrar a tela)
+    const tituloVisivel = window.renderizarTextoOculto(s.titulo);
+    const descVisivel = window.renderizarTextoOculto(s.descricao, 70);
+    
+    // Injetamos o "onclick" para ler o texto direto do "data-raw", mesmo estando oculto visualmente!
+    return`<div class="treino-step" id="ts_${s.id}" onclick="A.treinoClicarStep('${s.id}')"><div style="display:flex;align-items:center;gap:0"><div class="treino-slot" id="slot_${s.id}">?</div><div class="treino-step-body"><div class="treino-step-title" data-raw="${esc(s.titulo)}" onclick="if(window.lerTextoDireto){ event.stopPropagation(); window.lerTextoDireto(this.getAttribute('data-raw')); }">${tituloVisivel}</div>${s.descricao?`<div class="treino-step-desc" data-raw="${esc(s.descricao)}" onclick="if(window.lerTextoDireto){ event.stopPropagation(); window.lerTextoDireto(this.getAttribute('data-raw')); }">${descVisivel}</div>`:''}</div>${thumb}</div></div>`;
   }).join('');
-  const respostasHtml=tr.respostas.slice().reverse().slice(0,3).map(r=>`<div style="display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--steel2);border-radius:var(--r);border:1px solid ${r.correto?'rgba(46,204,113,.2)':'rgba(192,57,43,.2)'}"><span style="color:${r.correto?'var(--green2)':'#e74c3c'};font-family:var(--font-head);font-size:15px">${r.correto?'✓':'✗'}</span><span style="font-family:var(--font-head);font-size:13px;color:${r.correto?'var(--green2)':'#e74c3c'}">#${r.ordemDada}</span><span style="font-size:12px;font-weight:600;color:var(--chrome);flex:1">${esc(window.limparTagsTexto(r.titulo))}</span></div>`).join('');
+  
+  const respostasHtml=tr.respostas.slice().reverse().slice(0,3).map(r=>`<div style="display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--steel2);border-radius:var(--r);border:1px solid ${r.correto?'rgba(46,204,113,.2)':'rgba(192,57,43,.2)'}"><span style="color:${r.correto?'var(--green2)':'#e74c3c'};font-family:var(--font-head);font-size:15px">${r.correto?'✓':'✗'}</span><span style="font-family:var(--font-head);font-size:13px;color:${r.correto?'var(--green2)':'#e74c3c'}">#${r.ordemDada}</span><span style="font-size:12px;font-weight:600;color:var(--chrome);flex:1">${window.renderizarTextoOculto(r.titulo)}</span></div>`).join('');
+  
   let feedbackHtml='';const ultimaResp=tr.respostas[tr.respostas.length-1];
-  if(ultimaResp&&!ultimaResp.correto){const faltavam=ultimaResp.faltavam||[];feedbackHtml=`<div class="treino-feedback"><div class="treino-feedback-title tf-red">⛔ ORDEM INCORRETA!</div><div style="font-size:12px;color:var(--chrome);line-height:1.5">Tentou colocar <strong style="color:white">"${esc(window.limparTagsTexto(ultimaResp.titulo))}"</strong> como #${ultimaResp.ordemDada}, mas é <strong style="color:var(--yellow)">#${ultimaResp.ordemCorreta}</strong>.</div>${faltavam.length?`<div class="seq-missing-list">${faltavam.map(f=>`<div class="seq-missing-item"><div class="seq-missing-num">${f.ordem}</div><div class="seq-missing-name">${esc(window.limparTagsTexto(f.titulo))}</div></div>`).join('')}</div>`:''}
-    <button class="btn ghost sm" style="border-color:rgba(168,85,247,.3);color:#a855f7" onclick="A.treinoDesfazer()">↩ DESFAZER</button></div>`;}
-  else if(ultimaResp&&ultimaResp.correto&&nResp<total){feedbackHtml=`<div class="treino-feedback ok"><div class="treino-feedback-title tf-green">✓ CORRETO! Continue…</div></div>`;}
+  if(ultimaResp&&!ultimaResp.correto){
+    const faltavam=ultimaResp.faltavam||[];
+    feedbackHtml=`<div class="treino-feedback"><div class="treino-feedback-title tf-red">⛔ ORDEM INCORRETA!</div><div style="font-size:12px;color:var(--chrome);line-height:1.5">Tentou colocar <strong style="color:white">"${window.renderizarTextoOculto(ultimaResp.titulo)}"</strong> como #${ultimaResp.ordemDada}, mas é <strong style="color:var(--yellow)">#${ultimaResp.ordemCorreta}</strong>.</div>${faltavam.length?`<div class="seq-missing-list">${faltavam.map(f=>`<div class="seq-missing-item"><div class="seq-missing-num">${f.ordem}</div><div class="seq-missing-name">${window.renderizarTextoOculto(f.titulo)}</div></div>`).join('')}</div>`:''}
+    <button class="btn ghost sm" style="border-color:rgba(168,85,247,.3);color:#a855f7" onclick="A.treinoDesfazer()">↩ DESFAZER</button></div>`;
+  }
+  else if(ultimaResp&&ultimaResp.correto&&nResp<total){
+    feedbackHtml=`<div class="treino-feedback ok"><div class="treino-feedback-title tf-green">✓ CORRETO! Continue…</div></div>`;
+  }
+  
   return`<div class="treino-card"><div class="card-head"><div class="card-title" style="color:#a855f7">🎓 ${esc(window.limparTagsTexto(proc.nome))}</div><div style="display:flex;align-items:center;gap:6px"><span class="treino-score-badge tsb-green">✓ ${tr.acertos}</span><span class="treino-score-badge tsb-red">✗ ${tr.erros}</span></div></div><div style="padding:8px 14px 5px"><div class="treino-progress"><div class="treino-progress-fill" style="width:${pct}%"></div></div><div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-family:var(--font-mono);font-size:9px;color:var(--chrome)">POSICIONADOS: ${nResp}/${total}</span><span style="font-family:var(--font-mono);font-size:9px;color:#a855f7">${pct}%</span></div></div></div>
   ${feedbackHtml}
   <div class="card"><div class="card-head"><div class="card-title">🔀 TOQUE NA ORDEM CORRETA</div></div><div style="padding:7px 13px 13px;display:flex;flex-direction:column;gap:7px"><div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;letter-spacing:1px">Posição a preencher: <span style="color:var(--yellow)">#${nResp+1}</span></div>${stepsHtml}</div></div>
   ${respostasHtml?`<div style="display:flex;flex-direction:column;gap:5px">${respostasHtml}</div>`:''}
   <button class="btn ghost sm" style="border-color:rgba(192,57,43,.3);color:#e74c3c" onclick="A.abandonarTreino()">✕ Sair do Treino</button>`;
 }
+
 function buildTreinoResultado(){
   const tr=S.treino;const proc=S.procedimentos.find(p=>p.id===tr.procId);const total=tr.steps.length;
   
@@ -1039,10 +1057,10 @@ function buildFluxoExec(){
     <div class="fluxo-node-card">
       <div class="fluxo-node-head"><div class="fluxo-q-badge"> </div><div class="fluxo-question" style="cursor:pointer;" data-raw="${esc(noAtual.pergunta || noAtual.titulo || '')}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.pergunta || noAtual.titulo || ''))}</div></div>
       <div style="padding: 0 16px;">${audioExecHtml} ${fotosExecHtml}</div>
-      ${noAtual.descricao?`<div class="fluxo-desc" style="padding-top:0;cursor:pointer;" data-raw="${esc(noAtual.descricao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.descricao))}</div>`:''}
+      ${noAtual.descricao?`<div class="fluxo-desc" style="padding-top:10;cursor:pointer;" data-raw="${esc(noAtual.descricao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.descricao))}</div>`:''}
       ${noAtual.codigo?`<div style="padding:0 16px"><pre class="code-block"><code style="cursor:pointer;" data-raw="${esc(noAtual.codigo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.codigo))}</code></pre></div>`:''}
       ${btnProcHtml ? `<div style="padding: 0 16px;">${btnProcHtml}</div>` : ''}
-      <div class="fluxo-opts">${opcoesHtml||'<div style="color:var(--chrome);font-size:13px">Sem opções</div>'}</div>
+      <div class="fluxo-opts">${opcoesHtml||'<div style="color:var(--chrome);font-size:13px"></div>'}</div>
     </div>`;
   }
 
@@ -1092,7 +1110,7 @@ function buildFluxoExec(){
   ${conteudoPrincipal}
   
   <!-- 🎛️ ESTAÇÃO DE COMANDO GLOBAL INFERIOR -->
-  <div style="display:flex; justify-content:flex-start; align-items:center; margin-top:16px; margin-bottom:8px; gap:8px; flex-wrap:wrap;">
+  <div style="display:flex; justify-content:center; align-items:center; margin-top:16px; margin-bottom:8px; gap:8px; flex-wrap:wrap;">
     <button onclick="window.toggleLeituraAuto()" style="background:${bgAuto}; border:1px solid ${autoAtivo?'var(--green2)':'rgba(255,255,255,0.1)'}; border-radius:12px; padding:8px 12px; color:${corAuto}; cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:6px;">
       ${autoAtivo ? '🤖 AUTO: ON' : '🤖 AUTO: OFF'}
     </button>
@@ -3957,6 +3975,25 @@ document.addEventListener("visibilitychange", () => {
     }
   }
 });
+/* ═════════════════════════════════════════════════════════════════
+   🙈 MÁSCARA DE TEXTO OCULTO (MODO ESTUDO / FLASHCARD)
+   ═════════════════════════════════════════════════════════════════ */
+window.renderizarTextoOculto = (texto, limite = 0) => {
+  if (!texto) return '';
+  
+  // Se o texto tiver a tag ~oc, intercepta e devolve uma tarja visual elegante
+  if (texto.includes('~oc')) {
+    return '<span style="color:var(--chrome); background:rgba(0,0,0,0.3); padding:2px 8px; border-radius:4px; font-style:italic; font-size:0.9em; border:1px dashed rgba(255,255,255,0.1);">🤫 [ CONTEÚDO OCULTO ]</span>';
+  }
+  
+  // Se não for oculto, limpa as tags normais (~en, ~pt) e aplica o limite de caracteres se houver
+  let textoLimpo = esc(window.limparTagsTexto(texto));
+  if (limite > 0 && textoLimpo.length > limite) {
+    return textoLimpo.slice(0, limite) + '…';
+  }
+  
+  return textoLimpo;
+};
 /* ══ INIT ══ */
 (async()=>{
   try{
