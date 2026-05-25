@@ -3700,15 +3700,9 @@ window.detectarIdiomaDoTexto = (texto) => {
   if (t.includes('~es')) return 'es-ES';
   if (t.includes('~pt')) return 'pt-BR';
 
-  // 2. Dicionários de Palavras EXCLUSIVAS (Marcadores Fortes)
-  // Palavras que definem o inglês
-  const padraoIngles = /\b(the|is|are|you|with|and|have|good|morning|afternoon|please|hello|thanks|thank|what|where|how|why|who|bread|loaf|tomorrow|my|your|this|that|it)\b/g;
-
-  // Palavras exclusivas do espanhol (NÃO existem no PT com a mesma grafia)
-  // Ex: 'un' (PT é um), 'una' (PT é uma), 'y' (PT é e), 'en' (PT é em), 'con' (PT é com)
-  const padraoEspanhol = /\b(el|los|las|un|una|y|en|con|hola|gracias|adios|buenos|buenas|pero|muy|donde|cuando|quien|usted|ustedes|ellos|pan|lo|al)\b/g;
-
-  // Palavras fortes do português para equilibrar o jogo e pontuar
+  // 2. Dicionários de Palavras (Expandidos com vocabulário base)
+  const padraoIngles = /\b(the|is|are|do|does|yes|no|not|you|i|am|we|they|sell|milk|can|with|and|have|good|morning|afternoon|please|hello|thanks|thank|what|where|how|why|who|bread|loaf|tomorrow|my|your|this|that|it)\b/g;
+  const padraoEspanhol = /\b(el|los|las|un|una|y|en|con|hola|gracias|adios|buenos|buenas|pero|muy|donde|cuando|quien|usted|ustedes|ellos|pan|lo|al|si)\b/g;
   const padraoPortugues = /\b(o|a|os|as|um|uma|e|em|com|bom|dia|tarde|noite|obrigado|obrigada|você|do|da|dos|das|no|na|nos|nas|não|sim|pão|eu|meu|minha|aqui|para)\b/g;
 
   // 3. Contagem de Pontos
@@ -3716,17 +3710,22 @@ window.detectarIdiomaDoTexto = (texto) => {
   const ptsEspanhol = (t.match(padraoEspanhol) || []).length;
   const ptsPortugues = (t.match(padraoPortugues) || []).length;
 
-  // Se não encontrou palavras exclusivas de inglês ou espanhol, o padrão é Português
-  if (ptsIngles === 0 && ptsEspanhol === 0) return 'pt-BR';
+  // Se não encontrou nenhuma palavra, o padrão é Português
+  if (ptsIngles === 0 && ptsEspanhol === 0 && ptsPortugues === 0) return 'pt-BR';
 
-  // 4. Verificação de Vencedor
+  // 4. Regra de Desempate (O Segredo para evitar a confusão com a palavra "do" ou "no")
+  if (ptsIngles === ptsPortugues && ptsIngles > 0) {
+    // Se empatou, a probabilidade de ser uma frase em inglês usando palavras curtas ambíguas é altíssima.
+    return 'en-US'; 
+  }
+
+  // 5. Verificação de Vencedor
   if (ptsIngles > ptsEspanhol && ptsIngles > ptsPortugues) return 'en-US';
   if (ptsEspanhol > ptsIngles && ptsEspanhol > ptsPortugues) return 'es-ES';
 
-  // Se houver empate, ou o Português vencer na pontuação contra o espanhol/inglês
+  // Retorno de segurança
   return 'pt-BR';
 };
-
 // 3. 🔊 LEITOR DE VOZ DINÂMICO: Obedece cada comando por linha, altera o sotaque e ignora os marcadores
 window.falarTextoGuiaPro = (camposArray) => {
   window.speechSynthesis.cancel(); // Para qualquer leitura anterior
@@ -4257,7 +4256,7 @@ window.renderizarTextoOculto = (texto, limite = 0) => {
   
   // Se o texto tiver a tag ~oc, intercepta e devolve uma tarja visual elegante
   if (texto.includes('~oc')) {
-    return '<span style="color:var(--chrome); background:rgba(0,0,0,0.3); padding:2px 8px; border-radius:4px; font-style:italic; font-size:0.9em; border:1px dashed rgba(255,255,255,0.1);">🤫 [ CONTEÚDO OCULTO ]</span>';
+    return '<span style="color:var(--chrome); background:rgba(0,0,0,0.3); padding:2px 8px; border-radius:4px; font-size:0.9em; border:1px dashed rgba(255,255,255,0.1);">🤫 [ CONTEÚDO OCULTO ]</span>';
   }
   
   // Se não for oculto, limpa as tags normais (~en, ~pt) e aplica o limite de caracteres se houver
