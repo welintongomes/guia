@@ -742,11 +742,33 @@ function buildStepCard(step,procId,idx){
 }
 
 /* ══ ABA EXECUTAR ══ */
-window.envolverPalavras = (texto) => {
-  if(!texto) return '';
-  // Envolve cada palavra isolada em um SPAN mágico, sem quebrar pontuação
-  return texto.replace(/\b([a-zA-ZáéíóúãõçÁÉÍÓÚÃÕÇ0-9]+)\b/g, (match) => {
-     return `<span style="cursor:pointer; display:inline-block; border-bottom:1px dashed rgba(34,211,238,0.3); border-radius:3px; transition:background 0.2s;" onmouseover="this.style.background='rgba(34,211,238,0.15)'" onmouseout="this.style.background='transparent'" onclick="event.stopPropagation(); window.lerTextoDireto('${esc(match)}')">${esc(match)}</span>`;
+
+window.envolverPalavras = (textoLimpo, textoRawOriginal) => {
+  if(!textoLimpo) return '';
+  
+  // Procura se o texto original possuía alguma tag de idioma (ex: ~en, ~es, ~pt)
+  let tagIdioma = '';
+  if (textoRawOriginal) {
+    const matchTag = textoRawOriginal.match(/(~[a-zA-Z]{2})/);
+    if (matchTag) tagIdioma = matchTag[1] + ' '; 
+  }
+
+  // Escapa o texto visual para proteger contra HTML injetado
+  let textoSeguro = esc(textoLimpo);
+  
+  // MÁGICA AQUI: Captura entidades HTML (para ignorar) OU palavras completas com qualquer acentuação
+  const regexPalavras = /(&[a-zA-Z0-9#]+;)|([a-zA-ZáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ0-9]+)/g;
+  
+  return textoSeguro.replace(regexPalavras, (match, entidadeHtml, palavra) => {
+     // Se for uma entidade HTML (como &quot; ou &lt;), devolve sem fatiar para não quebrar a tela
+     if (entidadeHtml) return entidadeHtml;
+     
+     // Se for a palavra, envolve ela inteirinha (com todos os acentos juntos!)
+     if (palavra) {
+       return `<span style="cursor:pointer; display:inline-block; border-bottom:1px dashed rgba(34,211,238,0.3); border-radius:3px; transition:background 0.2s;" onmouseover="this.style.background='rgba(34,211,238,0.15)'" onmouseout="this.style.background='transparent'" onclick="event.stopPropagation(); window.lerTextoDireto('${tagIdioma}${palavra}')">${palavra}</span>`;
+     }
+     
+     return match;
   });
 };
 
@@ -770,11 +792,24 @@ function buildSM2Card() {
   const dotRow = sm2.fila.map((s, i) => `${i > 0 ? `<div class="exec-line${i <= ndone ? ' done' : ''}"></div>` : ''}
     <div class="exec-dot${i < ndone ? ' done' : i === ndone ? ' active' : ''}">${i + 1}</div>`).join('');
 
-  let conteudo = '';
-  // Textos com palavras mágicas para o dicionário falado
-  const tituloHtml = window.envolverPalavras(step.titulo);
-  const descHtml = window.envolverPalavras(step.descricao);
+  // Processador que respeita ~oc e limpa ~en, ~pt antes de picotar as palavras
+  const processarSM2 = (textoRaw) => {
+    if (!textoRaw) return '';
+    
+    // 1. Oculta tudo se tiver ~oc (Tarja de conteúdo oculto padrão)
+    if (textoRaw.includes('~oc')) return window.renderizarTextoOculto(textoRaw);
+    
+    // 2. Tira as tags de idioma (~en, ~es) da visualização da tela
+    const textoLimpo = window.limparTagsTexto(textoRaw);
+    
+    // 3. Fatia em spans clicáveis, passando o textoRaw para manter o sotaque no áudio
+    return window.envolverPalavras(textoLimpo, textoRaw);
+  };
 
+  const tituloHtml = processarSM2(step.titulo);
+  const descHtml = processarSM2(step.descricao);
+
+  let conteudo = '';
   if (!sm2.mostrandoResposta) {
     conteudo = `
     <div class="exec-step-card" style="border-color:var(--cyan2);">
@@ -815,7 +850,6 @@ function buildSM2Card() {
     </div>`;
   }
 
-  // Estação de Controle Global Injetada
   const autoAtivo = window._leituraAutomatica;
   const corAuto = autoAtivo ? 'var(--green2)' : 'var(--chrome)';
   const bgAuto = autoAtivo ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.05)';
@@ -824,7 +858,7 @@ function buildSM2Card() {
   return `
   <div class="card" style="border-color:rgba(34,211,238,0.2);">
     <div class="card-head" style="display:flex; justify-content:space-between; align-items:center;">
-      <div class="card-title" style="color:var(--cyan2)">🧠 DIÁLOGOS EM INGLÊS</div>
+      <div class="card-title" style="color:var(--cyan2)">🧠 ${esc(proc.nome.toUpperCase())}</div>
       <span style="font-family:var(--font-mono);font-size:10px;color:var(--chrome)">${ndone}/${total}</span>
     </div>
     <div style="padding:8px 14px 5px">
@@ -857,6 +891,7 @@ function buildSM2Card() {
     </div>
   </div>`;
 }
+
 function buildSelecionarExec(){
   return`<div class="card"><div class="card-head"><div class="card-title">▶ SELECIONAR PROCEDIMENTO</div></div><div class="card-body"><div class="info-box">Escolha um procedimento para execução guiada.</div></div></div>
   <div style="display:flex;flex-direction:column;gap:8px">
