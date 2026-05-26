@@ -382,6 +382,13 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
     70% { box-shadow: 0 0 0 6px rgba(231, 76, 60, 0); }
     100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
 }
+@media (min-width: 1024px){
+
+  .modal.cyan-top{
+    max-width:90vw;
+  }
+
+}
 </style>
 </head>
 <body>
@@ -450,13 +457,16 @@ const S={
   historico:[],
   bibPagina:0,
   bibBusca:'',
-  procBusca:'',  // <-- ADICIONE ESTA LINHA
-  fluxoBusca:'', // <-- ADICIONE ESTA LINHA
+  procBusca:'',
+  fluxoBusca:'',
   execAtiva:null,
   viewProcId:null,
   viewFluxoId:null,
-  fluxoExec:null, // {fluxoId, historico:[{noId,pergunta,resposta,opcaoIdx}], noAtual}
+  fluxoExec:null,
   treino:{procId:null,steps:[],respostas:[],stepAtual:0,feedbacks:[],finalizado:false,acertos:0,erros:0},
+  
+  // INJETE ESTA LINHA:
+  sm2: { ativo: false, procId: null, fila: [], atual: 0, mostrandoResposta: false }
 };
 const BIB_POR_PAGINA=20;
 
@@ -473,33 +483,32 @@ function comprimirImagem(file,maxW=800,q=.72){
 async function salvarNaBiblioteca(item){
   if(!item.titulo) return null;
   
-  // NOVA REGRA: Evita poluir a biblioteca se for só um título vazio
+  // 🛑 TRAVA DE AÇO: Se tem a etiqueta, aborta IMEDIATAMENTE e retorna null.
+  // Não importa se você mudou vírgula, interrogação ou o texto todo.
+  if(item.importadoDaBib === true) return null;
+  
   const temConteudo = (item.descricao && item.descricao.trim() !== '') || 
                       (item.codigo && item.codigo.trim() !== '') || 
                       (item.fotos && item.fotos.length > 0) || 
                       (item.audio) || 
                       (item.alerta && item.alerta.trim() !== '');
                       
-  if(!temConteudo) return null; // Aborta e não salva na biblioteca se for só um título
+  if(!temConteudo) return null; 
 
   const tituloBusca = item.titulo.trim().toLowerCase();
   const existente = S.biblioteca.find(b => (b.titulo || '').trim().toLowerCase() === tituloBusca);
   
   if(existente){
-    existente.descricao = item.descricao || existente.descricao;
-    existente.codigo = item.codigo || existente.codigo; // Garante que o código também atualize
-    existente.categoria = item.categoria || existente.categoria;
-    if(item.fotos && item.fotos.length > 0) existente.fotos = item.fotos;
-    if(item.audio) existente.audio = item.audio; 
-    existente.alerta = item.alerta || existente.alerta;
-    
-    await DB.put('biblioteca', existente);
-    return existente.id;
+    return existente.id; // Vincula, mas NÃO sobrescreve a biblioteca
   }
   
-  const id = await DB.put('biblioteca', {...item, criadoEm: Date.now()});
-  const novo = {...item, id, criadoEm: Date.now()};
-  S.biblioteca.push(novo);
+  // ✅ SE CHEGOU AQUI: O item é genuinamente NOVO.
+  const novoItem = {...item};
+  delete novoItem.importadoDaBib; // Remove a flag só por garantia antes de salvar no banco
+  const id = await DB.put('biblioteca', {...novoItem, criadoEm: Date.now()});
+  novoItem.id = id;
+  novoItem.criadoEm = Date.now();
+  S.biblioteca.push(novoItem);
   return id;
 }
 
@@ -669,7 +678,7 @@ function buildVerProcedimento(proc){
   // 👇 Se nada estiver aberto, e houver passos, deixa o primeiro aberto pra você não se sentir perdido.
   if (window._stepAbertoId === null && steps.length > 0) window._stepAbertoId = steps[0].id;
   const stepsHtml=steps.length===0?`<div style="text-align:center;padding:16px;color:var(--chrome);font-family:var(--font-mono);font-size:11px;text-transform:uppercase">Nenhum passo ainda</div>`:steps.map((s,i)=>buildStepCard(s,proc.id,i)).join('');
-  return`<div class="card"><div class="card-head"><div class="card-title">📋 ${esc(proc.nome)}</div><div style="display:flex;gap:5px"><button class="btn ghost sm" style="padding:5px 9px;font-size:11px" onclick="A.editarProc(${proc.id})">✏ EDITAR</button><button class="btn steel sm" style="padding:5px 9px;font-size:11px" onclick="A.fecharProc()">✕</button></div></div><div class="card-body">${proc.descricao?`<div style="font-size:13px;color:var(--chrome);line-height:1.7">${esc(proc.descricao)}</div>`:''}<div style="display:flex;gap:5px;flex-wrap:wrap">${proc.categoria?`<span class="proc-badge pb-gray">📁 ${esc(proc.categoria)}</span>`:''}${proc.veiculoModelo?`<span class="proc-badge pb-green">🚗 ${esc(proc.veiculoModelo)}</span>`:''}<span class="proc-badge pb-yellow">⚙ ${steps.length} passos</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn yellow sm" onclick="A.iniciarExec(${proc.id})" style="flex:2">▶ EXECUTAR</button><button class="btn purple sm" onclick="A.iniciarTreino(${proc.id})">🎓 TREINAR</button></div></div></div>
+  return`<div class="card"><div class="card-head"><div class="card-title">📋 ${esc(proc.nome)}</div><div style="display:flex;gap:5px"><button class="btn ghost sm" style="padding:5px 9px;font-size:11px" onclick="A.editarProc(${proc.id})">✏ EDITAR</button><button class="btn steel sm" style="padding:5px 9px;font-size:11px" onclick="A.fecharProc()">✕</button></div></div><div class="card-body">${proc.descricao?`<div style="font-size:13px;color:var(--chrome);line-height:1.7">${esc(proc.descricao)}</div>`:''}<div style="display:flex;gap:5px;flex-wrap:wrap">${proc.categoria?`<span class="proc-badge pb-gray">📁 ${esc(proc.categoria)}</span>`:''}${proc.veiculoModelo?`<span class="proc-badge pb-green">🚗 ${esc(proc.veiculoModelo)}</span>`:''}<span class="proc-badge pb-yellow">⚙ ${steps.length} passos</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn yellow sm" onclick="A.iniciarExec(${proc.id})" style="flex:2">▶ EXECUTAR</button><button class="btn purple sm" onclick="A.iniciarTreino(${proc.id})" style="flex:1">🎓 TREINAR</button><button class="btn cyan sm" onclick="A.iniciarSM2Proc(${proc.id})" style="flex:1">🧠 SM-2</button></div></div></div>
   <div class="card"><div class="card-head"><div class="card-title">⚙ PASSOS</div><button class="btn yellow sm" style="width:auto;margin: 3px 34px 3px 34px;padding:5px 11px;font-size:11px" onclick="A.novoStep(${proc.id})">＋ PASSO</button></div></div>
   <div style="display:flex;flex-direction:column;gap:8px" id="stepsContainer">${stepsHtml}</div>
   ${steps.length>0?`<div class="info-box">⚠ A ORDEM DOS PASSOS É OBRIGATÓRIA NA EXECUÇÃO E TREINO. PASSOS TAMBÉM SÃO SALVOS NA BIBLIOTECA.</div>`:''}`;
@@ -733,10 +742,120 @@ function buildStepCard(step,procId,idx){
 }
 
 /* ══ ABA EXECUTAR ══ */
+window.envolverPalavras = (texto) => {
+  if(!texto) return '';
+  // Envolve cada palavra isolada em um SPAN mágico, sem quebrar pontuação
+  return texto.replace(/\b([a-zA-ZáéíóúãõçÁÉÍÓÚÃÕÇ0-9]+)\b/g, (match) => {
+     return `<span style="cursor:pointer; display:inline-block; border-bottom:1px dashed rgba(34,211,238,0.3); border-radius:3px; transition:background 0.2s;" onmouseover="this.style.background='rgba(34,211,238,0.15)'" onmouseout="this.style.background='transparent'" onclick="event.stopPropagation(); window.lerTextoDireto('${esc(match)}')">${esc(match)}</span>`;
+  });
+};
+
 function buildExecutar(){
+  if(S.sm2 && S.sm2.ativo) return buildSM2Card(); 
+  
   if(!S.procedimentos.length)return`<div class="empty"><div class="empty-icon">▶</div><div class="empty-title">NADA PARA EXECUTAR</div><div class="empty-desc">Crie um procedimento primeiro.</div></div>`;
   if(!S.execAtiva)return buildSelecionarExec();
   return buildExecAtiva();
+}
+
+function buildSM2Card() {
+  const sm2 = S.sm2;
+  const proc = S.procedimentos.find(p => p.id === sm2.procId);
+  const item = sm2.fila[sm2.atual];
+  const step = item.step;
+  const total = sm2.fila.length;
+  const ndone = sm2.atual;
+
+  // Barra de Progresso Clássica
+  const dotRow = sm2.fila.map((s, i) => `${i > 0 ? `<div class="exec-line${i <= ndone ? ' done' : ''}"></div>` : ''}
+    <div class="exec-dot${i < ndone ? ' done' : i === ndone ? ' active' : ''}">${i + 1}</div>`).join('');
+
+  let conteudo = '';
+  // Textos com palavras mágicas para o dicionário falado
+  const tituloHtml = window.envolverPalavras(step.titulo);
+  const descHtml = window.envolverPalavras(step.descricao);
+
+  if (!sm2.mostrandoResposta) {
+    conteudo = `
+    <div class="exec-step-card" style="border-color:var(--cyan2);">
+      <div class="exec-step-head">
+        <div class="exec-num-badge" style="background:var(--cyan2); color:#000;">${step.ordem}</div>
+        <div>
+          <div class="exec-step-title step-title" style="font-size:18px;">${tituloHtml}</div>
+          <div style="font-family:var(--font-mono);font-size:9px;color:rgba(34,211,238,.6);text-transform:uppercase;letter-spacing:1px;margin-top:1px">🧠 FRENTE (PERGUNTA)</div>
+        </div>
+      </div>
+      <div class="exec-foot">
+        <button class="btn cyan" style="width:100%; padding:14px; font-size:14px; font-weight:bold;" onclick="A.sm2MostrarResposta()">👁 REVELAR VERSO (DESCRIÇÃO)</button>
+      </div>
+    </div>`;
+  } else {
+    conteudo = `
+    <div class="exec-step-card" style="border-color:rgba(46,204,113,0.6);">
+      <div class="exec-step-head">
+        <div class="exec-num-badge">${step.ordem}</div>
+        <div>
+          <div class="exec-step-title step-title" style="font-size:16px;">${tituloHtml}</div>
+          <div style="font-family:var(--font-mono);font-size:9px;color:rgba(46,204,113,.6);text-transform:uppercase;letter-spacing:1px;margin-top:1px">✅ VERSO REVELADO</div>
+        </div>
+      </div>
+      <div class="exec-step-body" style="background:rgba(0,0,0,0.25); padding:16px; border-radius:var(--r); margin: 0 16px 16px;">
+        <div style="font-size:18px; color:var(--cyan2); line-height:1.6; font-weight:500;">${descHtml}</div>
+      </div>
+      
+      <div style="padding: 0 16px 16px;">
+        <div style="font-family:var(--font-mono); font-size:10px; text-align:center; color:var(--chrome); text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">Avalie sua retenção:</div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" style="flex:1; background:rgba(231,76,60,0.1); color:#e74c3c; border:1px solid rgba(231,76,60,0.3); font-size:11px; padding:12px 0;" onclick="A.sm2Responder(0)">Errei</button>
+          <button class="btn" style="flex:1; background:rgba(245,200,0,0.1); color:var(--yellow); border:1px solid rgba(245,200,0,0.3); font-size:11px; padding:12px 0;" onclick="A.sm2Responder(3)">Difícil</button>
+          <button class="btn" style="flex:1; background:rgba(52,152,219,0.1); color:#3498db; border:1px solid rgba(52,152,219,0.3); font-size:11px; padding:12px 0;" onclick="A.sm2Responder(4)">Bom</button>
+          <button class="btn" style="flex:1; background:rgba(46,204,113,0.1); color:var(--green2); border:1px solid rgba(46,204,113,0.3); font-size:11px; padding:12px 0;" onclick="A.sm2Responder(5)">Fácil</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Estação de Controle Global Injetada
+  const autoAtivo = window._leituraAutomatica;
+  const corAuto = autoAtivo ? 'var(--green2)' : 'var(--chrome)';
+  const bgAuto = autoAtivo ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.05)';
+  const piscarMic = window._reconhecedorAtivo ? ' ativo' : '';
+
+  return `
+  <div class="card" style="border-color:rgba(34,211,238,0.2);">
+    <div class="card-head" style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="card-title" style="color:var(--cyan2)">🧠 DIÁLOGOS EM INGLÊS</div>
+      <span style="font-family:var(--font-mono);font-size:10px;color:var(--chrome)">${ndone}/${total}</span>
+    </div>
+    <div style="padding:8px 14px 5px">
+      <div class="exec-progress">${dotRow}</div>
+      <div style="display:flex;justify-content:space-between;padding:0 2px;margin-top:3px">
+        <span style="font-family:var(--font-mono);font-size:9px;color:var(--chrome)">PROGRESSO</span>
+        <span style="font-family:var(--font-mono);font-size:9px;color:var(--cyan2)">${total > 0 ? Math.round((ndone/total)*100) : 0}%</span>
+      </div>
+    </div>
+  </div>
+  
+  <div style="display:flex;flex-direction:column;gap:8px;padding-bottom:20px">
+    ${conteudo}
+    <div style="display:flex; justify-content:center; align-items:center; margin-top:12px; margin-bottom:12px; gap:8px; flex-wrap:nowrap;">
+      <button onclick="window.toggleLeituraAuto()" style="background:${bgAuto}; border:1px solid ${autoAtivo?'var(--green2)':'rgba(255,255,255,0.1)'}; border-radius:12px; padding:8px 12px; color:${corAuto}; cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:6px;">
+        ${autoAtivo ? '🤖 AUTO: ON' : '🤖 AUTO: OFF'}
+      </button>
+      <button onclick="window.acionarLeituraTela()" style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); border-radius:12px; padding:8px 12px; color:var(--cyan2); cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:6px;">
+        🔊 LER ⏸
+      </button>
+      <button onclick="window.pararLeituraTela()" style="background:rgba(231,76,60,0.1); border:1px solid #e74c3c; border-radius:6px; padding:8px 12px; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold;">
+        ⏹
+      </button>
+      <button id="btnVozGlobal" class="${piscarMic}" onclick="window.ativarComandosVozOperacionais()" style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); color:var(--cyan2); border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px;">
+        🎙️
+      </button>
+    </div>
+    <div style="display:flex; justify-content:center; padding-bottom:10px;">
+      <button class="btn ghost sm" style="width:auto; padding:8px 16px; border-color:rgba(231,76,60,.3); color:#e74c3c;" onclick="A.sm2Sair()">✕ Sair do SM-2</button>
+    </div>
+  </div>`;
 }
 function buildSelecionarExec(){
   return`<div class="card"><div class="card-head"><div class="card-title">▶ SELECIONAR PROCEDIMENTO</div></div><div class="card-body"><div class="info-box">Escolha um procedimento para execução guiada.</div></div></div>
@@ -898,29 +1017,6 @@ let conteudo='';
   </div>`;
 }
 
-// window.voltarPassoProcedimento = (stepId) => {
-//   if (!S.execAtiva) return;
-//   const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
-//   if (!proc) return;
-
-//   const steps = (proc.steps || []).slice().sort((a, b) => a.ordem - b.ordem);
-//   const targetStep = steps.find(s => s.id === stepId);
-//   if (!targetStep) return;
-
-//   // Filtra o array de concluídos: mantém APENAS os passos que vêm ANTES do passo clicado.
-//   // Isso efetivamente "rebobina" a execução até a bolinha que você clicou.
-//   S.execAtiva.stepsDone = (S.execAtiva.stepsDone || []).filter(doneId => {
-//     const s = steps.find(x => x.id === doneId);
-//     return s && s.ordem < targetStep.ordem;
-//   });
-
-//   // Atualiza o ponteiro atual e reseta o marcador de tempo do Analytics (se você instalou aquela melhoria de métricas)
-//   S.execAtiva.stepAtual = stepId;
-//   if(S.execAtiva.ultimoTimestamp) S.execAtiva.ultimoTimestamp = Date.now();
-
-//   render(); // Atualiza a tela imediatamente
-// };
-// SOLTA NO ARQUIVO, ANTES DA ABA TREINO
 window.irParaPassoProcedimento = (stepId) => {
   if (!S.execAtiva) return;
   
@@ -1190,7 +1286,7 @@ function buildFluxoExec(){
       ${autoAtivo ? '🤖 AUTO: ON' : '🤖 AUTO: OFF'}
     </button>
     <button onclick="window.acionarLeituraTela()" style="background:rgba(34,211,238,0.1); border:1px solid var(--cyan2); border-radius:6px; padding:8px 12px; color:var(--cyan2); cursor:pointer; font-size:12px; font-weight:bold; display:flex; align-items:center; gap:6px;">
-      🔊 LER / ⏸
+      🔊 LER ⏸
     </button>
     <button onclick="window.pararLeituraTela()" style="background:rgba(231,76,60,0.1); border:1px solid #e74c3c; border-radius:6px; padding:8px 12px; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold;" title="Parar Leitura">
       ⏹
@@ -1464,7 +1560,95 @@ function buildHistorico() {
 }
 /* ══ AÇÕES ══ */
 const A={
-  // Cole estes três métodos logo abaixo de "const A={"
+  // ── MOTOR SM-2 INTELIGENTE ──
+  iniciarSM2Proc(procId) {
+    const proc = S.procedimentos.find(p => p.id === procId);
+    if(!proc || !proc.steps || !proc.steps.length) {
+        toast('⚠ Procedimento sem passos para revisar!', 'error');
+        return;
+    }
+
+    const hoje = Date.now();
+    let fila = [];
+
+    // Vasculha as métricas do cérebro de cada passo
+    proc.steps.forEach(step => {
+        if (!step.sm2) step.sm2 = { rep: 0, int: 0, ef: 2.5, next: 0 };
+        
+        // Entra no "Deck de Hoje" apenas se já passou a data de revisão (ou é novo)
+        if (step.sm2.next <= hoje) fila.push({ step });
+    });
+
+    if (fila.length === 0) {
+        toast('🎉 Tudo em dia! Você já estudou todas as palavras para hoje.', 'ok');
+        return;
+    }
+
+    // Embaralhamento Caótico (Interleaving) para dificultar a decoreba
+    fila.sort(() => Math.random() - 0.5);
+
+    S.sm2 = { ativo: true, procId: proc.id, fila: fila, atual: 0, mostrandoResposta: false };
+    S.tab = 'executar';
+    render();
+    window.navegarComAudio(true); // Lê automaticamente a primeira pergunta
+  },
+
+  sm2MostrarResposta() {
+    S.sm2.mostrandoResposta = true;
+    render();
+    window.navegarComAudio(true); // Lê o Verso (Tradução) automaticamente se o Piloto Automático estiver ligado
+  },
+
+  async sm2Responder(qualidade) {
+    const sm2State = S.sm2;
+    const proc = S.procedimentos.find(p => p.id === sm2State.procId);
+    const item = sm2State.fila[sm2State.atual];
+    
+    // Altera a estrutura oculta que será exportada salva no próprio passo
+    const stepRef = proc.steps.find(s => s.id === item.step.id);
+    if (!stepRef.sm2) stepRef.sm2 = { rep: 0, int: 0, ef: 2.5, next: 0 };
+    let sm2 = stepRef.sm2;
+
+    // --- FÓRMULA DE RETENÇÃO DO SUPERMEMO-2 ---
+    if (qualidade >= 3) {
+      if (sm2.rep === 0) sm2.int = 1;
+      else if (sm2.rep === 1) sm2.int = 6;
+      else sm2.int = Math.round(sm2.int * sm2.ef);
+      sm2.rep++;
+    } else {
+      sm2.rep = 0;
+      sm2.int = 1;
+    }
+
+    sm2.ef = sm2.ef + (0.1 - (5 - qualidade) * (0.08 + (5 - qualidade) * 0.02));
+    if (sm2.ef < 1.3) sm2.ef = 1.3;
+
+    sm2.next = Date.now() + (sm2.int * 24 * 60 * 60 * 1000);
+
+    // Salva silenciosamente e não perde as tags na exportação!
+    proc.atualizadoEm = Date.now();
+    await DB.put('procedimentos', proc);
+
+    sm2State.atual++;
+    sm2State.mostrandoResposta = false;
+
+    if (sm2State.atual >= sm2State.fila.length) {
+      sm2State.ativo = false;
+      toast('✅ Flashcards SM-2 zerados por hoje! Retenção solidificada.', 'ok');
+      S.tab = 'procedimentos';
+    }
+    
+    render();
+    if (sm2State.ativo) window.navegarComAudio(true); // Lê o próximo
+  },
+
+  sm2Sair() {
+    S.sm2.ativo = false;
+    S.tab = 'procedimentos';
+    window.pararLeituraTela();
+    render();
+  },
+  
   drag(ev, stepId) {
     ev.dataTransfer.setData("text/plain", stepId);
     ev.currentTarget.style.opacity = "0.4";
@@ -1545,6 +1729,7 @@ const A={
     const ordemVal=parseInt(document.getElementById('sOrdem')?.value)||1;
     const proc=S.procedimentos.find(p=>p.id===procId);if(!proc)return;
     const stepId=S.editandoStep?.stepId;let step=stepId?proc.steps.find(s=>s.id===stepId):null;
+    
     if(!step){step={id:'s'+Date.now()+Math.random().toString(36).slice(2),fotos:[]};proc.steps=proc.steps||[];proc.steps.push(step);}
     
     step.titulo=titulo;step.descricao=v('sDesc');step.alerta=v('sAlerta');step.ordem=ordemVal;
@@ -1553,9 +1738,18 @@ const A={
     if(window._stepFotosTemp!==undefined){step.fotos=window._stepFotosTemp;window._stepFotosTemp=undefined;}
     if(window._stepAudioTemp!==undefined){step.audio=window._stepAudioTemp;window._stepAudioTemp=undefined;}
 
+    // 🕵️‍♂️ RESGATA A ETIQUETA INVISÍVEL (Caso você tenha puxado o passo da biblioteca)
+    if(window._stepImportadoDaBib === true) {
+        step.importadoDaBib = true; 
+        window._stepImportadoDaBib = false; // Limpa para o próximo passo
+    }
+
     proc.steps.forEach(s=>{if(s.id!==step.id&&s.ordem>=ordemVal)s.ordem++;});
     proc.steps.sort((a,b)=>a.ordem-b.ordem);proc.steps.forEach((s,i)=>s.ordem=i+1);
     proc.atualizadoEm=Date.now();await DB.put('procedimentos',proc);
+    
+    // Contamos quantos itens a biblioteca tem antes de tentar salvar
+    const qtdAntes = S.biblioteca.length;
     
     await salvarNaBiblioteca({
         titulo:step.titulo,
@@ -1566,14 +1760,27 @@ const A={
         audio:step.audio||null, 
         alerta:step.alerta||'',
         origem:'Procedimento',
-        origemId:proc.id+':'+step.id
+        origemId:proc.id+':'+step.id,
+        importadoDaBib: step.importadoDaBib // Passa a etiqueta para a trava agir!
     });
     
     S.biblioteca=await DB.getAll('biblioteca');
-    fecharModal();toast('✅ Passo salvo! 📚 Adicionado à biblioteca.','ok');S.editandoStep=null;
+    const qtdDepois = S.biblioteca.length;
+    fecharModal();
+    
+    // 📢 NOTIFICAÇÕES (TOASTS) AGORA SÃO 100% VERDADEIRAS:
+    if (step.importadoDaBib) {
+        toast('✅ Passo editado apenas localmente! (Não clonado)','orange');
+    } else if (qtdDepois > qtdAntes) {
+        toast('✅ Passo salvo e 📚 NOVO item criado na biblioteca!','ok');
+    } else {
+        toast('✅ Passo salvo! (Vinculado à biblioteca existente)','cyan');
+    }
+    
+    S.editandoStep=null;
     document.getElementById('body').innerHTML=buildVerProcedimento(proc);document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-  },
-
+},
+  
   async deletarStep(stepId,procId){
     if(!confirm('Remover este passo?'))return;
     const proc=S.procedimentos.find(p=>p.id===procId);if(!proc)return;
@@ -2423,8 +2630,16 @@ window.salvarFluxoComNos = async () => {
     
     if(no.tipo === 'diagnostico'){
       await salvarNaBiblioteca({
-        titulo, descricao: no.descricao || '', codigo: no.codigo || '', categoria:'Diagnóstico',
-        fotos: no.fotos || [], audio: no.audio || null, alerta:'', origem:'Fluxo', origemId:'fluxo_diag_'+no.id
+        titulo, 
+        descricao: no.descricao || '', 
+        codigo: no.codigo || '', 
+        categoria:'Diagnóstico',
+        fotos: no.fotos || [], 
+        audio: no.audio || null, 
+        alerta:'', 
+        origem:'Fluxo', 
+        origemId:'fluxo_diag_'+no.id,
+        importadoDaBib: no.importadoDaBib // 👈 TRAVA ADICIONADA AQUI!
       });
       
       nosColetados.push({
@@ -2435,40 +2650,40 @@ window.salvarFluxoComNos = async () => {
       const opcoes = [];
       for(let oi=0; oi<(no.opcoes||[]).length; oi++){
         const opt = no.opcoes[oi];
-        // Recupera o destino sem perder nada!
+        // Recupera o destino sem perder nada! (Removido o salvamento inútil de opções na biblioteca)
         if(opt.label) {
-          await salvarNaBiblioteca({titulo:opt.label, descricao:'', codigo:null, categoria:'Opção de Fluxo', fotos:[], alerta:'', origem:'Fluxo', origemId:'fluxo_opt_'+no.id+'_'+oi});
           opcoes.push({label: opt.label, destinoId: opt.destinoId || null, destino: opt.destino || ''});
         }
       }
       
-// ── DEPOIS ──
-await salvarNaBiblioteca({
-    titulo,
-    descricao : no.descricao || '',   // ✅ era ''
-    codigo    : no.codigo    || '',
-    categoria : 'Pergunta de Fluxo',
-    fotos     : no.fotos  || [],
-    audio     : no.audio  || null,
-    alerta    : no.alerta || '',       // ✅ era ''
-    origem    : 'Fluxo',
-    origemId  : 'fluxo_q_' + no.id
-});
+      // ── DEPOIS ──
+      await salvarNaBiblioteca({
+        titulo,
+        descricao : no.descricao || '',   
+        codigo    : no.codigo    || '',
+        categoria : 'Pergunta de Fluxo',
+        fotos     : no.fotos  || [],
+        audio     : no.audio  || null,
+        alerta    : no.alerta || '',       
+        origem    : 'Fluxo',
+        origemId  : 'fluxo_q_' + no.id,
+        importadoDaBib: no.importadoDaBib // 👈 TRAVA ADICIONADA AQUI!
+      });
 
-nosColetados.push({
-    id        : no.id,
-    tipo      : 'pergunta',
-    pergunta  : titulo,
-    titulo,
-    descricao : no.descricao || '',   // ✅ estava faltando
-    alerta    : no.alerta    || '',   // ✅ estava faltando
-    opcoes,
-    procId    : no.procId    || null,
-    procValor : no.procValor || 0,
-    fotos     : no.fotos  || [],
-    audio     : no.audio  || null,
-    codigo    : no.codigo || ''
-});
+      nosColetados.push({
+        id        : no.id,
+        tipo      : 'pergunta',
+        pergunta  : titulo,
+        titulo,
+        descricao : no.descricao || '',   
+        alerta    : no.alerta    || '',   
+        opcoes,
+        procId    : no.procId    || null,
+        procValor : no.procValor || 0,
+        fotos     : no.fotos  || [],
+        audio     : no.audio  || null,
+        codigo    : no.codigo || ''
+      });
     }
   }
 
@@ -2752,7 +2967,8 @@ window.usarBib = (id, tipo, refId) => {
     
     if(item.fotos?.length){ window._stepFotosTemp=[...item.fotos]; renderFotosPreviews(); }
     if(item.audio){ window._stepAudioTemp = item.audio; renderAudioPreview('step'); }
-    
+    // 👇 trava para nao duplicar itens na biblioteca 👇
+    window._stepImportadoDaBib = true;
     document.getElementById('bibResults_proc').innerHTML = ''; 
     document.querySelector('#bibResults_proc').previousElementSibling.value = ''; 
     toast('✅ Importado!', 'orange');
@@ -2762,24 +2978,21 @@ window.usarBib = (id, tipo, refId) => {
     const no = window._nosEditor.find(n => n.id === refId);
     
     if(no) { 
-        // ── Textos ──
         no.pergunta  = item.titulo   || no.pergunta;
         no.titulo    = item.titulo   || no.titulo;
         no.descricao = item.descricao || '';
-        no.solucao   = item.descricao || '';   // compatibilidade com nó diagnóstico
+        no.solucao   = item.descricao || '';
         no.codigo    = item.codigo   || '';
         no.alerta    = item.alerta   || '';
 
-        // ── Mídia ──
         if (item.fotos && item.fotos.length > 0) no.fotos = [...item.fotos];
         if (item.audio) no.audio = item.audio;
+        // 👇 mostra se o item foi importado ou não 👇
+        no.importadoDaBib = true;
     }
 
-    // Re-renderiza o construtor de blocos para mostrar fotos/áudio importados
-    document.getElementById('nosEditorContainer').innerHTML =
-        buildNosEditor(window._nosEditor, null);
+    document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor, null);
 
-    // Limpa o campo de busca
     const resEl = document.getElementById('bibResults_' + refId);
     if (resEl) {
         resEl.innerHTML = '';
@@ -2788,16 +3001,62 @@ window.usarBib = (id, tipo, refId) => {
     }
 
     toast('✅ Tudo importado: título, descrição, código, alerta, fotos e áudio!', 'cyan');
-} else if(tipo === 'fluxo_opt') {
-    const inputEl = document.getElementById('opt_label_' + refId);
-    if(inputEl) inputEl.value = item.titulo || '';
     
-    document.getElementById('bibResults_'+refId).innerHTML = '';
-    document.querySelector('#bibResults_'+refId).previousElementSibling.value = '';
-    toast('✅ Opção importada!', 'cyan');
+  } else if(tipo === 'fluxo_opt') {
+    // 🧠 MÁGICA DO DIÁLOGO RPG: Transforma o item da biblioteca em um bloco rico e o conecta!
+    window.sincronizarDOMParaMemoria();
+    
+    // O refId aqui vem no formato "noId_opcaoIdx" (ex: n170023_0)
+    const underscoreIndex = refId.lastIndexOf('_');
+    const noId = refId.substring(0, underscoreIndex);
+    const oi = parseInt(refId.substring(underscoreIndex + 1));
+    
+    const noOrigem = window._nosEditor.find(n => n.id === noId);
+    if(!noOrigem || !noOrigem.opcoes[oi]) return;
+
+    // 1. Gera o novo Bloco Rico (A próxima fala/reação com todo o pacote multimídia)
+    const novoId = 'n' + Date.now() + Math.random().toString(36).substring(2,5);
+    const novoNo = {
+        id: novoId,
+        tipo: 'pergunta', // Mantém como "pergunta" para o fluxo nunca parar
+        pergunta: item.titulo,
+        titulo: item.titulo,
+        descricao: item.descricao || '',
+        codigo: item.codigo || '',
+        fotos: item.fotos ? [...item.fotos] : [],
+        audio: item.audio || null,
+        alerta: item.alerta || '',
+        opcoes: []
+    };
+    
+    window._nosEditor.push(novoNo);
+    window._noAbertoId = novoId; // Expande o novo bloco automaticamente para focar nele
+    
+    // 2. A "Ponte": Conecta a opção de resposta do usuário a este novo bloco
+    noOrigem.opcoes[oi].destinoId = novoId;
+    noOrigem.opcoes[oi].destino = '';
+    
+    // Se o usuário deixou o campo de texto da opção vazio, ele puxa o nome do item para não bugar
+    if (!noOrigem.opcoes[oi].label || noOrigem.opcoes[oi].label.trim() === '') {
+        noOrigem.opcoes[oi].label = item.titulo;
+    }
+
+    // 3. Atualiza a tela gráfica do construtor
+    document.getElementById('nosEditorContainer').innerHTML = buildNosEditor(window._nosEditor, null);
+    
+    // Animação de rolagem suave até a continuação da conversa
+    toast('📚 Diálogo RPG gerado e conectado com sucesso!', 'cyan');
+    setTimeout(() => {
+        const novoEl = document.getElementById('noeditor_' + novoId);
+        if(novoEl) {
+            novoEl.scrollIntoView({behavior: 'smooth', block: 'center'});
+            novoEl.style.boxShadow = '0 0 20px var(--cyan2)';
+            setTimeout(() => novoEl.style.transition = 'box-shadow 1s', 100);
+            setTimeout(() => novoEl.style.boxShadow = 'none', 1500);
+        }
+    }, 100);
   }
 };
-
 
 function renderFotosPreviews(){
   const el=document.getElementById('photoPreviews');if(!el)return;
@@ -3263,6 +3522,7 @@ window.adicionarOpcaoEditorMagico = (noId) => {
 };
 
 
+
 function buildNoEditorCard(no,idx,todos,path){
   const isAberto = window._noAbertoId === no.id;
   const isPerguntar = no.tipo !== 'diagnostico';
@@ -3312,6 +3572,15 @@ function buildNoEditorCard(no,idx,todos,path){
            <button class="step-mini-btn up" style="background:rgba(46,204,113,0.1); border-color:var(--green2); color:var(--green2); height:34px; padding:0 8px; font-weight:bold;" onclick="autoCriarNo('${no.id}', ${oi}, 'diagnostico')">＋ Conclusão</button>
         </div>
       </div>
+
+      <div style="margin-top:6px; padding:8px; background:rgba(245,200,0,0.03); border:1px dashed rgba(245,200,0,0.2); border-radius:4px;">
+         <div style="font-size:10px; color:var(--yellow); font-weight:bold; text-transform:uppercase; margin-bottom:4px;">📚 Vincular Reação da Biblioteca (Auto-Criar Bloco):</div>
+         <input type="text" class="input" placeholder="Buscar fala do atendente para ligar a esta resposta..." 
+                oninput="filtrarBibModal(this.value, 'fluxo_opt', '${no.id}_${oi}')" 
+                style="border-color:rgba(245,200,0,0.3); font-size:12px; padding:6px; height:32px;">
+         <div id="bibResults_${no.id}_${oi}" style="display:flex; flex-direction:column; gap:4px; margin-top:6px; max-height:120px; overflow-y:auto;"></div>
+      </div>
+
     </div>`).join('') : '';
 
   const procHtml = `
@@ -3348,28 +3617,26 @@ function buildNoEditorCard(no,idx,todos,path){
       </select>
     </div>
     <div style="background:rgba(34,211,238,.05);padding:10px;border-radius:var(--r);margin-bottom:10px;border:1px solid rgba(34,211,238,.25)">
-  <div class="label" style="color:var(--cyan2);margin-bottom:6px">🔍 IMPORTAR DA BIBLIOTECA</div>
-  <input type="text" class="input" placeholder="Buscar título na biblioteca…" 
-    oninput="filtrarBibModal(this.value, 'fluxo', '${no.id}')" 
-    style="border-color:rgba(34,211,238,.3)">
-  <div id="bibResults_${no.id}" style="display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:140px;overflow-y:auto"></div>
-</div>
+      <div class="label" style="color:var(--cyan2);margin-bottom:6px">🔍 IMPORTAR DA BIBLIOTECA</div>
+      <input type="text" class="input" placeholder="Buscar título na biblioteca…" 
+        oninput="filtrarBibModal(this.value, 'fluxo', '${no.id}')" 
+        style="border-color:rgba(34,211,238,.3)">
+      <div id="bibResults_${no.id}" style="display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:140px;overflow-y:auto"></div>
+    </div>
     <div style="padding:10px; background:rgba(0,0,0,0.05)">
       ${caminhoHtml}
       <div style="display:flex; justify-content:flex-end; margin-bottom:6px;">
-        
          <button class="btn cyan sm" style="width:auto; padding:4px 8px; font-size:11px;" onclick="window.focarNoFluxo('${no.id}')">🔍 ISOLAR E FOCAR NESTE RAMO</button>
-      
-         </div>
+      </div>
          
-${!isPerguntar 
-  ? `<div><div class="label">Laudo Técnico Final / Solução:</div>
-     <textarea class="textarea" id="no_desc_${no.id}" style="min-height:50px" 
-       placeholder="Detalhes da resolução...">${esc(no.descricao || no.solucao || '')}</textarea></div>` 
-  : `<div><div class="label">Descrição / Contexto (Opcional)</div>
-     <textarea class="textarea" id="no_desc_${no.id}" style="min-height:50px" 
-       placeholder="Contexto adicional para esta pergunta...">${esc(no.descricao || '')}</textarea></div>`
-}
+      ${!isPerguntar 
+        ? `<div><div class="label">Laudo Técnico Final / Solução:</div>
+           <textarea class="textarea" id="no_desc_${no.id}" style="min-height:50px" 
+             placeholder="Detalhes da resolução...">${esc(no.descricao || no.solucao || '')}</textarea></div>` 
+        : `<div><div class="label">Descrição / Contexto (Opcional)</div>
+           <textarea class="textarea" id="no_desc_${no.id}" style="min-height:50px" 
+             placeholder="Contexto adicional para esta pergunta...">${esc(no.descricao || '')}</textarea></div>`
+      }
       <div style="margin-top:6px;">
         <div class="label" style="color:var(--yellow)">💻 SCRIPT OPERACIONAL / NOTAS COMPLEMENTARES (Opcional)</div>
         <textarea class="textarea code-input" id="no_cod_${no.id}" style="min-height:50px;" placeholder="Diretrizes complementares para o operador...">${esc(no.codigo||'')}</textarea>
@@ -3381,7 +3648,6 @@ ${!isPerguntar
     ${isPerguntar ? `<div style="padding:0 10px 10px;"><button onclick="adicionarOpcaoEditorMagico('${no.id}')" style="background:rgba(255,255,255,0.02);color:${corGrupo};border:1px dashed ${corGrupo}44;border-radius:var(--r);padding:10px;font-size:12px;font-weight:700;cursor:pointer;width:100%;">＋ ADICIONAR OPÇÃO DE RESPOSTA</button></div>` : ''}
   </div>`;
 }
-
 // LÓGICA DAS FOTOS NO CONSTRUTOR DE FLUXO
 window.adicionarFotoNo = async (e, noId) => {
     const files = Array.from(e.target.files||[]);
@@ -3792,6 +4058,19 @@ window.falarTextoGuiaPro = (camposArray) => {
 // Ajustado para retornar um ARRAY de strings (Título, Descrição, Código) isolados para análise individual
 window.coletarCamposEtapaAtualArray = () => {
   const listaCampos = [];
+
+  // MÁGICA: Escuta o SM-2! Se ele estiver rodando, pega apenas o que está sendo exibido.
+  if (S.tab === 'executar' && S.sm2 && S.sm2.ativo) {
+    const item = S.sm2.fila[S.sm2.atual];
+    if (item) {
+        if (!S.sm2.mostrandoResposta) {
+            listaCampos.push(item.step.titulo);
+        } else {
+            if (item.step.descricao) listaCampos.push(item.step.descricao);
+        }
+    }
+    return listaCampos;
+  }
   
   if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual) {
     const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
