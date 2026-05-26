@@ -2501,7 +2501,7 @@ function buildCaminhoBarHtml(path) {
     if (!path || path.length === 0) return '';
     const itensHtml = path.map((item) => {
         if (item.tipo === 'bloco') {
-            return `<span class="fluxo-caminho-step">${esc((item.txt || '').slice(0, 20))}</span>`;
+            return `<span class="fluxo-caminho-step">${esc((item.txt || '').slice(0, 12))}...</span>`;
         } else {
             return `<span class="fluxo-caminho-seta">➔</span><span class="fluxo-caminho-resp">${esc(item.txt)}</span>`;
         }
@@ -3443,7 +3443,7 @@ function abrirModalFluxo(fluxo){
     <div style="display:flex;flex-direction:column;gap:10px">
       <div><div class="label">Nome *</div><input type="text" id="fNome" class="input" value="${esc(fluxo?.nome||'')}" placeholder="Ex: Diagnóstico de freios…" maxlength="80"></div>
       <div style="display:flex;gap:8px">
-        <div style="flex:1"><div class="label">Descrição</div><textarea id="fDesc" class="textarea" style="min-height:50px" placeholder="Descreva…" maxlength="400">${esc(fluxo?.descricao||'')}</textarea></div>
+        <div style="flex:1"><div class="label">Descrição</div><textarea id="fDesc" class="textarea" style="min-height:39px; height:40px;font-size: 14px;line-height: normal;" placeholder="Descreva…" maxlength="400">${esc(fluxo?.descricao||'')}</textarea></div>
         <div style="flex:1"><div class="label">Categoria</div><input type="text" id="fCat" class="input" value="${esc(fluxo?.categoria||'')}" placeholder="Motor, Freios…"></div>
       </div>
     </div>
@@ -3625,7 +3625,7 @@ function buildNoEditorCard(no,idx,todos,path){
         <select class="input" id="no_proc_${no.id}" style="flex:2; font-size:12px; padding:6px;"><option value="">Vincular guia operacional...</option>${S.procedimentos.map(p=>`<option value="${p.id}" ${no.procId==p.id?'selected':''}>📋 ${esc(p.nome)}</option>`).join('')}</select>
         <div style="flex:1; position:relative;">
           <span style="position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:10px; color:var(--green2)">R$</span>
-          <input type="number" class="input" id="no_val_${no.id}" value="${no.procValor || ''}" placeholder="" style="padding-left:22px; padding:6px; font-size:12px;">
+          <input type="number" class="input" id="no_val_${no.id}" value="${no.procValor || ''}" placeholder="" style="padding-left:22px; padding: 6px 4px 6px 20px; font-size:12px;">
         </div>
       </div>
       <div class="label" style="margin-bottom:4px;">Multimídia de Suporte:</div>
