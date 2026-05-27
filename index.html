@@ -469,11 +469,18 @@ DB._putOriginal = (s,v)=>new Promise((r,j)=>{const tx=DB.db.transaction(s,'readw
 DB.put = async (store, obj) => {
   if (store !== 'midias' && obj) {
     const extrairParaMidias = async (item) => {
-      // Se for uma imagem/áudio gigante, guarda no cofre e retorna uma etiqueta
       if (typeof item === 'string' && item.startsWith('data:')) {
+        const isAudio = item.startsWith('data:audio');
         const id = 'm_' + Date.now() + Math.random().toString(36).substring(2,8);
         await DB._putOriginal('midias', { id: id, data: item });
-        return '@' + id; 
+        
+        // Retorna um arquivo nativo embutido e vazio, com o ID escondido no final (#).
+        // Isso engana o navegador e mata o erro 404 instantaneamente!
+        if (isAudio) {
+            return 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=#@' + id;
+        } else {
+            return 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=#@' + id;
+        }
       }
       if (Array.isArray(item)) {
         for (let i = 0; i < item.length; i++) item[i] = await extrairParaMidias(item[i]);
@@ -494,14 +501,13 @@ DB._delOriginal = (s,k)=>new Promise((r,j)=>{const tx=DB.db.transaction(s,'readw
 
 DB.del = async (store, key) => {
   if (store !== 'midias') {
-    // 1. Pega o objeto ANTES de ele ser deletado
     const obj = await DB.get(store, key);
     if (obj) {
-      // 2. Varredura profunda procurando etiquetas de mídia
       const deletarMidiasInternas = async (item) => {
-        if (typeof item === 'string' && item.startsWith('@m_')) {
-          const idCofre = item.substring(1); // Tira o "@" da frente
-          await DB._delOriginal('midias', idCofre); // Destrói a mídia no cofre!
+        // Agora sabe ler tanto o formato antigo quanto o novo
+        if (typeof item === 'string' && item.includes('@m_')) {
+          const idCofre = item.includes('#@m_') ? item.split('#@')[1] : item.substring(1);
+          await DB._delOriginal('midias', idCofre);
         } else if (Array.isArray(item)) {
           for (let i = 0; i < item.length; i++) await deletarMidiasInternas(item[i]);
         } else if (item !== null && typeof item === 'object') {
@@ -511,20 +517,31 @@ DB.del = async (store, key) => {
       await deletarMidiasInternas(obj);
     }
   }
-  // 3. Agora sim, apaga o procedimento/fluxo original
   return DB._delOriginal(store, key);
 };
+
 function lsGet(k,d){try{const v=localStorage.getItem('mp_'+k);return v?JSON.parse(v):d;}catch{return d;}}
 
 /* ══ HIDRATADOR DE MÍDIAS (FASE 2) ══ */
 window.hidratarMidias = async () => {
-  // Procura imagens e áudios que estão com a etiqueta @m_ em toda a tela
-  const midias = document.querySelectorAll('img[src^="@m_"], audio[src^="@m_"]');
+  const midias = document.querySelectorAll('img[src*="@m_"], audio[src*="@m_"]');
   for(let el of midias) {
-     const id = el.getAttribute('src').substring(1); // Corta o "@" fora
-     el.setAttribute('src', ''); // Limpa imediatamente pra não dar erro 404
-     const obj = await DB.get('midias', id);
-     if(obj) el.setAttribute('src', obj.data); // Cola a foto real instantaneamente
+     const src = el.getAttribute('src');
+     if (!src) continue;
+     
+     let id = null;
+     if (src.startsWith('@m_')) {
+         id = src.substring(1); // Suporte para seus dados antigos
+     } else if (src.includes('#@m_')) {
+         id = src.split('#@')[1]; // Suporte ao formato fantasma
+     }
+     
+     if (id) {
+         // Define como vazio temporário para não dar loop no MutationObserver
+         el.setAttribute('src', 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='); 
+         const obj = await DB.get('midias', id);
+         if(obj) el.setAttribute('src', obj.data);
+     }
   }
 };
 
@@ -3948,7 +3965,22 @@ window.removerFotoNo = (noId, idx) => {
 };
 
 /* ══ UTILS ══ */
-function lightbox(src){document.querySelectorAll('.lightbox').forEach(e=>e.remove());const lb=document.createElement('div');lb.className='lightbox';lb.onclick=()=>lb.remove();lb.innerHTML=`<img src="${src}" alt="Foto">`;document.body.appendChild(lb);}
+function lightbox(src){
+    document.querySelectorAll('.lightbox').forEach(e=>e.remove());
+    const lb=document.createElement('div');
+    lb.className='lightbox';
+    lb.onclick=()=>lb.remove();
+    
+    // Tratamento de segurança para mídias velhas
+    let safeSrc = src;
+    if (src && src.startsWith('@m_')) {
+        safeSrc = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=#' + src;
+    }
+    
+    lb.innerHTML=`<img src="${safeSrc}" alt="Foto">`;
+    document.body.appendChild(lb);
+}
+
 function toast(msg,tipo){if(!msg)return;document.querySelectorAll('.toast').forEach(e=>e.remove());const t=document.createElement('div');t.className='toast'+(tipo==='error'?' error':tipo==='ok'?' ok':tipo==='cyan'?' cyan':tipo==='orange'?' orange':'');t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2800);}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 /* Visualizador de Procedimentos Inline (Sem sair da aba) */
