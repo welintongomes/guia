@@ -426,7 +426,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 <script>
 'use strict';
 /* ══ INDEXEDDB ══ */
-const DB={name:'GuiaPro',ver:1,db:null};
+const DB={name:'GuiaPro',ver:2,db:null}; // <-- Versão 2 para criar o Cofre
 DB.open=()=>new Promise((res,rej)=>{
   const req=indexedDB.open(DB.name,DB.ver);
   req.onupgradeneeded=e=>{
@@ -437,16 +437,60 @@ DB.open=()=>new Promise((res,rej)=>{
     if(!d.objectStoreNames.contains('fluxos'))d.createObjectStore('fluxos',{keyPath:'id',autoIncrement:true});
     if(!d.objectStoreNames.contains('biblioteca')){const bs=d.createObjectStore('biblioteca',{keyPath:'id',autoIncrement:true});bs.createIndex('titulo','titulo',{unique:false});}
     if(!d.objectStoreNames.contains('historico'))d.createObjectStore('historico',{keyPath:'id',autoIncrement:true});
+    
+    // 📦 NOVO COFRE DE MÍDIAS (FASE 2)
+    if(!d.objectStoreNames.contains('midias'))d.createObjectStore('midias',{keyPath:'id'});
   };
   req.onsuccess=e=>{DB.db=e.target.result;res(DB.db);};
   req.onerror=()=>rej(req.error);
 });
-DB.put=(s,v)=>new Promise((r,j)=>{const tx=DB.db.transaction(s,'readwrite');const q=tx.objectStore(s).put(v);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
+
+// INTERCEPTADOR DE MÍDIAS: Arranca os dados pesados antes de salvar!
+DB._putOriginal = (s,v)=>new Promise((r,j)=>{const tx=DB.db.transaction(s,'readwrite');const q=tx.objectStore(s).put(v);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
+
+DB.put = async (store, obj) => {
+  if (store !== 'midias' && obj) {
+    const extrairParaMidias = async (item) => {
+      // Se for uma imagem/áudio gigante, guarda no cofre e retorna uma etiqueta
+      if (typeof item === 'string' && item.startsWith('data:')) {
+        const id = 'm_' + Date.now() + Math.random().toString(36).substring(2,8);
+        await DB._putOriginal('midias', { id: id, data: item });
+        return '@' + id; 
+      }
+      if (Array.isArray(item)) {
+        for (let i = 0; i < item.length; i++) item[i] = await extrairParaMidias(item[i]);
+      } else if (item !== null && typeof item === 'object') {
+        for (let key in item) item[key] = await extrairParaMidias(item[key]);
+      }
+      return item;
+    };
+    obj = await extrairParaMidias(obj);
+  }
+  return DB._putOriginal(store, obj);
+};
+
 DB.get=(s,k)=>new Promise((r,j)=>{const tx=DB.db.transaction(s,'readonly');const q=tx.objectStore(s).get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
 DB.getAll=(s)=>new Promise((r,j)=>{const tx=DB.db.transaction(s,'readonly');const q=tx.objectStore(s).getAll();q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
 DB.del=(s,k)=>new Promise((r,j)=>{const tx=DB.db.transaction(s,'readwrite');const q=tx.objectStore(s).delete(k);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
-DB.getByIdx=(s,idx,val)=>new Promise((r,j)=>{const tx=DB.db.transaction(s,'readonly');const q=tx.objectStore(s).index(idx).getAll(IDBKeyRange.only(val));q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
 function lsGet(k,d){try{const v=localStorage.getItem('mp_'+k);return v?JSON.parse(v):d;}catch{return d;}}
+
+/* ══ HIDRATADOR DE MÍDIAS (FASE 2) ══ */
+window.hidratarMidias = async () => {
+  // Procura imagens e áudios que estão com a etiqueta @m_ em toda a tela
+  const midias = document.querySelectorAll('img[src^="@m_"], audio[src^="@m_"]');
+  for(let el of midias) {
+     const id = el.getAttribute('src').substring(1); // Corta o "@" fora
+     el.setAttribute('src', ''); // Limpa imediatamente pra não dar erro 404
+     const obj = await DB.get('midias', id);
+     if(obj) el.setAttribute('src', obj.data); // Cola a foto real instantaneamente
+  }
+};
+
+// O Vigia Silencioso: Se a tela mudar e um @m_ aparecer, ele hidrata!
+const observerMidias = new MutationObserver(() => {
+    window.hidratarMidias();
+});
+observerMidias.observe(document.body, { childList: true, subtree: true });
 
 /* ══ ESTADO ══ */
 const S={
@@ -456,6 +500,8 @@ const S={
   biblioteca:[],
   historico:[],
   bibPagina:0,
+  procPagina:0,  // <-- INJETE ESTA LINHA
+  fluxoPagina:0, // <-- INJETE ESTA LINHA
   bibBusca:'',
   procBusca:'',
   fluxoBusca:'',
@@ -654,13 +700,26 @@ function updateTopbar(){
 function buildProcedimentosLista() {
   const q = S.procBusca.toLowerCase().trim();
   const procsFiltro = q ? S.procedimentos.filter(p => (p.nome||'').toLowerCase().includes(q) || (p.categoria||'').toLowerCase().includes(q) || (p.veiculoModelo||'').toLowerCase().includes(q)) : S.procedimentos;
+  
   if(procsFiltro.length === 0) return `<div style="text-align:center;padding:20px;color:var(--chrome);font-size:12px">Nenhum procedimento encontrado.</div>`;
   
-  return procsFiltro.map(p=>{
+  const total = procsFiltro.length;
+  const pages = Math.ceil(total / BIB_POR_PAGINA);
+  const start = (S.procPagina || 0) * BIB_POR_PAGINA;
+  const items = procsFiltro.slice(start, start + BIB_POR_PAGINA);
+
+  const statsHtml = `<div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px;margin-bottom:8px"><span style="font-family:var(--font-mono);padding-left: 10px;font-size:10px;color:var(--chrome);text-transform:uppercase">${q?`${total} resultados`:total+' no total'}</span>${pages>1?`<span style="font-family:var(--font-mono);font-size:10px;color:var(--yellow)">Pág ${(S.procPagina||0)+1}/${pages}</span>`:''}</div>`;
+
+  const itensHtml = items.map(p=>{
     const steps=p.steps||[];const fotos=steps.reduce((n,s)=>n+(s.fotos?.length||0),0);
     return`<div class="proc-card" onclick="A.verProcedimento(${p.id})"><div class="proc-card-body"><div class="proc-title">${esc(window.limparTagsTexto(p.nome))}</div><div class="proc-meta">${p.categoria||'Geral'} · ${fmtDate(p.criadoEm)}</div><div class="proc-badge-row"><span class="proc-badge pb-yellow">⚙ ${steps.length} passo${steps.length!==1?'s':''}</span>${fotos>0?`<span class="proc-badge pb-blue">📷 ${fotos}</span>`:''}${p.categoria?`<span class="proc-badge pb-gray">${esc(p.categoria)}</span>`:''}${p.veiculoModelo?`<span class="proc-badge pb-green">🚗 ${esc(p.veiculoModelo)}</span>`:''}</div></div></div>`;
   }).join('');
+
+  const paginacaoHtml = pages>1 ? `<div class="bib-pages" style="margin-top:10px">${Array.from({length:pages},(_,i)=>`<button class="bib-page-btn${i===(S.procPagina||0)?' on':''}" onclick="A.procMudarPagina(${i})">${i+1}</button>`).join('')}</div>` : '';
+
+  return statsHtml + itensHtml + paginacaoHtml;
 }
+
 function buildProcedimentos(){
   if(!S.procedimentos.length)return`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">SEM PROCEDIMENTOS</div><div class="empty-desc">Crie seu primeiro procedimento técnico.</div><button class="btn yellow" style="max-width:240px;margin-top:8px" onclick="A.novoProcedimento()">＋ NOVO PROCEDIMENTO</button></div>`;
   
@@ -1174,12 +1233,24 @@ function buildTreinoResultado(){
 function buildFluxosLista() {
   const q = S.fluxoBusca.toLowerCase().trim();
   const fluxosFiltro = q ? S.fluxos.filter(f => (f.nome||'').toLowerCase().includes(q) || (f.categoria||'').toLowerCase().includes(q)) : S.fluxos;
+  
   if(fluxosFiltro.length === 0) return `<div style="text-align:center;padding:20px;color:var(--chrome);font-size:12px">Nenhum fluxo encontrado.</div>`;
   
-  return fluxosFiltro.map(f=>{
+  const total = fluxosFiltro.length;
+  const pages = Math.ceil(total / BIB_POR_PAGINA);
+  const start = (S.fluxoPagina || 0) * BIB_POR_PAGINA;
+  const items = fluxosFiltro.slice(start, start + BIB_POR_PAGINA);
+
+  const statsHtml = `<div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px;margin-bottom:8px"><span style="font-family:var(--font-mono);padding-left: 10px;font-size:10px;color:var(--chrome);text-transform:uppercase">${q?`${total} resultados`:total+' no total'}</span>${pages>1?`<span style="font-family:var(--font-mono);font-size:10px;color:var(--cyan2)">Pág ${(S.fluxoPagina||0)+1}/${pages}</span>`:''}</div>`;
+
+  const itensHtml = items.map(f=>{
     const nos=f.nos||[];
     return`<div class="fluxo-card" onclick="A.verFluxo(${f.id})"><div class="fluxo-card-body"><div class="proc-title" style="color:var(--cyan2)">${esc(window.limparTagsTexto(f.nome))}</div><div class="proc-meta">${nos.length} nó${nos.length!==1?'s':''} · ${fmtDate(f.criadoEm)}</div><div class="proc-badge-row"><span class="proc-badge pb-cyan">🔀 Fluxo</span>${f.categoria?`<span class="proc-badge pb-gray">${esc(f.categoria)}</span>`:''}</div></div></div>`;
   }).join('');
+
+  const paginacaoHtml = pages>1 ? `<div class="bib-pages" style="margin-top:10px">${Array.from({length:pages},(_,i)=>`<button class="bib-page-btn${i===(S.fluxoPagina||0)?' on':''}" onclick="A.fluxoMudarPagina(${i})" style="${i===(S.fluxoPagina||0)?'background:var(--cyan2);border-color:var(--cyan2)':''}">${i+1}</button>`).join('')}</div>` : '';
+
+  return statsHtml + itensHtml + paginacaoHtml;
 }
 
 function buildFluxos(){
@@ -1212,7 +1283,7 @@ function buildFluxoNosPreview(fluxo){
   const nos=fluxo.nos||[];if(!nos.length)return`<div class="info-box cyan">Nenhum nó criado. Edite o fluxo para adicionar nós.</div>`;
   return`<div style="display:flex;flex-direction:column;gap:6px">${nos.map((n,i)=>{
     const tipo=n.tipo==='diagnostico'?'DIAGNÓSTICO':'PERGUNTA';const cor=n.tipo==='diagnostico'?'var(--green2)':'var(--cyan2)';
-    return`<div style="background:var(--steel);border:1px solid rgba(255,255,255,.06);border-radius:var(--r2);padding:10px 13px;border-left:3px solid ${cor}">
+    return`<div style="background:var(--steel);overflow-y: auto;max-height: 200px;border:1px solid rgba(255,255,255,.06);border-radius:var(--r2);padding:10px 13px;border-left:3px solid ${cor}">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:${n.tipo==='pergunta'?'6':'0'}px">
         <span style="font-family:var(--font-mono);font-size:9px;background:rgba(0,0,0,.3);padding:2px 7px;border-radius:4px;color:${cor}">${tipo}</span>
         <div style="font-family:var(--font-head);font-size:14px;color:var(--chrome2)">${esc(window.limparTagsTexto(n.pergunta||n.titulo||''))}</div>
@@ -1266,7 +1337,7 @@ function buildFluxoExec(){
       ${noAtual.descricao?`<div class="fluxo-desc" style="padding-top:10;cursor:pointer;" data-raw="${esc(noAtual.descricao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.descricao))}</div>`:''}
       ${noAtual.codigo?`<div style="padding:0 16px"><pre class="code-block"><code style="cursor:pointer;" data-raw="${esc(noAtual.codigo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${esc(window.limparTagsTexto(noAtual.codigo))}</code></pre></div>`:''}
       ${btnProcHtml ? `<div style="padding: 0 16px;">${btnProcHtml}</div>` : ''}
-      <div class="fluxo-opts">${opcoesHtml||'<div style="color:var(--chrome);font-size:13px"></div>'}</div>
+      <div class="fluxo-opts" style="max-height: 30vh; overflow-y: auto; padding-right: 4px;">${opcoesHtml||'<div style="color:var(--chrome);font-size:13px"></div>'}</div>
     </div>`;
   }
 
@@ -1721,22 +1792,29 @@ const A={
   fecharProc(){S.viewProcId=null;S.tab='procedimentos';render();},
   fecharFluxo(){S.viewFluxoId=null;S.tab='fluxo';render();},
   /* ── Buscas Globais ── */
+  /* ── Buscas Globais ── */
   limparBusca(tipo){
     if(tipo==='bib'){ S.bibBusca=''; S.bibPagina=0; }
-    if(tipo==='proc'){ S.procBusca=''; }
-    if(tipo==='fluxo'){ S.fluxoBusca=''; }
-    render(); // Ao limpar no X, não tem problema dar render geral
+    if(tipo==='proc'){ S.procBusca=''; S.procPagina=0; }
+    if(tipo==='fluxo'){ S.fluxoBusca=''; S.fluxoPagina=0; }
+    render(); 
   },
   procBuscar(val){
     S.procBusca = val;
+    S.procPagina = 0; // Reseta a página ao buscar
     const btn = document.getElementById('procClearBtn'); if(btn) btn.style.display = val ? 'flex' : 'none';
     const lista = document.getElementById('procListContainer'); if(lista) lista.innerHTML = buildProcedimentosLista();
   },
   fluxoBuscar(val){
     S.fluxoBusca = val;
+    S.fluxoPagina = 0; // Reseta a página ao buscar
     const btn = document.getElementById('fluxoClearBtn'); if(btn) btn.style.display = val ? 'flex' : 'none';
     const lista = document.getElementById('fluxoListContainer'); if(lista) lista.innerHTML = buildFluxosLista();
   },
+  
+  // INJETE ESTES DOIS NOVOS MÉTODOS AQUI:
+  procMudarPagina(p) { S.procPagina = p; render(); },
+  fluxoMudarPagina(p) { S.fluxoPagina = p; render(); },
   /* ── Procedimentos ── */
   novoProcedimento(){S.editandoProc=null;abrirModalProc(null);},
   editarProc(id){const p=S.procedimentos.find(x=>x.id===id);if(!p)return;S.editandoProc=p;abrirModalProc(p);},
@@ -3224,7 +3302,7 @@ window.selecionarTodosExport = (sel) => {
   renderExportModal();
 };
 
-window.executarExport = () => {
+window.executarExport = async () => {
   if(!_exportSelecionados.size && !_exportFluxosSel.size && !_exportBibCompleta && !_exportHistoricoCompleto){
     toast('⚠ Selecione pelo menos um item para fazer backup!',''); return;
   }
@@ -3237,6 +3315,10 @@ window.executarExport = () => {
   // Se o botão de histórico estiver ligado, salva todo o progresso do jogador
   const hist = _exportHistoricoCompleto ? (S.historico || []) : [];
 
+
+  // Salva também o cofre de mídias!
+  const midiasExp = await DB.getAll('midias');
+  
   const json = JSON.stringify({
     guiaPro: true, 
     versao: '3.0', 
@@ -3244,7 +3326,8 @@ window.executarExport = () => {
     procedimentos: procs,
     fluxos: fluxos,
     biblioteca: bib,
-    historico: hist // 👻 O FANTASMA AGORA VIAJA JUNTO NO ARQUIVO!
+    historico: hist, // 👻 O FANTASMA AGORA VIAJA JUNTO NO ARQUIVO!
+    midias: midiasExp // 📦 O COFRE VIAJA JUNTO NO ARQUIVO!
   });
   
   const blob = new Blob([json], {type:'application/json'});
@@ -3278,10 +3361,20 @@ window.importarArquivo = async e => {
       if(loading) loading.style.display = 'none';
       return;
     }
-    
-    let importProc = 0, importFluxo = 0, importBib = 0, importHist = 0;
+
+    let importProc = 0, importFluxo = 0, importBib = 0, importHist = 0, importMidias = 0;
+
+    // 0. IMPORTAR COFRE DE MÍDIAS PRIMEIRO (FASE 2)
+    if(dados.midias && Array.isArray(dados.midias)){
+        for(const m of dados.midias){
+            // Usa o _putOriginal para gravar direto na tabela de mídias
+            await DB._putOriginal('midias', m);
+            importMidias++;
+        }
+    }
 
     // 1. IMPORTAR BIBLIOTECA
+    
     if(dados.biblioteca && Array.isArray(dados.biblioteca)){
         for(const b of dados.biblioteca){
            const id = await salvarNaBiblioteca(b); 
