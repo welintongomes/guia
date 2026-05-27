@@ -431,18 +431,15 @@ DB.open=()=>new Promise((res,rej)=>{
   const req=indexedDB.open(DB.name,DB.ver);
   req.onupgradeneeded=e=>{
     const d=e.target.result;
-    // Se a tabela já existir, ele não tenta recriar, evitando erro
-    if(!d.objectStoreNames.contains('procedimentos')) d.createObjectStore('procedimentos',{keyPath:'id',autoIncrement:true});
-    if(!d.objectStoreNames.contains('execucoes')) d.createObjectStore('execucoes',{keyPath:'id',autoIncrement:true});
-    if(!d.objectStoreNames.contains('treino_scores')) d.createObjectStore('treino_scores',{keyPath:'id',autoIncrement:true});
-    if(!d.objectStoreNames.contains('fluxos')) d.createObjectStore('fluxos',{keyPath:'id',autoIncrement:true});
-    if(!d.objectStoreNames.contains('biblioteca')) d.createObjectStore('biblioteca',{keyPath:'id',autoIncrement:true});
-    if(!d.objectStoreNames.contains('historico')) d.createObjectStore('historico',{keyPath:'id',autoIncrement:true});
+    if(!d.objectStoreNames.contains('procedimentos'))d.createObjectStore('procedimentos',{keyPath:'id',autoIncrement:true});
+    if(!d.objectStoreNames.contains('execucoes')){const es=d.createObjectStore('execucoes',{keyPath:'id',autoIncrement:true});es.createIndex('procId','procId',{unique:false});}
+    if(!d.objectStoreNames.contains('treino_scores')){const ts=d.createObjectStore('treino_scores',{keyPath:'id',autoIncrement:true});ts.createIndex('procId','procId',{unique:false});}
+    if(!d.objectStoreNames.contains('fluxos'))d.createObjectStore('fluxos',{keyPath:'id',autoIncrement:true});
+    if(!d.objectStoreNames.contains('biblioteca')){const bs=d.createObjectStore('biblioteca',{keyPath:'id',autoIncrement:true});bs.createIndex('titulo','titulo',{unique:false});}
+    if(!d.objectStoreNames.contains('historico'))d.createObjectStore('historico',{keyPath:'id',autoIncrement:true});
     
-    // O Cofre de Mídias
-    if(!d.objectStoreNames.contains('midias')) d.createObjectStore('midias',{keyPath:'id'});
-    
-    console.log("Banco de dados atualizado para versão 2 com Cofre de Mídias!");
+    // 📦 NOVO COFRE DE MÍDIAS (FASE 2)
+    if(!d.objectStoreNames.contains('midias'))d.createObjectStore('midias',{keyPath:'id'});
   };
   req.onsuccess=e=>{DB.db=e.target.result;res(DB.db);};
   req.onerror=()=>rej(req.error);
