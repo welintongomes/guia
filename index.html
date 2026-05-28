@@ -465,26 +465,55 @@ DB.open=()=>new Promise((res,rej)=>{
 });
 
 // INTERCEPTADOR DE MÍDIAS: Arranca os dados pesados antes de salvar!
+// INTERCEPTADOR DE MÍDIAS: Arranca os dados pesados antes de salvar!
 DB._putOriginal = (s,v)=>new Promise((r,j)=>{const tx=DB.db.transaction(s,'readwrite');const q=tx.objectStore(s).put(v);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
+
+// NOVO AJUDANTE: Puxa todos os IDs de mídia de dentro de um objeto limpo
+function extrairIdsMidiaDeObjeto(item, ids = new Set()) {
+    if (typeof item === 'string') {
+        if (item.includes('#@m_')) ids.add(item.split('#@')[1]);
+        else if (item.startsWith('@m_')) ids.add(item.substring(1));
+    } else if (Array.isArray(item)) {
+        for (let i = 0; i < item.length; i++) extrairIdsMidiaDeObjeto(item[i], ids);
+    } else if (item !== null && typeof item === 'object') {
+        for (let k in item) extrairIdsMidiaDeObjeto(item[k], ids);
+    }
+    return ids;
+}
 
 DB.put = async (store, obj) => {
   if (store !== 'midias' && obj) {
+    
+    // 🕵️‍♂️ MÁGICA 1: Pega as mídias da versão ANTIGA antes de salvar a nova
+    let idsAntigos = new Set();
+    if (obj.id) {
+        const objAntigo = await DB.get(store, obj.id);
+        if (objAntigo) idsAntigos = extrairIdsMidiaDeObjeto(objAntigo);
+    }
+
     const extrairParaMidias = async (item) => {
-      
-      // A MÁGICA ESTÁ AQUI: Adicionamos a verificação para ignorar se já tiver '@m_'
-      if (typeof item === 'string' && item.startsWith('data:') && !item.includes('@m_')) {
+      if (typeof item === 'string' && item.startsWith('data:')) {
         const isAudio = item.startsWith('data:audio');
-        const id = 'm_' + Date.now() + Math.random().toString(36).substring(2,8);
-        await DB._putOriginal('midias', { id: id, data: item });
-        
-        // Retorna o arquivo vazio com a marcação
-        if (isAudio) {
-            return 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=#@' + id;
-        } else {
-            return 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=#@' + id;
+        if (item.includes('#@m_')) {
+            const partes = item.split('#@');
+            const base64Puro = partes[0];
+            const idExistente = partes[1];
+            if (base64Puro.length > 200) {
+                await DB._putOriginal('midias', { id: idExistente, data: base64Puro });
+                return (isAudio ? 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=#@' : 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=#@') + idExistente;
+            } else {
+                return item;
+            }
+        } 
+        else if (item.includes('@m_')) {
+             return item; 
+        } 
+        else {
+            const novoId = 'm_' + Date.now() + Math.random().toString(36).substring(2,8);
+            await DB._putOriginal('midias', { id: novoId, data: item });
+            return (isAudio ? 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=#@' : 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=#@') + novoId;
         }
       }
-      
       if (Array.isArray(item)) {
         for (let i = 0; i < item.length; i++) item[i] = await extrairParaMidias(item[i]);
       } else if (item !== null && typeof item === 'object') {
@@ -492,37 +521,69 @@ DB.put = async (store, obj) => {
       }
       return item;
     };
+
+    // Salva o objeto NOVO no banco
     obj = await extrairParaMidias(obj);
+    const savedId = await DB._putOriginal(store, obj);
+
+    // 🕵️‍♂️ MÁGICA 2: Compara e apaga as mídias que foram deletadas durante a EDIÇÃO
+    if (idsAntigos.size > 0) {
+        const idsNovos = extrairIdsMidiaDeObjeto(obj);
+        for (let idAntigo of idsAntigos) {
+            if (!idsNovos.has(idAntigo)) {
+                const emUso = await isMidiaEmUso(idAntigo, store, obj.id);
+                if (!emUso) {
+                    await DB._delOriginal('midias', idAntigo);
+                    console.log(`🧹 Mídia órfã ${idAntigo} limpa após edição!`);
+                }
+            }
+        }
+    }
+    return savedId;
   }
   return DB._putOriginal(store, obj);
 };
 
 DB.get=(s,k)=>new Promise((r,j)=>{const tx=DB.db.transaction(s,'readonly');const q=tx.objectStore(s).get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
 DB.getAll=(s)=>new Promise((r,j)=>{const tx=DB.db.transaction(s,'readonly');const q=tx.objectStore(s).getAll();q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
-// INTERCEPTADOR DE DELETAR: O Caça-Fantasmas (Coletor de Lixo)
+
+// O Detetive: Verifica se a mídia está sendo usada por algum outro item no sistema
+async function isMidiaEmUso(idMidia, storeAtual, keyAtual) {
+    const lojas = ['procedimentos', 'execucoes', 'treino_scores', 'fluxos', 'biblioteca', 'historico'];
+    for (let loja of lojas) {
+        const todosOsItens = await DB.getAll(loja);
+        for (let item of todosOsItens) {
+            if (loja === storeAtual && item.id === keyAtual) continue;
+            const textoItem = JSON.stringify(item);
+            // Confirmação dupla ultra segura com a tag @ 
+            if (textoItem.includes('@' + idMidia)) return true;
+        }
+    }
+    return false;
+}
+
+// INTERCEPTADOR DE DELETAR: O Caça-Fantasmas Inteligente (Agora mais limpo)
 DB._delOriginal = (s,k)=>new Promise((r,j)=>{const tx=DB.db.transaction(s,'readwrite');const q=tx.objectStore(s).delete(k);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
 
 DB.del = async (store, key) => {
   if (store !== 'midias') {
     const obj = await DB.get(store, key);
     if (obj) {
-      const deletarMidiasInternas = async (item) => {
-        // Agora sabe ler tanto o formato antigo quanto o novo
-        if (typeof item === 'string' && item.includes('@m_')) {
-          const idCofre = item.includes('#@m_') ? item.split('#@')[1] : item.substring(1);
-          await DB._delOriginal('midias', idCofre);
-        } else if (Array.isArray(item)) {
-          for (let i = 0; i < item.length; i++) await deletarMidiasInternas(item[i]);
-        } else if (item !== null && typeof item === 'object') {
-          for (let k in item) await deletarMidiasInternas(item[k]);
+        // Usa o novo ajudante para extrair todas as IDs instantaneamente
+        const idsParaDeletar = extrairIdsMidiaDeObjeto(obj);
+        for (let idCofre of idsParaDeletar) {
+            const emUso = await isMidiaEmUso(idCofre, store, key);
+            if (!emUso) {
+                await DB._delOriginal('midias', idCofre);
+                console.log(`🗑 Mídia ${idCofre} excluída junto com o item.`);
+            } else {
+                console.log(`🛡 Mídia ${idCofre} salva! Em uso por outro item.`);
+            }
         }
-      };
-      await deletarMidiasInternas(obj);
     }
   }
   return DB._delOriginal(store, key);
 };
-
 function lsGet(k,d){try{const v=localStorage.getItem('mp_'+k);return v?JSON.parse(v):d;}catch{return d;}}
 
 /* ══ HIDRATADOR DE MÍDIAS (FASE 2) ══ */
@@ -534,16 +595,18 @@ window.hidratarMidias = async () => {
      
      let id = null;
      if (src.startsWith('@m_')) {
-         id = src.substring(1); // Suporte para seus dados antigos
+         id = src.substring(1); 
      } else if (src.includes('#@m_')) {
-         id = src.split('#@')[1]; // Suporte ao formato fantasma
+         id = src.split('#@')[1]; 
      }
      
      if (id) {
-         // Define como vazio temporário para não dar loop no MutationObserver
          el.setAttribute('src', 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='); 
          const obj = await DB.get('midias', id);
-         if(obj) el.setAttribute('src', obj.data);
+         if(obj) {
+             // A MÁGICA AQUI: Ele devolve a imagem gorda para a tela, mas anexa o '#@id' no final!
+             el.setAttribute('src', obj.data + '#@' + id);
+         }
      }
   }
 };
