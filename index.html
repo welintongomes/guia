@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>🔧 GuiaPro — Procedimentos e Fluxos</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -390,7 +389,9 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
   }
 
 }
+
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 <div id="loading">
@@ -424,6 +425,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
   <div id="body"></div>
 </div>
 <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importarArquivo(event)">
+
 <script>
 'use strict';
 /* ══ INDEXEDDB ══ */
@@ -3477,66 +3479,195 @@ function renderExportModal(bg){
   
   bg.innerHTML=`<div class="modal">
     <div class="modal-handle"></div>
-    <h2><span style="color:var(--yellow)">⇅</span> BACKUP DO SISTEMA</h2>
+
+    <h2>
+      <span style="color:var(--yellow)">⇅</span> 
+      BACKUP DO SISTEMA
+    </h2>
     
-    <div style="font-size:12px;color:var(--chrome);margin-bottom:8px;line-height:1.5;">
-      Escolha o que deseja exportar. Recomendamos sempre exportar a <b>Biblioteca</b> e os <b>Recordes</b> para manter seus fantasmas e mídias salvos.
+    <div style="
+      font-size:12px;
+      color:var(--chrome);
+      margin-bottom:8px;
+      line-height:1.5;
+    ">
+      Escolha o que deseja exportar. Recomendamos sempre exportar a 
+      <b>Biblioteca</b> e os <b>Recordes</b> para manter seus fantasmas e mídias salvos.
     </div>
 
     <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
       <div class="label" style="color:var(--yellow)">📋 PROCEDIMENTOS</div>
-      <div style="max-height:120px; overflow-y:auto; background:rgba(0,0,0,.2); border-radius:var(--r); padding:4px; border:1px solid rgba(255,255,255,.05);">
-        ${S.procedimentos.length===0?`<div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;text-align:center;padding:10px">Nenhum procedimento</div>`:S.procedimentos.map(p=>`
-          <div class="export-item" style="padding:6px 10px; border:none; background:transparent;">
-            <div class="export-cb${_exportSelecionados.has(p.id)?' on':''}" id="ecb_proc_${p.id}" onclick="toggleExportCb(${p.id}, 'proc')">${_exportSelecionados.has(p.id)?'✓':''}</div>
-            <div style="flex:1;min-width:0"><div class="export-name" style="font-size:14px;">${esc(p.nome)}</div></div>
-          </div>
-        `).join('')}
+
+      <div style="
+        max-height:120px;
+        overflow-y:auto;
+        background:rgba(0,0,0,.2);
+        border-radius:var(--r);
+        padding:4px;
+        border:1px solid rgba(255,255,255,.05);
+      ">
+        ${S.procedimentos.length===0
+          ? `<div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;text-align:center;padding:10px">Nenhum procedimento</div>`
+          : S.procedimentos.map(p=>`
+            <div class="export-item" style="padding:6px 10px; border:none; background:transparent;">
+              <div class="export-cb${_exportSelecionados.has(p.id)?' on':''}" id="ecb_proc_${p.id}" onclick="toggleExportCb(${p.id}, 'proc')">
+                ${_exportSelecionados.has(p.id)?'✓':''}
+              </div>
+
+              <div style="flex:1;min-width:0">
+                <div class="export-name" style="font-size:14px;">
+                  ${esc(p.nome)}
+                </div>
+              </div>
+            </div>
+          `).join('')
+        }
       </div>
     </div>
 
     <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
       <div class="label" style="color:var(--cyan2)">🔀 FLUXOS DIAGNÓSTICOS</div>
-      <div style="max-height:120px; overflow-y:auto; background:rgba(0,0,0,.2); border-radius:var(--r); padding:4px; border:1px solid rgba(255,255,255,.05);">
-        ${S.fluxos.length===0?`<div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;text-align:center;padding:10px">Nenhum fluxo</div>`:S.fluxos.map(f=>`
-          <div class="export-item" style="padding:6px 10px; border:none; background:transparent;">
-            <div class="export-cb${_exportFluxosSel.has(f.id)?' on':''}" id="ecb_fluxo_${f.id}" onclick="toggleExportCb(${f.id}, 'fluxo')" style="border-color:rgba(34,211,238,.3); color:var(--cyan2); background:${_exportFluxosSel.has(f.id)?'rgba(34,211,238,.2)':'transparent'}">${_exportFluxosSel.has(f.id)?'✓':''}</div>
-            <div style="flex:1;min-width:0"><div class="export-name" style="font-size:14px;">${esc(f.nome)}</div></div>
-          </div>
-        `).join('')}
+
+      <div style="
+        max-height:120px;
+        overflow-y:auto;
+        background:rgba(0,0,0,.2);
+        border-radius:var(--r);
+        padding:4px;
+        border:1px solid rgba(255,255,255,.05);
+      ">
+        ${S.fluxos.length===0
+          ? `<div style="font-family:var(--font-mono);font-size:10px;color:var(--chrome);text-transform:uppercase;text-align:center;padding:10px">Nenhum fluxo</div>`
+          : S.fluxos.map(f=>`
+            <div class="export-item" style="padding:6px 10px; border:none; background:transparent;">
+              
+              <div 
+                class="export-cb${_exportFluxosSel.has(f.id)?' on':''}" 
+                id="ecb_fluxo_${f.id}" 
+                onclick="toggleExportCb(${f.id}, 'fluxo')"
+
+                style="
+                  border-color:rgba(34,211,238,.3);
+                  color:var(--cyan2);
+                  background:${_exportFluxosSel.has(f.id)?'rgba(34,211,238,.2)':'transparent'}
+                "
+              >
+                ${_exportFluxosSel.has(f.id)?'✓':''}
+              </div>
+
+              <div style="flex:1;min-width:0">
+                <div class="export-name" style="font-size:14px;">
+                  ${esc(f.nome)}
+                </div>
+              </div>
+
+            </div>
+          `).join('')
+        }
       </div>
     </div>
 
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(251,146,60,.1);border-radius:var(--r);border:1px solid rgba(251,146,60,.3);cursor:pointer;" onclick="toggleBibExport()">
-       <div class="export-cb${_exportBibCompleta?' on':''}" style="border-color:#fb923c; color:#fb923c; background:${_exportBibCompleta?'rgba(251,146,60,.2)':'transparent'}">${_exportBibCompleta?'✓':''}</div>
-       <div style="flex:1;">
-         <div class="export-name" style="color:#fb923c;">📚 Exportar toda a Biblioteca</div>
-         <div style="font-size:10px;color:var(--chrome);margin-top:2px;">Garante que os passos e imagens não sejam perdidos.</div>
-       </div>
+    <!-- 📚 BIBLIOTECA -->
+    <div 
+      style="
+        display:flex;
+        align-items:center;
+        gap:10px;
+        padding:10px 12px;
+        background:rgba(251,146,60,.1);
+        border-radius:var(--r);
+        border:1px solid rgba(251,146,60,.3);
+        cursor:pointer;
+      "
+      onclick="toggleBibExport()"
+    >
+
+      <div 
+        class="export-cb${_exportBibCompleta?' on':''}"
+
+        style="
+          border-color:#fb923c;
+          color:#fb923c;
+          background:${_exportBibCompleta?'rgba(251,146,60,.2)':'transparent'}
+        "
+      >
+        ${_exportBibCompleta?'✓':''}
+      </div>
+
+      <div style="flex:1;">
+        <div class="export-name" style="color:#fb923c;">
+          📚 Exportar toda a Biblioteca
+        </div>
+
+        <div style="font-size:10px;color:var(--chrome);margin-top:2px;">
+          Garante que os passos e imagens não sejam perdidos.
+        </div>
+      </div>
+
     </div>
 
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(168,85,247,.1);border-radius:var(--r);border:1px solid rgba(168,85,247,.3);cursor:pointer;margin-top:8px;" onclick="toggleHistoricoExport()">
-       <div class="export-cb${_exportHistoricoCompleto?' on':''}" style="border-color:#a855f7; color:#a855f7; background:${_exportHistoricoCompleto?'rgba(168,85,247,.2)':'transparent'}">${_exportHistoricoCompleto?'✓':''}</div>
-       <div style="flex:1;">
-         <div class="export-name" style="color:#a855f7;">🏅 Exportar Recordes (Fantasmas)</div>
-         <div style="font-size:10px;color:var(--chrome);margin-top:2px;">Salva os seus tempos de Speedrun no arquivo.</div>
-       </div>
+    <!-- 🏅 RECORDES -->
+    <div 
+      style="
+        display:flex;
+        align-items:center;
+        gap:10px;
+        padding:10px 12px;
+        background:rgba(168,85,247,.1);
+        border-radius:var(--r);
+        border:1px solid rgba(168,85,247,.3);
+        cursor:pointer;
+        margin-top:8px;
+      "
+
+      onclick="toggleHistoricoExport()"
+    >
+
+      <div 
+        class="export-cb${_exportHistoricoCompleto?' on':''}"
+
+        style="
+          border-color:#a855f7;
+          color:#a855f7;
+          background:${_exportHistoricoCompleto?'rgba(168,85,247,.2)':'transparent'}
+        "
+      >
+        ${_exportHistoricoCompleto?'✓':''}
+      </div>
+
+      <div style="flex:1;">
+        <div class="export-name" style="color:#a855f7;">
+          🏅 Exportar Recordes (Fantasmas)
+        </div>
+
+        <div style="font-size:10px;color:var(--chrome);margin-top:2px;">
+          Salva os seus tempos de Speedrun no arquivo.
+        </div>
+      </div>
+
     </div>
 
+    <!-- 🔽 BOTÕES -->
     <div style="display:flex;gap:6px;margin-top:14px">
-      <button class="btn steel sm" onclick="selecionarTodosExport(true)">✓ Tudo</button>
-      <button class="btn steel sm" onclick="selecionarTodosExport(false)">✗ Nada</button>
-      <button class="btn yellow sm" onclick="executarExport()" style="flex:2">⬇ BAIXAR BACKUP</button>
+      <button class="btn steel sm" onclick="selecionarTodosExport(true)">
+        ✓ Tudo
+      </button>
+
+      <button class="btn steel sm" onclick="selecionarTodosExport(false)">
+        ✗ Nada
+      </button>
+
+      <button 
+        class="btn yellow sm"
+        onclick="executarExport()"
+        style="flex:2"
+      >
+        ⬇ BAIXAR BACKUP
+      </button>
     </div>
-    
-    <div class="sep" style="margin:16px 0"></div>
-    
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="label" style="color:var(--green2)">RESTAURAR BACKUP</div>
-      <button class="btn ghost" style="border-color:var(--green2); color:var(--green2)" onclick="document.getElementById('importFileInput').click()">⬆ SELECIONAR ARQUIVO .JSON</button>
-    </div>
+
     <!-- ✨ BACKUP ZIP -->
-  <div style="
+    <div style="
       margin-top:14px;
       display:flex;
       flex-direction:column;
@@ -3544,7 +3675,10 @@ function renderExportModal(bg){
       width:100%;
     ">
 
-    <button onclick="exportarGuiaProZip()" style="
+      <button 
+        onclick="exportarGuiaProZip()"
+
+        style="
           width:100%;
           min-height:54px;
 
@@ -3574,11 +3708,15 @@ function renderExportModal(bg){
           box-shadow:
             0 10px 30px rgba(37,99,235,.22),
             inset 0 1px 0 rgba(255,255,255,.08);
-        ">
-      ⬆ EXPORTAR BACKUP COMPLETO (.ZIP)
-    </button>
+        "
+      >
+        ⬆ EXPORTAR BACKUP COMPLETO (.ZIP)
+      </button>
 
-    <button onclick="document.getElementById('inputZipBackup').click()" style="
+      <button 
+        onclick="document.getElementById('inputZipBackup').click()"
+
+        style="
           width:100%;
           min-height:54px;
 
@@ -3608,13 +3746,42 @@ function renderExportModal(bg){
           box-shadow:
             0 10px 30px rgba(5,150,105,.22),
             inset 0 1px 0 rgba(255,255,255,.08);
-        ">
-      ⬇ RESTAURAR BACKUP (.ZIP)
-    </button>
+        "
+      >
+        ⬇ RESTAURAR BACKUP (.ZIP)
+      </button>
 
-    <input type="file" id="inputZipBackup" accept=".zip" style="display:none" onchange="importarGuiaProZip(event)">
+      <input 
+        type="file"
+        id="inputZipBackup"
+        accept=".zip"
+        style="display:none"
+        onchange="importarGuiaProZip(event)"
+      >
 
-  </div>
+    </div>
+
+    <div class="sep" style="margin:16px 0"></div>
+
+    <!-- JSON -->
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label" style="color:var(--green2)">
+        RESTAURAR BACKUP
+      </div>
+
+      <button 
+        class="btn ghost"
+        style="
+          border-color:var(--green2);
+          color:var(--green2)
+        "
+
+        onclick="document.getElementById('importFileInput').click()"
+      >
+        ⬆ SELECIONAR ARQUIVO .JSON
+      </button>
+    </div>
+
   </div>`;
 }
 
@@ -5102,6 +5269,7 @@ window.formatarTempoMs = (ms) => {
   const decis = Math.floor((ms % 1000) / 100); // Decisegundos (1 dígito)
   return `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}.${decis}`;
 };
+
 /* ══ INIT ══ */
 (async()=>{
   try{
