@@ -3528,6 +3528,13 @@ function renderExportModal(bg){
       <button class="btn steel sm" onclick="selecionarTodosExport(false)">✗ Nada</button>
       <button class="btn yellow sm" onclick="executarExport()" style="flex:2">⬇ BAIXAR BACKUP</button>
     </div>
+    
+    <div class="sep" style="margin:16px 0"></div>
+    
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label" style="color:var(--green2)">RESTAURAR BACKUP</div>
+      <button class="btn ghost" style="border-color:var(--green2); color:var(--green2)" onclick="document.getElementById('importFileInput').click()">⬆ SELECIONAR ARQUIVO .JSON</button>
+    </div>
     <!-- ✨ BACKUP ZIP -->
   <div style="
       margin-top:14px;
@@ -3608,12 +3615,6 @@ function renderExportModal(bg){
     <input type="file" id="inputZipBackup" accept=".zip" style="display:none" onchange="importarGuiaProZip(event)">
 
   </div>
-    <div class="sep" style="margin:16px 0"></div>
-    
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="label" style="color:var(--green2)">RESTAURAR BACKUP</div>
-      <button class="btn ghost" style="border-color:var(--green2); color:var(--green2)" onclick="document.getElementById('importFileInput').click()">⬆ SELECIONAR ARQUIVO .JSON</button>
-    </div>
   </div>`;
 }
 
