@@ -470,19 +470,21 @@ DB._putOriginal = (s,v)=>new Promise((r,j)=>{const tx=DB.db.transaction(s,'readw
 DB.put = async (store, obj) => {
   if (store !== 'midias' && obj) {
     const extrairParaMidias = async (item) => {
-      if (typeof item === 'string' && item.startsWith('data:')) {
+      
+      // A MÁGICA ESTÁ AQUI: Adicionamos a verificação para ignorar se já tiver '@m_'
+      if (typeof item === 'string' && item.startsWith('data:') && !item.includes('@m_')) {
         const isAudio = item.startsWith('data:audio');
         const id = 'm_' + Date.now() + Math.random().toString(36).substring(2,8);
         await DB._putOriginal('midias', { id: id, data: item });
         
-        // Retorna um arquivo nativo embutido e vazio, com o ID escondido no final (#).
-        // Isso engana o navegador e mata o erro 404 instantaneamente!
+        // Retorna o arquivo vazio com a marcação
         if (isAudio) {
             return 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=#@' + id;
         } else {
             return 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=#@' + id;
         }
       }
+      
       if (Array.isArray(item)) {
         for (let i = 0; i < item.length; i++) item[i] = await extrairParaMidias(item[i]);
       } else if (item !== null && typeof item === 'object') {
