@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>🔧 GuiaPro — Procedimentos e Fluxos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -550,7 +551,106 @@ const observerMidias = new MutationObserver(() => {
     window.hidratarMidias();
 });
 observerMidias.observe(document.body, { childList: true, subtree: true });
+/* ══ SISTEMA DE BACKUP ZIP (Seguro e Isolado) ══ */
 
+// 1. Exportação Completa
+async function exportarGuiaProZip() {
+    try {
+        console.log("Iniciando backup...");
+        // Garante que o banco está aberto
+        if (!DB.db) await DB.open();
+
+        const lojas = ['procedimentos', 'execucoes', 'treino_scores', 'fluxos', 'biblioteca', 'historico', 'midias'];
+        const dadosCompletos = {};
+
+        // Puxa todos os dados de todas as tabelas usando sua função getAll
+        for (let loja of lojas) {
+            dadosCompletos[loja] = await DB.getAll(loja);
+        }
+
+        // Empacota tudo com JSZip
+        const zip = new JSZip();
+        
+        // Converte o objetão inteiro em JSON e coloca no ZIP
+        zip.file("guiapro_backup_full.json", JSON.stringify(dadosCompletos));
+
+        const conteudoZip = await zip.generateAsync({ type: "blob" });
+        
+        // Baixa o arquivo
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(conteudoZip);
+        
+        const dataHoje = new Date().toISOString().split('T')[0];
+        link.download = `GuiaPro_Backup_${dataHoje}.zip`;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        
+    } catch (erro) {
+        console.error("Erro na exportação:", erro);
+        alert("Falha ao exportar backup.");
+    }
+}
+
+// 2. Importação e Restauração
+async function importarGuiaProZip(event) {
+    const arquivo = event.target.files[0];
+    if (!arquivo) return;
+
+    try {
+        console.log("Lendo arquivo ZIP...");
+        if (!DB.db) await DB.open();
+
+        const zip = new JSZip();
+        const conteudoZip = await zip.loadAsync(arquivo);
+        
+        const arquivoJson = conteudoZip.file("guiapro_backup_full.json");
+        if (!arquivoJson) {
+            alert("Arquivo inválido! O ZIP não contém o backup do GuiaPro.");
+            return;
+        }
+
+        const stringJson = await arquivoJson.async("string");
+        const dadosImportados = JSON.parse(stringJson);
+        const lojasPresentes = Object.keys(dadosImportados);
+
+        // Abre UMA ÚNICA transação nativa para todas as tabelas.
+        // Isso é super seguro e rápido.
+        const transacao = DB.db.transaction(lojasPresentes, 'readwrite');
+
+        for (let loja of lojasPresentes) {
+            const store = transacao.objectStore(loja);
+            
+            // Loop para adicionar cada item de volta
+            for (let item of dadosImportados[loja]) {
+                // Usamos store.put NATIVO aqui. 
+                // Por que? Para BYPASSAR o seu DB.put (Interceptador).
+                // Como os dados do backup já estão separados (mídias no cofre e dados normais), 
+                // não queremos que o interceptador rode de novo.
+                store.put(item); 
+            }
+        }
+
+        transacao.oncomplete = () => {
+            // Limpa o campo para poder importar de novo se necessário
+            document.getElementById('inputZipBackup').value = "";
+            alert("Restauração Concluída com Sucesso! A página será recarregada para aplicar os dados.");
+            // Recarrega a página para o sistema puxar os novos dados visuais
+            window.location.reload(); 
+        };
+
+        transacao.onerror = (err) => {
+            console.error("Erro na transação de banco:", err);
+            alert("Erro ao gravar dados restaurados.");
+        };
+
+    } catch (erro) {
+        console.error("Erro ao importar:", erro);
+        alert("Erro ao processar o arquivo de Restauração.");
+    }
+}
 /* ══ ESTADO ══ */
 const S={
   tab:'procedimentos',
@@ -3428,7 +3528,86 @@ function renderExportModal(bg){
       <button class="btn steel sm" onclick="selecionarTodosExport(false)">✗ Nada</button>
       <button class="btn yellow sm" onclick="executarExport()" style="flex:2">⬇ BAIXAR BACKUP</button>
     </div>
-    
+    <!-- ✨ BACKUP ZIP -->
+  <div style="
+      margin-top:14px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      width:100%;
+    ">
+
+    <button onclick="exportarGuiaProZip()" style="
+          width:100%;
+          min-height:54px;
+
+          border:none;
+          border-radius:16px;
+
+          background:
+            linear-gradient(
+              135deg,
+              #0ea5e9,
+              #2563eb
+            );
+
+          color:#fff;
+
+          font-size:15px;
+          font-weight:800;
+          letter-spacing:.4px;
+
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          gap:10px;
+
+          cursor:pointer;
+
+          box-shadow:
+            0 10px 30px rgba(37,99,235,.22),
+            inset 0 1px 0 rgba(255,255,255,.08);
+        ">
+      ⬆ EXPORTAR BACKUP COMPLETO (.ZIP)
+    </button>
+
+    <button onclick="document.getElementById('inputZipBackup').click()" style="
+          width:100%;
+          min-height:54px;
+
+          border:none;
+          border-radius:16px;
+
+          background:
+            linear-gradient(
+              135deg,
+              #10b981,
+              #059669
+            );
+
+          color:#fff;
+
+          font-size:15px;
+          font-weight:800;
+          letter-spacing:.4px;
+
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          gap:10px;
+
+          cursor:pointer;
+
+          box-shadow:
+            0 10px 30px rgba(5,150,105,.22),
+            inset 0 1px 0 rgba(255,255,255,.08);
+        ">
+      ⬇ RESTAURAR BACKUP (.ZIP)
+    </button>
+
+    <input type="file" id="inputZipBackup" accept=".zip" style="display:none" onchange="importarGuiaProZip(event)">
+
+  </div>
     <div class="sep" style="margin:16px 0"></div>
     
     <div style="display:flex;flex-direction:column;gap:8px">
