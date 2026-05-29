@@ -203,7 +203,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .opt-input:focus{border-color:rgba(34,211,238,.4);}
 .opt-dest-sel{width: 90px;background:rgba(0,0,0,.3);color:var(--cyan2);border:1px solid rgba(34,211,238,.2);border-radius:var(--r);padding:7px 8px;font-size:11px;font-family:var(--font-mono);outline:none;cursor:pointer;}
 /* ══ BIBLIOTECA ══ */
-.bib-card{background:var(--steel);border:1px solid rgba(251,146,60,.1);border-radius:var(--r2);overflow:scroll;}
+.bib-card{background:var(--steel);max-height: 330px; border:1px solid rgba(251,146,60,.1);border-radius:var(--r2);overflow:scroll;}
 .bib-step-row{display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .15s;}
 .bib-step-row:last-child{border-bottom:none;}
 .bib-step-row:active{background:rgba(255,255,255,.03);}
@@ -742,7 +742,7 @@ const S={
   // INJETE ESTA LINHA:
   sm2: { ativo: false, procId: null, fila: [], atual: 0, mostrandoResposta: false }
 };
-const BIB_POR_PAGINA=20;
+const BIB_POR_PAGINA=25;
 
 /* ══ IMAGEM ══ */
 function comprimirImagem(file,maxW=800,q=.72){
