@@ -588,10 +588,15 @@ function lsGet(k,d){try{const v=localStorage.getItem('mp_'+k);return v?JSON.pars
 
 /* ══ HIDRATADOR DE MÍDIAS (FASE 2) ══ */
 window.hidratarMidias = async () => {
-  const midias = document.querySelectorAll('img[src*="@m_"], audio[src*="@m_"]');
+  // 🛑 TRAVA ANTI-PISCA-PISCA: Agora ele ignora elementos que já têm 'data-hydrated'
+  const midias = document.querySelectorAll('img[src*="@m_"]:not([data-hydrated="true"]), audio[src*="@m_"]:not([data-hydrated="true"])');
+  
   for(let el of midias) {
      const src = el.getAttribute('src');
      if (!src) continue;
+     
+     // Marca o elemento como hidratado para não entrar em loop
+     el.setAttribute('data-hydrated', 'true');
      
      let id = null;
      if (src.startsWith('@m_')) {
@@ -604,7 +609,6 @@ window.hidratarMidias = async () => {
          el.setAttribute('src', 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='); 
          const obj = await DB.get('midias', id);
          if(obj) {
-             // A MÁGICA AQUI: Ele devolve a imagem gorda para a tela, mas anexa o '#@id' no final!
              el.setAttribute('src', obj.data + '#@' + id);
          }
      }
@@ -965,11 +969,44 @@ function buildVerProcedimento(proc){
   // 👇 Se nada estiver aberto, e houver passos, deixa o primeiro aberto pra você não se sentir perdido.
   if (window._stepAbertoId === null && steps.length > 0) window._stepAbertoId = steps[0].id;
   const stepsHtml=steps.length===0?`<div style="text-align:center;padding:16px;color:var(--chrome);font-family:var(--font-mono);font-size:11px;text-transform:uppercase">Nenhum passo ainda</div>`:steps.map((s,i)=>buildStepCard(s,proc.id,i)).join('');
-  return`<div class="card"><div class="card-head"><div class="card-title">📋 ${esc(proc.nome)}</div><div style="display:flex;gap:5px"><button class="btn ghost sm" style="padding:5px 9px;font-size:11px" onclick="A.editarProc(${proc.id})">✏ EDITAR</button><button class="btn steel sm" style="padding:5px 9px;font-size:11px" onclick="A.fecharProc()">✕</button></div></div><div class="card-body">${proc.descricao?`<div style="font-size:13px;color:var(--chrome);line-height:1.7">${esc(proc.descricao)}</div>`:''}<div style="display:flex;gap:5px;flex-wrap:wrap">${proc.categoria?`<span class="proc-badge pb-gray">📁 ${esc(proc.categoria)}</span>`:''}${proc.veiculoModelo?`<span class="proc-badge pb-green">🚗 ${esc(proc.veiculoModelo)}</span>`:''}<span class="proc-badge pb-yellow">⚙ ${steps.length} passos</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn yellow sm" onclick="A.iniciarExec(${proc.id})" style="flex:2">▶ EXECUTAR</button><button class="btn purple sm" onclick="A.iniciarTreino(${proc.id})" style="flex:1">🎓 TREINAR</button><button class="btn cyan sm" onclick="A.iniciarSM2Proc(${proc.id})" style="flex:1">🧠 SM-2</button></div></div></div>
-  <div class="card"><div class="card-head"><div class="card-title">⚙ PASSOS</div><button class="btn yellow sm" style="width:auto;margin: 3px 34px 3px 34px;padding:5px 11px;font-size:11px" onclick="A.novoStep(${proc.id})">＋ PASSO</button></div></div>
+  
+  return `<div class="card">
+    <div class="card-head">
+      <div class="card-title">📋 ${esc(proc.nome)}</div>
+      <div style="display:flex;gap:5px">
+        <button class="btn ghost sm" style="padding:5px 9px;font-size:11px" onclick="A.editarProc(${proc.id})">✏ EDITAR</button>
+        <button class="btn steel sm" style="padding:5px 9px;font-size:11px" onclick="A.fecharProc()">✕</button>
+      </div>
+    </div>
+    <div class="card-body">
+      ${proc.descricao?`<div style="font-size:13px;color:var(--chrome);line-height:1.7">${esc(proc.descricao)}</div>`:''}
+      
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        ${proc.categoria?`<span class="proc-badge pb-gray">📁 ${esc(proc.categoria)}</span>`:''}
+        ${proc.veiculoModelo?`<span class="proc-badge pb-green">🚗 ${esc(proc.veiculoModelo)}</span>`:''}
+        <span class="proc-badge pb-yellow">⚙ ${steps.length} passos</span>
+      </div>
+      
+      <div style="display:flex; gap:8px; margin-top:15px;">
+        <button class="btn yellow sm" style="width:100%; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarExec(${proc.id})">▶EXECUTAR</button>
+        <button class="btn ghost sm" style="width:100%; padding:12px; font-size:12px; font-weight:bold; background:#00d2ff; color:#000;" onclick="A.iniciarSpeedrunDireto(${proc.id})">🏃 SPEEDRUN</button>
+        <button class="btn purple sm" style="width:100%; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarTreino(${proc.id})">🎓 TREINAR</button>
+        <button class="btn cyan sm" style="width:100%; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarSM2Proc(${proc.id})">🧠 SM-2</button>
+      </div>
+      
+    </div>
+  </div>
+  
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">⚙ PASSOS</div>
+      <button class="btn yellow sm" style="width:auto;margin: 3px 34px 3px 34px;padding:5px 11px;font-size:11px" onclick="A.novoStep(${proc.id})">＋ PASSO</button>
+    </div>
+  </div>
   <div style="display:flex;flex-direction:column;gap:8px" id="stepsContainer">${stepsHtml}</div>
   ${steps.length>0?`<div class="info-box">⚠ A ORDEM DOS PASSOS É OBRIGATÓRIA NA EXECUÇÃO E TREINO. PASSOS TAMBÉM SÃO SALVOS NA BIBLIOTECA.</div>`:''}`;
 }
+
 window._stepAbertoId = null;
 
 window.toggleStepAberto = (stepId, procId) => {
@@ -1399,6 +1436,9 @@ function buildExecStepCard(step, faltando){
   
   const fotosHtml = step.fotos?.length ? `<div class="exec-imgs">${step.fotos.map((f,i)=>`<div class="exec-img" onclick="lightbox('${f}')"><img src="${f}" alt="${i+1}" loading="lazy"></div>`).join('')}</div>` : '';
   
+  // 🎵 NOVA LINHA: Criando o HTML do player de áudio (se houver áudio salvo)
+  const audioHtml = step.audio ? `<div style="margin-top:8px; margin-bottom:8px; background:rgba(0,0,0,.2); padding:8px; border-radius:4px; border-left:3px solid var(--yellow)"><div style="font-family:var(--font-mono);font-size:9px;color:var(--yellow);text-transform:uppercase;margin-bottom:4px">🎙 Áudio de Instrução</div><audio controls src="${step.audio}" style="width:100%; height:30px;" onplay="tocarAudioLockScreen('${esc(window.limparTagsTexto(step.titulo))}')"></audio></div>` : '';
+
   const isPassoEfetuado = S.execAtiva?.stepsDone?.includes(step.id);
   const classeBotao = isPassoEfetuado ? 'btn green' : 'btn steel';
   const estiloBotao = isPassoEfetuado ? '' : 'background: var(--yellow); color: #000; font-weight: bold;';
@@ -1417,8 +1457,11 @@ function buildExecStepCard(step, faltando){
     <div class="exec-step-body">
       ${step.descricao ? `<div class="exec-step-desc" id="sDesc" style="cursor:pointer;" data-raw="${esc(step.descricao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${window.renderizarTextoOculto(step.descricao)}</div>` : ''}
       ${step.codigo ? `<pre class="code-block"><code style="cursor:pointer;" data-raw="${esc(step.codigo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${window.renderizarTextoOculto(step.codigo)}</code></pre>` : ''}
+      
+      ${audioHtml} <!-- 🎵 AQUI O PLAYER DE ÁUDIO APARECE NA INTERFACE -->
       ${fotosHtml}
-      ${step.alerta ? `<div class="warn-box" style="cursor:pointer;" data-raw="${esc(step.alerta)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">⚠ ${window.renderizarTextoOculto(step.alerta)}</div>` : ''}
+      
+      ${step.alerta ? `<div class="warn-box" style="margin-top:5px; cursor:pointer;" data-raw="${esc(step.alerta)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">⚠ ${window.renderizarTextoOculto(step.alerta)}</div>` : ''}
     </div>
     
     <div class="exec-foot">
@@ -2343,11 +2386,85 @@ const A={
 },
 
   /* ── Execução ── */
-  iniciarExec(procId){
+iniciarExec(procId){
     const proc=S.procedimentos.find(p=>p.id===procId);if(!proc||!proc.steps?.length){toast('⚠ Sem passos!','');return;}
     const steps=proc.steps.slice().sort((a,b)=>a.ordem-b.ordem);
-    S.execAtiva={procId,stepsDone:[],stepAtual:steps[0]?.id||null,startTs:Date.now(),ultimoTimestamp:Date.now(),tempos:{}};S.tab='executar';render();
+    S.execAtiva={procId,stepsDone:[],stepAtual:steps[0]?.id||null,startTs:Date.now(),ultimoTimestamp:Date.now(),tempos:{}};
+    S.tab='executar';
+    render();
+    window.navegarComAudio(true); // 👈 A MÁGICA DO PASSO 1 AQUI
   },
+  iniciarSpeedrunDireto(procId) {
+    const proc = S.procedimentos.find(p => p.id === procId);
+    if (!proc || !proc.steps?.length) { 
+      toast('⚠ Sem passos para fazer Speedrun!', 'error'); 
+      return; 
+    }
+    
+    // Procura no histórico se você já fez esse procedimento antes para usar como "Fantasma"
+    const historicos = (S.historico || []).filter(h => h.procId === procId && h.tipo === 'procedimento' && h.tempos);
+    let temposFantasma = null;
+    if (historicos.length > 0) {
+      temposFantasma = historicos[historicos.length - 1].tempos; // Pega o último registro para você tentar bater
+    }
+
+    const steps = proc.steps.slice().sort((a,b) => a.ordem - b.ordem);
+    
+    S.execAtiva = {
+      procId: proc.id,
+      stepsDone: [],
+      stepAtual: steps[0]?.id || null, // Garante que comece lendo do passo 1
+      startTs: Date.now(),
+      ultimoTimestamp: Date.now(),
+      tempos: {},
+      pbTempos: temposFantasma 
+    };
+
+    window._modoSpeedrun = true;
+    window._srInicioTotal = Date.now();
+    window._srInicioPasso = Date.now();
+    clearInterval(window._srTimer);
+    window._srTimer = setInterval(window.atualizarTimersSpeedrun, 80);
+
+    S.tab = 'executar'; 
+    if(temposFantasma) {
+      toast("👻 SPEEDRUN: Correndo contra seu último tempo!", "cyan");
+    } else {
+      toast("⏱ SPEEDRUN: Estabeleça seu primeiro recorde!", "cyan");
+    }
+    render(); 
+    window.navegarComAudio(true); // Aciona o áudio logo de cara no primeiro passo!
+  },
+
+  desafiarFantasma: function(histId) {
+    const registroAnterior = (S.historico || []).find(h => h.id === histId);
+    if (!registroAnterior || registroAnterior.tipo !== 'procedimento' || !registroAnterior.tempos) {
+      toast("⚠ Não há tempos salvos nesta execução para desafiar.", "error");
+      return;
+    }
+    
+    const proc = S.procedimentos.find(p => p.id === registroAnterior.procId);
+    if (!proc) return;
+
+    S.execAtiva = {
+      procId: proc.id,
+      stepsDone: [],
+      stepAtual: null,
+      pbTempos: registroAnterior.tempos 
+    };
+
+    window._modoSpeedrun = true;
+    window._srInicioTotal = Date.now();
+    window._srInicioPasso = Date.now();
+    clearInterval(window._srTimer);
+    window._srTimer = setInterval(window.atualizarTimersSpeedrun, 80);
+
+    S.tab = 'executar'; 
+    toast("👻 DESAFIO ACEITO! CORRA CONTRA O SEU FANTASMA!", "cyan");
+    render(); 
+    window.navegarComAudio(true); // 👈 A MÁGICA DO PASSO 1 NO SPEEDRUN AQUI
+  },
+
   iniciarExecDoFluxo(procId){S.fluxoExec=null;A.iniciarExec(procId);},
 
   // DENTRO DO CONST A = {
@@ -2625,12 +2742,13 @@ const A={
   iniciarFluxo(fluxoId){
     const fluxo=S.fluxos.find(f=>f.id===fluxoId);if(!fluxo||!fluxo.nos?.length){toast('⚠ Fluxo sem nós!','');return;}
     const noRaiz=fluxo.nos.find(n=>n.id===fluxo.noRaizId)||fluxo.nos[0];
-    // Adicionamos a array orcamento: [] vazia aqui
     S.fluxoExec={fluxoId,historico:[],procsVistos:[], orcamento:[], noAtual:noRaiz.id};
-    S.tab='fluxo';render();
+    S.tab='fluxo';
+    render();
+    window.navegarComAudio(true); // 👈 Toca no 1º bloco do fluxo também!
   },
 
-  retomarFluxo(histId) {
+retomarFluxo(histId) {
     const registro = S.historico.find(h => h.id === histId);
     if(!registro) { toast('⚠ Registro não encontrado!', 'error'); return; }
     const fluxo = S.fluxos.find(f => f.id === registro.fluxoId);
@@ -2640,11 +2758,13 @@ const A={
         fluxoId: registro.fluxoId,
         historico: JSON.parse(JSON.stringify(registro.historico || [])),
         procsVistos: JSON.parse(JSON.stringify(registro.procsVistos || [])),
-        orcamento: JSON.parse(JSON.stringify(registro.orcamento || [])), // 👈 MÁGICA: Restaura os valores se pausou
+        orcamento: JSON.parse(JSON.stringify(registro.orcamento || [])),
         noAtual: registro.noParadaId
     };
-    S.tab = 'fluxo'; render();
+    S.tab = 'fluxo'; 
+    render();
     toast('🔄 Fluxo retomado com orçamento intacto.', 'cyan');
+    window.navegarComAudio(true); // 👈 Toca ao retomar o bloco!
   },
   fluxoVoltar(){
     if(!S.fluxoExec||!S.fluxoExec.historico.length)return;
@@ -4551,9 +4671,15 @@ window.detectarIdiomaDoTexto = (texto) => {
   return 'pt-BR';
 };
 // 3. 🔊 LEITOR DE VOZ DINÂMICO: Obedece cada comando por linha, altera o sotaque e ignora os marcadores
+// 2. A LISTA DE FALA (Injeta a verificação da leitura forçada se não houver texto)
 window.falarTextoGuiaPro = (camposArray) => {
-  window.speechSynthesis.cancel(); // Para qualquer leitura anterior
-  
+  window.speechSynthesis.cancel();
+  window._filaDeFalas = [];
+  window._fraseAtual = null;
+  window._charIndexAtual = 0;
+  window._charIndexParcial = 0;
+  window._leituraPausada = false;
+
   if (window._reconhecedorAtivo) {
     window._sistemaFalando = true; 
     window._reconhecedorAtivo.stop();
@@ -4561,58 +4687,60 @@ window.falarTextoGuiaPro = (camposArray) => {
     window._sistemaFalando = true;
   }
 
-  const fragmentosLinhas = [];
   camposArray.forEach(bloco => {
     if (!bloco) return;
     const linhas = bloco.split(/\n/); 
     linhas.forEach(linha => {
       const linhaLimpa = linha.replace(/[\u2714\u2715]|PASSO CONCLUÍDO|Abandonar/g, '').trim(); 
       if (linhaLimpa.length > 0) {
-        fragmentosLinhas.push(linhaLimpa);
+        const idiomaDetectado = window.detectarIdiomaDoTexto(linhaLimpa);
+        const textoFormatado = linhaLimpa.replace(/~[a-zA-Z]{2}\s*/g, '').trim();
+        if (textoFormatado.length > 0) {
+          window._filaDeFalas.push({ texto: textoFormatado, idioma: idiomaDetectado });
+        }
       }
     });
   });
 
-  if (fragmentosLinhas.length === 0) {
+  if (window._filaDeFalas.length === 0) {
     window._sistemaFalando = false;
+    
+    // 🎵 MÁGICA AQUI: Toca o áudio diretamente se não houver texto e a leitura for manual ou auto
+    const audioEl = document.querySelector('audio');
+    if (audioEl && (window._leituraAutomatica || window._leituraManualForcada) && !window._audioStepTocado) {
+        window._audioStepTocado = true; 
+        window._leituraManualForcada = false; // Desativa a força bruta após usar
+        
+        audioEl.play().then(() => {
+            audioEl.onended = () => {
+                setTimeout(() => {
+                  if (window._reconhecedorAtivo && window.speechSynthesis.speaking === false) {
+                    try { window._ultimoStartVoz = Date.now(); window._reconhecedorAtivo.start(); } catch(e) {}
+                  }
+                }, 800);
+            };
+        }).catch(e => {
+            setTimeout(() => {
+              if (window._reconhecedorAtivo && window.speechSynthesis.speaking === false) {
+                try { window._ultimoStartVoz = Date.now(); window._reconhecedorAtivo.start(); } catch(e) {}
+              }
+            }, 800);
+        });
+        return; 
+    }
+
+    // Fallback: liga mic se nao tiver audio
+    setTimeout(() => {
+      if (window._reconhecedorAtivo && window.speechSynthesis.speaking === false) {
+        try { window._ultimoStartVoz = Date.now(); window._reconhecedorAtivo.start(); } catch(e) {}
+      }
+    }, 800);
     return;
   }
 
-  fragmentosLinhas.forEach((frase, index) => {
-    const idiomaDetectado = window.detectarIdiomaDoTexto(frase);
-    
-    // Remove categoricamente a tag de idioma da frase antes de falar para nunca ler "til pt"
-    const fraseFormatada = frase.replace(/~[a-zA-Z]{2}\s*/g, '').trim();
-
-    if (fraseFormatada.length === 0) return;
-
-    const utterance = new SpeechSynthesisUtterance(fraseFormatada);
-    utterance.lang = idiomaDetectado;
-    utterance.rate = idiomaDetectado === 'pt-BR' ? 1.15 : 0.88; 
-
-    if (window.speechSynthesis.getVoices) {
-      const vozesDisponiveis = window.speechSynthesis.getVoices();
-      const vozIdeal = vozesDisponiveis.find(v => v.lang.startsWith(idiomaDetectado));
-      if (vozIdeal) utterance.voice = vozIdeal;
-    }
-
-    if (index === fragmentosLinhas.length - 1) {
-      utterance.onend = () => {
-        window._sistemaFalando = false;
-        setTimeout(() => {
-          if (window._reconhecedorAtivo && window.speechSynthesis.speaking === false) {
-            try {
-              window._ultimoStartVoz = Date.now();
-              window._reconhecedorAtivo.start();
-            } catch(e) {}
-          }
-        }, 800);
-      };
-    }
-
-    window.speechSynthesis.speak(utterance);
-  });
+  window.tocarProximaFala();
 };
+
 // Ajustado para retornar um ARRAY de strings (Título, Descrição, Código) isolados para análise individual
 window.coletarCamposEtapaAtualArray = () => {
   const listaCampos = [];
@@ -4897,13 +5025,38 @@ window.falarTextoGuiaPro = (camposArray) => {
   window.tocarProximaFala();
 };
 
-// 2. TOCA A PRÓXIMA FRASE (OU RETOMA EXATAMENTE DA PALAVRA PAUSADA)
+
+// 3. A CONCLUSÃO DA FALA (Injeta a verificação da leitura forçada DEPOIS do texto acabar)
 window.tocarProximaFala = () => {
   if (window._leituraPausada) return;
   
   if (window._filaDeFalas.length === 0 && !window._fraseAtual) {
     window._sistemaFalando = false;
-    // Respiro para reativar o microfone de comandos de voz
+    
+    // 🎵 AQUI TAMBÉM: Adicionado a flag _leituraManualForcada para tocar após a robô terminar o texto
+    const audioEl = document.querySelector('audio');
+    if (audioEl && (window._leituraAutomatica || window._leituraManualForcada) && !window._audioStepTocado) {
+        window._audioStepTocado = true; 
+        window._leituraManualForcada = false; // Limpa a flag 
+        
+        audioEl.play().then(() => {
+            audioEl.onended = () => {
+                setTimeout(() => {
+                  if (window._reconhecedorAtivo && window.speechSynthesis.speaking === false) {
+                    try { window._ultimoStartVoz = Date.now(); window._reconhecedorAtivo.start(); } catch(e) {}
+                  }
+                }, 800);
+            };
+        }).catch(e => {
+            setTimeout(() => {
+              if (window._reconhecedorAtivo && window.speechSynthesis.speaking === false) {
+                try { window._ultimoStartVoz = Date.now(); window._reconhecedorAtivo.start(); } catch(e) {}
+              }
+            }, 800);
+        });
+        return; 
+    }
+
     setTimeout(() => {
       if (window._reconhecedorAtivo && window.speechSynthesis.speaking === false) {
         try {
@@ -4919,7 +5072,7 @@ window.tocarProximaFala = () => {
   const item = window._fraseAtual || window._filaDeFalas.shift();
   window._fraseAtual = item;
 
-  // CORTA O TEXTO: Se o usuário pausou antes, ele inicia a partir da palavra onde parou!
+  // CORTA O TEXTO: Inicia a partir da palavra onde parou!
   const textoParaLer = item.texto.substring(window._charIndexAtual).trim();
 
   // Se já leu a linha toda, zera os contadores e chama a próxima
@@ -4942,32 +5095,27 @@ window.tocarProximaFala = () => {
 
   window._charIndexParcial = 0;
 
-  // 🧠 MÁGICA AQUI: O evento "onboundary" rastreia a posição de cada palavra que está sendo dita
   utterance.onboundary = (e) => {
     if (e.name === 'word') {
       window._charIndexParcial = e.charIndex;
     }
   };
 
-  // Se finalizou com sucesso ou foi interrompido, salvamos a posição da palavra
   utterance.onend = () => {
     if (window._leituraPausada) {
       window._charIndexAtual += window._charIndexParcial;
       return;
     }
-    // Se não está pausado, leu até o fim. Limpa para a próxima linha.
     window._fraseAtual = null;
     window._charIndexAtual = 0;
     window.tocarProximaFala();
   };
 
   utterance.onerror = (e) => {
-    // Blindagem de Erros: Independente do tipo de erro do Android, se clicou em pause, salva a posição!
     if (window._leituraPausada) {
       window._charIndexAtual += window._charIndexParcial;
       return;
     }
-    // Se foi um erro aleatório sem ser pause, tenta pular para não travar
     window._fraseAtual = null;
     window._charIndexAtual = 0;
     window.tocarProximaFala();
@@ -4977,6 +5125,7 @@ window.tocarProximaFala = () => {
 };
 
 // 3. CONTROLES DOS BOTÕES E COMANDOS (PLAY / PAUSE SIMULADO)
+// 1. O BOTÃO DE LER
 window.acionarLeituraTela = () => {
   if (window._sistemaFalando) {
     if (window._leituraPausada) {
@@ -4990,12 +5139,18 @@ window.acionarLeituraTela = () => {
     }
   } else {
     window._leituraPausada = false;
+    
+    // 🔄 MÁGICA AQUI: Reseta a memória para ele poder tocar de novo!
+    window._audioStepTocado = false; 
+    window._leituraManualForcada = true; // Força a leitura mesmo se o Auto estiver OFF
+
     const campos = window.coletarCamposEtapaAtualArray();
     if (campos && campos.length > 0) {
       window.falarTextoGuiaPro(campos);
       toast("🔊 Lendo informações da tela...", "ok");
     } else {
-      toast("⚠ Nada para ler nesta etapa.", "error");
+      // Se não tiver texto nenhum, passa um array vazio para ele pular direto pro Player de Áudio
+      window.falarTextoGuiaPro([]); 
     }
   }
 };
@@ -5045,6 +5200,7 @@ window.navegarComAudio = (deveLerNovaTela) => {
   window._charIndexParcial = 0;
   window._leituraPausada = false;
   window._sistemaFalando = false;
+  window._audioStepTocado = false;
   window.speechSynthesis.cancel();
   
   // 2. Aguarda a tela nova terminar de desenhar
