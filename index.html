@@ -36,7 +36,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .icon-btn.cyan{border-color:rgba(8,145,178,.4);background:rgba(8,145,178,.08);color:var(--cyan2);}
 #tabs{display:flex;background:var(--steel2);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;overflow-x:auto;scrollbar-width:none;}
 #tabs::-webkit-scrollbar{display:none;}
-.tab{flex:1;min-width:52px;padding:9px 3px;font-family:var(--font-body);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--chrome);cursor:pointer;text-align:center;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;user-select:none;}
+.tab{flex:1;min-width:52px;padding:20px 3px;font-family:var(--font-body);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--chrome);cursor:pointer;text-align:center;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;user-select:none;}
 .tab.on{color:var(--yellow);border-color:var(--yellow);background: rgba(201,168,76,.03);}
 .tab.on.treino-tab{color:#a855f7;border-color:#a855f7;}
 .tab.on.fluxo-tab{color:var(--cyan2);border-color:var(--cyan2);}
@@ -436,10 +436,11 @@ audio::-webkit-media-controls-panel {
   background-color: #1a1a1a;
 }
 audio {
-    border: 2px solid rgba(245,200,0,.2);
-    /* border: solid 5px #f5c8006e; */
-    border-radius: 20px;
-    opacity: 0.85;
+    padding: 4px;
+    background: #111;
+    border: 1px solid rgb(238 168 34 / 25%);
+    border-radius: 16px;
+    box-shadow: 0 0 15px rgb(214 238 34 / 15%), inset 0 0 15px rgba(34, 211, 238, .04);
 }
 audio:focus {
   outline: none;
@@ -467,15 +468,16 @@ audio:focus {
       <button class="icon-btn yellow" onclick="A.acaoPrincipal()" id="btnMain">＋</button>
     </div>
   </div>
-  <div id="tabs">
+
+  <div id="body"></div>
+    <div id="tabs">
     <div class="tab on" data-tab="procedimentos" onclick="A.setTab('procedimentos')">📋 Proc.</div>
+    <div class="tab fluxo-tab" data-tab="fluxo" onclick="A.setTab('fluxo')">🔀 Fluxo</div>
     <div class="tab" data-tab="executar" onclick="A.setTab('executar')">▶ Exec.</div>
     <div class="tab treino-tab" data-tab="treino" onclick="A.setTab('treino')">🎓 Treino</div>
-    <div class="tab fluxo-tab" data-tab="fluxo" onclick="A.setTab('fluxo')">🔀 Fluxo</div>
     <div class="tab bib-tab" data-tab="biblioteca" onclick="A.setTab('biblioteca')">📚 Bib.</div>
     <div class="tab" data-tab="historico" onclick="A.setTab('historico')">📊 Hist.</div>
   </div>
-  <div id="body"></div>
 </div>
 <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importarArquivo(event)">
 <script>
@@ -1083,13 +1085,12 @@ function buildVerProcedimento(proc){
         .scroll-botoes::-webkit-scrollbar { display: none; }
         .scroll-botoes { -ms-overflow-style: none; scrollbar-width: none; }
       </style>
-      <div class="scroll-botoes" style="display:flex; gap:8px; margin-top:15px; overflow-x:auto; padding-bottom:5px; flex-wrap:nowrap;">
+      <div class="scroll-botoes" style="display:flex;justify-content: center; gap:8px; margin-top:15px; overflow-x:auto; padding-bottom:5px; flex-wrap:wrap;">
         <button class="btn yellow sm" style="flex:0 0 auto; min-width:110px; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarExec(${proc.id})">▶ EXECUTAR</button>
-        <button class="btn ghost sm" style="flex:0 0 auto; min-width:110px; padding:12px; font-size:12px; font-weight:bold; background:#00d2ff; color:#000;" onclick="A.iniciarSpeedrunDireto(${proc.id})">🏃 SPEEDRUN</button>
-        <button class="btn purple sm" style="flex:0 0 auto; min-width:110px; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarTreino(${proc.id})">🎓 TREINAR</button>
         <button class="btn cyan sm" style="flex:0 0 auto; min-width:110px; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarSM2Proc(${proc.id})">🧠 SM-2</button>
-        
+        <button class="btn ghost sm" style="flex:0 0 auto; min-width:110px; padding:12px; font-size:12px; font-weight:bold; background:#00d2ff; color:#000;" onclick="A.iniciarSpeedrunDireto(${proc.id})">🏃 SPEEDRUN</button>
         <button class="btn green sm" style="flex:0 0 auto; min-width:110px; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarVF(${proc.id})">🎮 JOGO V/F</button>
+        <button class="btn purple sm" style="flex:0 0 auto; min-width:110px; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarTreino(${proc.id})">🎓 TREINAR</button>
       </div>
       
     </div>
@@ -1602,7 +1603,7 @@ function buildVF() {
       </button>
     </div>
     
-    <div style="text-align:center; margin-top:30px;">
+    <div style="text-align:center; margin-top:30px; display: flex;">
       <button class="btn ghost sm" style="color:var(--chrome);" onclick="A.fecharVF()">✕ Abandonar Jogo</button>
     </div>
   `;
