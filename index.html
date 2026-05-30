@@ -5369,7 +5369,7 @@ window.avancarPassoAtalho = () => {
     const btnConcluir = document.querySelector(`button[onclick*="A.marcarStepDone('${S.execAtiva.stepAtual}')"]`);
     if (btnConcluir) {
         btnConcluir.click();
-        toast("⏭ Avançando para o próximo...", "cyan");
+        toast("⏭ Avançando...", "cyan");
     }
   }
 };
@@ -5387,7 +5387,7 @@ window.voltarPassoAtalho = () => {
        const stepAnterior = steps[currIndex - 1];
        S.execAtiva.stepAtual = stepAnterior.id;
        S.execAtiva.stepsDone = S.execAtiva.stepsDone.filter(id => id !== stepAnterior.id);
-       toast("⏮ Voltando um passo...", "cyan");
+       toast("⏮ Voltando...", "cyan");
        render();
        window.navegarComAudio(true);
     } else {
@@ -5396,7 +5396,7 @@ window.voltarPassoAtalho = () => {
   }
 };
 
-// 3. Função para LER / PAUSAR (Atalho)
+// 3. Função para LER / PAUSAR no PC
 window.acionarLeituraAtalho = () => {
   if (S.tab === 'executar' && S.execAtiva) {
      window.acionarLeituraTela();
@@ -5407,19 +5407,41 @@ window.acionarLeituraAtalho = () => {
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-  if (e.key === 'ArrowRight') { 
-     window.avancarPassoAtalho();
-  } else if (e.key === 'ArrowLeft') { 
-     window.voltarPassoAtalho();
-  } else if (e.code === 'Space') { // 👈 NOVO: Barra de espaço para dar "Play" em LER
+  if (e.key === 'ArrowRight') window.avancarPassoAtalho();
+  else if (e.key === 'ArrowLeft') window.voltarPassoAtalho();
+  else if (e.code === 'Space') { 
      e.preventDefault(); 
      window.acionarLeituraAtalho();
   }
 });
 
-// 🎧 O SEGREDO PARA O CELULAR NÃO DORMIR (Áudio Silencioso Base64)
-// Isso cria um áudio em branco curtíssimo. 
-window._audioSilencioso = new Audio('data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAwAAAbAAqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV////////////////////////////////////////////AAAAAExhdmM1OC4xMwAAAAAAAAAAAAAAACQDkAAAAAAAAAGw9wrNaQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAAAAANIAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV/+MYxDsAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV/+MYxHYAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV');
+// 📱 O SEGREDO DO CELULAR: Assumir o controle da mídia
+window.ativarControleFone = () => {
+    // Toca um áudio em branco de 0.1s (código bem curtinho para não quebrar) 
+    // Isso acorda o sistema operacional e diz: "Ei, estou tocando áudio, mande os cliques para mim!"
+    const silencio = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
+    silencio.play().catch(() => {}); // O catch evita erros se o celular bloquear autoplay
+
+    if ('mediaSession' in navigator) {
+        // Se o fone tiver a função "Próxima/Anterior" (alguns fones têm 3 toques)
+        navigator.mediaSession.setActionHandler('nexttrack', window.avancarPassoAtalho);
+        navigator.mediaSession.setActionHandler('previoustrack', window.voltarPassoAtalho);
+        
+        // 🚨 A MÁGICA DOS AIRDOTS (1 TOQUE): Transforma o botão de Play/Pause em "Avançar Passo"
+        navigator.mediaSession.setActionHandler('play', window.avancarPassoAtalho);
+        navigator.mediaSession.setActionHandler('pause', window.avancarPassoAtalho);
+    }
+};
+
+// Navegadores de celular exigem que você "toque na tela" pelo menos uma vez 
+// para liberar o fone de ouvido. Este código ativa o fone no primeiro clique que você der na tela.
+document.addEventListener('click', () => {
+    if(!window._foneConectado) {
+        window._foneConectado = true;
+        window.ativarControleFone();
+    }
+}, { once: true });
+
 /* ══ INIT ══ */
 (async()=>{
   try{
