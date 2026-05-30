@@ -5363,7 +5363,7 @@ window.formatarTempoMs = (ms) => {
 // 🎧 CONTROLES GLOBAIS DE TECLADO E FONE DE OUVIDO
 // =========================================================
 
-// 1. Função para Avançar (Simula o clique em "Concluir")
+// 1. Função para Avançar
 window.avancarPassoAtalho = () => {
   if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual) {
     const btnConcluir = document.querySelector(`button[onclick*="A.marcarStepDone('${S.execAtiva.stepAtual}')"]`);
@@ -5379,10 +5379,8 @@ window.voltarPassoAtalho = () => {
   if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual) {
     const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
     if (!proc) return;
-    
     const steps = proc.steps.slice().sort((a,b) => a.ordem - b.ordem);
     const currIndex = steps.findIndex(s => s.id === S.execAtiva.stepAtual);
-    
     if (currIndex > 0) {
        const stepAnterior = steps[currIndex - 1];
        S.execAtiva.stepAtual = stepAnterior.id;
@@ -5406,7 +5404,6 @@ window.acionarLeituraAtalho = () => {
 // ⌨ ATALHOS DE TECLADO (PC)
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
   if (e.key === 'ArrowRight') window.avancarPassoAtalho();
   else if (e.key === 'ArrowLeft') window.voltarPassoAtalho();
   else if (e.code === 'Space') { 
@@ -5415,33 +5412,56 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// 📱 O SEGREDO DO CELULAR: Assumir o controle da mídia
+// =========================================================
+// 📱 O SEGREDO DO CELULAR: Rádio Silenciosa Infinita
+// =========================================================
+
+// Cria um áudio de silêncio e configura para tocar em LOOP (nunca acaba)
+window._audioSilenciosoPlayer = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
+window._audioSilenciosoPlayer.loop = true; 
+
 window.ativarControleFone = () => {
-    // Toca um áudio em branco de 0.1s (código bem curtinho para não quebrar) 
-    // Isso acorda o sistema operacional e diz: "Ei, estou tocando áudio, mande os cliques para mim!"
-    const silencio = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
-    silencio.play().catch(() => {}); // O catch evita erros se o celular bloquear autoplay
+    // Dá play no silêncio infinito para forçar o player a aparecer na barra do celular
+    window._audioSilenciosoPlayer.play().catch(() => {});
 
     if ('mediaSession' in navigator) {
-        // Se o fone tiver a função "Próxima/Anterior" (alguns fones têm 3 toques)
+        // Isso cria a notificação visual de mídia no celular!
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: 'Executando Procedimento',
+            artist: 'Modo Foco Ativado',
+            artwork: [
+                { src: 'https://cdn-icons-png.flaticon.com/512/2040/2040504.png', sizes: '512x512', type: 'image/png' } // Ícone genérico para ficar bonito
+            ]
+        });
+
+        // 🚨 A MÁGICA DOS AIRDOTS (1 TOQUE): 
+        // Quando você der 1 toque no Airdots, ele tenta "Pausar" a nossa rádio silenciosa.
+        // Nós interceptamos isso, avançamos o passo, e mandamos a rádio tocar de novo para não perder o controle!
+        navigator.mediaSession.setActionHandler('pause', () => {
+            window.avancarPassoAtalho();
+            window._audioSilenciosoPlayer.play(); 
+        });
+
+        // Caso o celular entenda que já estava pausado e mande um "Play"
+        navigator.mediaSession.setActionHandler('play', () => {
+            window.avancarPassoAtalho();
+            window._audioSilenciosoPlayer.play();
+        });
+
+        // Garantia extra para fones com mais funções
         navigator.mediaSession.setActionHandler('nexttrack', window.avancarPassoAtalho);
         navigator.mediaSession.setActionHandler('previoustrack', window.voltarPassoAtalho);
-        
-        // 🚨 A MÁGICA DOS AIRDOTS (1 TOQUE): Transforma o botão de Play/Pause em "Avançar Passo"
-        navigator.mediaSession.setActionHandler('play', window.avancarPassoAtalho);
-        navigator.mediaSession.setActionHandler('pause', window.avancarPassoAtalho);
     }
 };
 
-// Navegadores de celular exigem que você "toque na tela" pelo menos uma vez 
-// para liberar o fone de ouvido. Este código ativa o fone no primeiro clique que você der na tela.
+// O celular exige que o usuário toque na tela pelo menos uma vez antes de permitir o autoplay do silêncio.
+// Quando você clicar em qualquer lugar da tela pela primeira vez (ex: para entrar num procedimento), o player assume o controle.
 document.addEventListener('click', () => {
     if(!window._foneConectado) {
         window._foneConectado = true;
         window.ativarControleFone();
     }
 }, { once: true });
-
 /* ══ INIT ══ */
 (async()=>{
   try{
