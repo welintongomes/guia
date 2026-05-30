@@ -109,7 +109,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .exec-step-title{font-family:var(--font-head);font-size:20px;letter-spacing:1px;color:white;}
 .exec-step-body{padding:1px 1px;display:flex;flex-direction:column;gap:10px;}
 .exec-step-desc{font-size:14px;padding: 10px;color:var(--chrome2);line-height:1.7;font-weight:500;}
-.exec-imgs{display:flex;flex-wrap:wrap;gap:8px;}
+.exec-imgs{display:flex;justify-content: center;flex-wrap:wrap;gap:8px;}
 .exec-img{border-radius:var(--r);overflow:hidden;border:1px solid rgba(255,255,255,.1);cursor:pointer;background:var(--steel2);max-width:100%;}
 .exec-img img{width:100%;display:block;max-height:200px;object-fit:contain;background:#000;}
 .exec-foot{padding:2px 0px;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:8px;}
@@ -878,7 +878,6 @@ async function propagarEdicaoBiblioteca(bib, tituloAntigo) {
 }
 
 /* ══ RENDER ══ */
-/* ══ RENDER ══ */
 function render(){
   updateTopbar();
   const body=document.getElementById('body');if(!body)return;
@@ -893,11 +892,12 @@ function render(){
   const bgAuto = autoAtivo ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.05)';
   const borderAuto = autoAtivo ? 'var(--green2)' : 'rgba(255,255,255,0.1)';
   
-  // Detecta se você já está dentro de uma execução para não duplicar o botão (já que existe o rodapé)
+  // Detecta se você já está dentro de uma execução para não duplicar o botão
   const emExecucao = 
-     (S.tab === 'executar' && (S.execAtiva || (S.sm2 && S.sm2.ativo))) ||
-     (S.tab === 'fluxo' && S.fluxoExec) ||
-     (S.tab === 'treino' && S.treino.procId);
+       (S.tab === 'executar' && (S.execAtiva || (S.sm2 && S.sm2.ativo))) ||
+       (S.tab === 'fluxo' && S.fluxoExec) ||
+       (S.tab === 'treino' && S.treino.procId) ||
+       (S.tab === 'vf' && S.vfAtivo); // 👈 ADICIONADO AQUI PARA O JOGO V/F
 
   // O botão global que ficará no topo da tela
   const barraGlobalHtml = !emExecucao ? `
@@ -937,8 +937,11 @@ function render(){
       
   }else if(S.tab==='historico'){
       buildHistorico();
-      // O histórico constrói o próprio HTML interno, então injetamos a barra logo acima dele
       body.innerHTML = barraGlobalHtml + body.innerHTML; 
+      
+  }else if(S.tab==='vf'){
+      // 👈 A CHAMADA DA TELA DO JOGO AQUI
+      body.innerHTML = buildVF(); 
   }
 }
 
@@ -1002,7 +1005,6 @@ function buildProcedimentos(){
 
 function buildVerProcedimento(proc){
   const steps=(proc.steps||[]).slice().sort((a,b)=>a.ordem-b.ordem);
-  // 👇 Se nada estiver aberto, e houver passos, deixa o primeiro aberto pra você não se sentir perdido.
   if (window._stepAbertoId === null && steps.length > 0) window._stepAbertoId = steps[0].id;
   const stepsHtml=steps.length===0?`<div style="text-align:center;padding:16px;color:var(--chrome);font-family:var(--font-mono);font-size:11px;text-transform:uppercase">Nenhum passo ainda</div>`:steps.map((s,i)=>buildStepCard(s,proc.id,i)).join('');
   
@@ -1023,11 +1025,17 @@ function buildVerProcedimento(proc){
         <span class="proc-badge pb-yellow">⚙ ${steps.length} passos</span>
       </div>
       
-      <div style="display:flex; gap:8px; margin-top:15px;">
-        <button class="btn yellow sm" style="width:100%; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarExec(${proc.id})">▶EXECUTAR</button>
-        <button class="btn ghost sm" style="width:100%; padding:12px; font-size:12px; font-weight:bold; background:#00d2ff; color:#000;" onclick="A.iniciarSpeedrunDireto(${proc.id})">🏃 SPEEDRUN</button>
-        <button class="btn purple sm" style="width:100%; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarTreino(${proc.id})">🎓 TREINAR</button>
-        <button class="btn cyan sm" style="width:100%; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarSM2Proc(${proc.id})">🧠 SM-2</button>
+      <style>
+        .scroll-botoes::-webkit-scrollbar { display: none; }
+        .scroll-botoes { -ms-overflow-style: none; scrollbar-width: none; }
+      </style>
+      <div class="scroll-botoes" style="display:flex; gap:8px; margin-top:15px; overflow-x:auto; padding-bottom:5px; flex-wrap:nowrap;">
+        <button class="btn yellow sm" style="flex:0 0 auto; min-width:110px; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarExec(${proc.id})">▶ EXECUTAR</button>
+        <button class="btn ghost sm" style="flex:0 0 auto; min-width:110px; padding:12px; font-size:12px; font-weight:bold; background:#00d2ff; color:#000;" onclick="A.iniciarSpeedrunDireto(${proc.id})">🏃 SPEEDRUN</button>
+        <button class="btn purple sm" style="flex:0 0 auto; min-width:110px; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarTreino(${proc.id})">🎓 TREINAR</button>
+        <button class="btn cyan sm" style="flex:0 0 auto; min-width:110px; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarSM2Proc(${proc.id})">🧠 SM-2</button>
+        
+        <button class="btn green sm" style="flex:0 0 auto; min-width:110px; padding:12px; font-size:12px; font-weight:bold;" onclick="A.iniciarVF(${proc.id})">🎮 JOGO V/F</button>
       </div>
       
     </div>
@@ -1453,6 +1461,89 @@ let conteudo='';
   </div>`;
 }
 
+function buildVF() {
+  if (!S.vfAtivo) return '';
+  const vf = S.vfAtivo;
+  const total = vf.questoes.length;
+
+  // 🏆 TELA DE RESULTADO (FIM DE JOGO)
+  if (vf.finalizado) {
+    const porcentagem = Math.round((vf.pontos / total) * 100);
+    let emoji = porcentagem === 100 ? '🏅' : (porcentagem > 70 ? '👏' : '😅');
+    
+    // Lógica do Fantasma (Recorde)
+    const pb = vf.pbPontos || 0;
+    const novoRecorde = vf.pontos > pb && pb > 0;
+    let htmlRecorde = '';
+
+    if (novoRecorde) {
+      htmlRecorde = `<div style="color:var(--green2); font-weight:bold; font-size:14px; margin-top:8px; background:rgba(46,204,113,0.1); padding:5px 10px; border-radius:8px; border:1px dashed var(--green2);">🏆 NOVO RECORDE! (Antigo: ${pb})</div>`;
+    } else if (pb > 0) {
+      htmlRecorde = `<div style="color:var(--chrome); font-size:12px; margin-top:8px;">Recorde atual: ${pb} pontos</div>`;
+    }
+
+    return `
+      <div style="text-align:center;padding:40px 16px;display:flex;flex-direction:column;align-items:center;gap:14px">
+        <div style="font-size:62px">${emoji}</div>
+        <div style="font-family:var(--font-head);font-size:26px;color:var(--green2)">FIM DE JOGO!</div>
+        <div style="font-size:16px; color:white;">Você acertou <strong>${vf.pontos}</strong> de <strong>${total}</strong></div>
+        
+        <div style="background:#0a0a0a; border:2px solid ${novoRecorde ? 'var(--green2)' : 'var(--yellow)'}; border-radius:var(--r); padding:16px; width:100%; max-width:280px; margin:15px 0; box-shadow:0 0 20px ${novoRecorde ? 'rgba(46,204,113,0.3)' : 'rgba(245,200,0,0.2)'};">
+           <div style="font-family:var(--font-mono); font-size:36px; color:${novoRecorde ? 'var(--green2)' : 'var(--yellow)'}; font-weight:bold;">${porcentagem}%</div>
+           <div style="color:var(--chrome); font-size:10px; font-weight:bold; text-transform:uppercase;">DE PRECISÃO</div>
+           ${htmlRecorde}
+        </div>
+
+        <button class="btn green" style="width:100%; max-width:280px; padding:16px; margin-bottom:5px; font-weight:bold;" onclick="A.salvarResultadoVF()">✔ SALVAR PONTUAÇÃO</button>
+        <button class="btn yellow" style="width:100%; max-width:280px; padding:16px; font-weight:bold;" onclick="A.iniciarVF(${vf.procId})">🔄 JOGAR NOVAMENTE</button>
+        <button class="btn ghost sm" style="margin-top:10px; color:var(--chrome);" onclick="A.fecharVF()">✕ SAIR SEM SALVAR</button>
+      </div>
+    `;
+  }
+
+  // 🎮 TELA DA PERGUNTA ATUAL
+  const q = vf.questoes[vf.indiceAtual];
+  const pbDisplay = vf.pbPontos > 0 ? `<div style="font-family:var(--font-mono); font-size:9px; color:var(--chrome);">👻 RECORDE: ${vf.pbPontos}</div>` : '';
+
+  return `
+    <div class="card" style="margin-bottom:12px;">
+      <div class="card-head" style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="card-title" style="color:var(--cyan)">🎮 VERDADEIRO OU FALSO</div>
+        <div style="text-align:right;">
+            <div style="font-family:var(--font-mono); color:var(--yellow); font-weight:bold; font-size:14px;">🏆 PTS: ${vf.pontos}</div>
+            ${pbDisplay}
+        </div>
+      </div>
+      <div style="padding:10px; font-family:var(--font-mono); font-size:10px; color:var(--chrome); text-align:center; text-transform:uppercase;">
+        PERGUNTA ${vf.indiceAtual + 1} DE ${total}
+      </div>
+    </div>
+
+    <div class="card" style="padding:25px 15px; text-align:center; min-height:220px; display:flex; flex-direction:column; justify-content:center; border: 1px solid rgba(255,255,255,0.05);">
+      <div style="font-size:11px; color:var(--chrome); margin-bottom:8px; text-transform:uppercase; font-weight:bold;">TÍTULO DO PASSO:</div>
+      <div style="font-size:22px; font-weight:bold; color:white; margin-bottom:25px;">"${esc(window.renderizarTextoOculto(q.titulo))}"</div>
+      
+      <div style="font-size:11px; color:var(--chrome); margin-bottom:8px; text-transform:uppercase; font-weight:bold;">ESTA É A DESCRIÇÃO CORRETA?</div>
+      <div style="font-size:16px; color:var(--cyan); font-style:italic; background:rgba(0,0,0,0.4); padding:20px; border-radius:12px; border-left:4px solid var(--cyan);">
+        "${esc(window.renderizarTextoOculto(q.descricaoMostrada))}"
+      </div>
+    </div>
+
+    <div style="display:flex; gap:12px; margin-top:20px;">
+      <button onclick="A.responderVF(false)" style="flex:1; background:rgba(231,76,60,0.1); border:2px solid #e74c3c; color:#e74c3c; padding:25px 10px; font-size:18px; font-weight:bold; border-radius:12px; cursor:pointer; transition:0.2s;" onmousedown="this.style.background='rgba(231,76,60,0.3)'" onmouseup="this.style.background='rgba(231,76,60,0.1)'">
+        ❌ FALSO
+      </button>
+      <button onclick="A.responderVF(true)" style="flex:1; background:rgba(46,204,113,0.1); border:2px solid var(--green2); color:var(--green2); padding:25px 10px; font-size:18px; font-weight:bold; border-radius:12px; cursor:pointer; transition:0.2s;" onmousedown="this.style.background='rgba(46,204,113,0.3)'" onmouseup="this.style.background='rgba(46,204,113,0.1)'">
+        ✅ VERDADEIRO
+      </button>
+    </div>
+    
+    <div style="text-align:center; margin-top:30px;">
+      <button class="btn ghost sm" style="color:var(--chrome);" onclick="A.fecharVF()">✕ Abandonar Jogo</button>
+    </div>
+  `;
+}
+
 window.irParaPassoProcedimento = (stepId) => {
   if (!S.execAtiva) return;
   
@@ -1472,7 +1563,7 @@ function buildExecStepCard(step, faltando){
   
   const fotosHtml = step.fotos?.length ? `<div class="exec-imgs">${step.fotos.map((f,i)=>`<div class="exec-img" onclick="lightbox('${f}')"><img src="${f}" alt="${i+1}" loading="lazy"></div>`).join('')}</div>` : '';
   
-  // 🎵 NOVA LINHA: Criando o HTML do player de áudio (se houver áudio salvo)
+  // 🎵 HTML do player de áudio
   const audioHtml = step.audio ? `<div style="margin-top:8px; margin-bottom:8px; background:rgba(0,0,0,.2); padding:8px; border-radius:4px; border-left:3px solid var(--yellow)"><div style="font-family:var(--font-mono);font-size:9px;color:var(--yellow);text-transform:uppercase;margin-bottom:4px">🎙 Áudio de Instrução</div><audio controls src="${step.audio}" style="width:100%; height:30px;" onplay="tocarAudioLockScreen('${esc(window.limparTagsTexto(step.titulo))}')"></audio></div>` : '';
 
   const isPassoEfetuado = S.execAtiva?.stepsDone?.includes(step.id);
@@ -1480,6 +1571,25 @@ function buildExecStepCard(step, faltando){
   const estiloBotao = isPassoEfetuado ? '' : 'background: var(--yellow); color: #000; font-weight: bold;';
   const textoBotao = isPassoEfetuado ? '✔ PASSO CONCLUÍDO' : 'CONCLUIR ESTA ETAPA';
   const tagStatus = isPassoEfetuado ? 'ETAPA JÁ CONCLUÍDA' : 'PRÓXIMO PASSO';
+
+  // 🧭 BOTÕES DE NAVEGAÇÃO LIVRE (Avançar e Voltar sem concluir) - Sempre visíveis!
+  const navHtml = `
+  <div style="display:flex; gap:8px; margin-top: 20px; margin-bottom: ${window._modoSpeedrun ? '5px' : '12px'};">
+    <button class="btn steel" style="flex:1; padding:16px; font-size:16px; font-weight:bold; border-radius:12px; display:flex; justify-content:center; align-items:center;" onclick="A.navegarPassoLivre(-1)">
+      ⬅ VOLTAR
+    </button>
+    <button class="btn steel" style="flex:1; padding:16px; font-size:16px; font-weight:bold; border-radius:12px; display:flex; justify-content:center; align-items:center;" onclick="A.navegarPassoLivre(1)">
+      AVANÇAR ➡
+    </button>
+  </div>`;
+
+  // ✅ BOTÃO CONCLUIR (Só aparece se NÃO estiver no Speedrun)
+  const concluirHtml = window._modoSpeedrun ? '' : `
+  <div class="exec-foot">
+    <button class="${classeBotao}" style="${estiloBotao} width:100%; padding:14px; font-size:14px; border-radius:12px;" onclick="A.marcarStepDone('${step.id}')">
+      ${textoBotao}
+    </button>
+  </div>`;
 
   return `
   <div class="exec-step-card">
@@ -1494,18 +1604,14 @@ function buildExecStepCard(step, faltando){
       ${step.descricao ? `<div class="exec-step-desc" id="sDesc" style="cursor:pointer;" data-raw="${esc(step.descricao)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${window.renderizarTextoOculto(step.descricao)}</div>` : ''}
       ${step.codigo ? `<pre class="code-block"><code style="cursor:pointer;" data-raw="${esc(step.codigo)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">${window.renderizarTextoOculto(step.codigo)}</code></pre>` : ''}
       
-      ${audioHtml} <!-- 🎵 AQUI O PLAYER DE ÁUDIO APARECE NA INTERFACE -->
+      ${audioHtml} 
       ${fotosHtml}
       
       ${step.alerta ? `<div class="warn-box" style="margin-top:5px; cursor:pointer;" data-raw="${esc(step.alerta)}" onclick="window.lerTextoDireto(this.getAttribute('data-raw'))">⚠ ${window.renderizarTextoOculto(step.alerta)}</div>` : ''}
-    </div>
+      
+      ${navHtml} </div>
     
-    <div class="exec-foot">
-      <button class="${classeBotao}" style="${estiloBotao} width:100%; padding:14px; font-size:14px;" onclick="A.marcarStepDone('${step.id}')">
-        ${textoBotao}
-      </button>
-    </div>
-  </div>`;
+    ${concluirHtml} </div>`;
 }
 
 /* ══ ABA TREINO ══ */
@@ -1856,7 +1962,8 @@ function buildHistorico() {
   const body = document.getElementById('body');
   let historico = S.historico || [];
   
-  historico = historico.filter(h => h.tipo === 'fluxo' || h.tipo === 'treino' || h.tipo === 'procedimento'); 
+  // 1. O SEGREDO TAVA AQUI: Agora ele permite o 'vf' passar pelo filtro!
+  historico = historico.filter(h => h.tipo === 'fluxo' || h.tipo === 'treino' || h.tipo === 'procedimento' || h.tipo === 'vf'); 
 
   if (historico.length === 0) {
     body.innerHTML = `<div class="empty" style="margin-top:40px"><div class="empty-icon" style="font-size:40px; opacity:0.3; margin-bottom:10px">⏳</div><div class="empty-title">NENHUM HISTÓRICO</div><div style="font-size:12px; color:var(--chrome); text-align:center; margin-top:5px;">Seus diagnósticos e boletins de treino aparecerão aqui.</div></div>`;
@@ -1884,18 +1991,37 @@ function buildHistorico() {
         const isFluxo = h.tipo === 'fluxo';
         const isTreino = h.tipo === 'treino';
         const isProc = h.tipo === 'procedimento'; 
+        const isVF = h.tipo === 'vf'; // 2. Detectando o modo jogo
         
         let icon = '📋';
         let corHeader = 'var(--yellow)';
         if (isFluxo) { icon = '🔀'; corHeader = 'var(--cyan2)'; }
         if (isTreino) { icon = '🎓'; corHeader = '#a855f7'; }
+        if (isVF) { icon = '🎮'; corHeader = 'var(--green2)'; } // Ícone do V/F
         
         const dataHora = new Date(h.data);
         const horaStr = dataHora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
 
         let detalhesHtml = '';
         
-        if (isFluxo && h.historico && h.historico.length) {
+        // --- 🎮 RELATÓRIO DO JOGO V/F ---
+        if (isVF) {
+            const pct = Math.round((h.pontos / h.totalQuestoes) * 100);
+            detalhesHtml = `
+            <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center;">
+              <span style="background:rgba(46,204,113,.1); border:1px solid rgba(46,204,113,.2); color:var(--green2); padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;">🏆 ${h.pontos} Acertos</span>
+              <span style="background:rgba(255,255,255,.1); color:var(--chrome2); padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:auto;">Precisão: ${pct}%</span>
+            </div>
+            <div style="font-size:11px; color:var(--chrome); text-align:center; margin-bottom:10px;">
+                Total de ${h.totalQuestoes} perguntas no jogo.
+            </div>
+            <button class="btn" onclick="A.iniciarVF(${h.procId})" style="background:rgba(46,204,113,0.1); border:1px solid var(--green2); color:var(--green2); font-weight:bold; font-size:12px; width:100%; padding:10px; border-radius:var(--r); cursor:pointer;">
+              🔄 JOGAR ESTE PROCEDIMENTO NOVAMENTE
+            </button>
+            `;
+
+        // (O resto dos blocos Fluxo, Treino e Procedimento continua EXATAMENTE igual)
+        } else if (isFluxo && h.historico && h.historico.length) {
             const statusCor = h.status === 'CONCLUÍDO' ? 'var(--green2)' : 'var(--yellow)';
             const podeRetomar = h.status === 'INTERROMPIDO'; 
             const clienteTag = h.cliente ? `<span style="background:rgba(245,200,0,.15); color:var(--yellow); border:1px solid rgba(245,200,0,.3); padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; margin-right:6px;">👤 ${esc(h.cliente)}</span>` : '';
@@ -1960,7 +2086,6 @@ function buildHistorico() {
               </div>
             `).join('');
             
-        // --- 🏁 RELATÓRIO DO SPEEDRUN COM COMPARAÇÃO DO FANTASMA ---
         } else if (isProc) {
             const hasTempos = h.tempos && h.tempos.total > 0;
             const hasFantasma = h.fantasmaTempos && h.fantasmaTempos.total > 0;
@@ -1970,7 +2095,7 @@ function buildHistorico() {
             if (hasTempos) {
                 if (hasFantasma) {
                     const diffTotal = h.tempos.total - h.fantasmaTempos.total;
-                    const corTotalAtual = diffTotal <= 0 ? 'var(--green2)' : '#e74c3c'; // Verde se foi mais rápido (menor), Vermelho se demorou mais
+                    const corTotalAtual = diffTotal <= 0 ? 'var(--green2)' : '#e74c3c'; 
                     const sinalTotal = diffTotal <= 0 ? '▼' : '▲';
                     
                     tempoHtml = `
@@ -2004,11 +2129,10 @@ function buildHistorico() {
                     if(t) {
                       let splitHtml = `<span style="font-family:var(--font-mono); color:#fff; font-weight:bold; font-size:13px;">${window.formatarTempoMs(t)}</span>`;
                       
-                      // 👻 COMPARAÇÃO DOS SPLITS (PASSO A PASSO)
                       if (hasFantasma && h.fantasmaTempos.passos[step.id]) {
                           const tFantasma = h.fantasmaTempos.passos[step.id];
                           const diff = t - tFantasma;
-                          const corSplit = diff <= 0 ? 'var(--green2)' : '#e74c3c'; // Menos tempo = Verde = Melhor
+                          const corSplit = diff <= 0 ? 'var(--green2)' : '#e74c3c'; 
                           const sinalSplit = diff <= 0 ? '▼' : '▲';
                           
                           splitHtml = `
@@ -2033,7 +2157,7 @@ function buildHistorico() {
                  </button>`;
               }
             } else {
-               detalhesHtml += `<div style="font-size:12px; color:var(--chrome);">Sem registros de tempo para esta execução.</div>`;
+                detalhesHtml += `<div style="font-size:12px; color:var(--chrome);">Sem registros de tempo para esta execução.</div>`;
             }
         }
 
@@ -2058,6 +2182,7 @@ function buildHistorico() {
 
   body.innerHTML = `<div style="padding-bottom:80px; padding-top:10px;">${html}</div>`;
 }
+
 /* ══ AÇÕES ══ */
 const A={
   // ── MOTOR SM-2 INTELIGENTE ──
@@ -2092,7 +2217,136 @@ const A={
     render();
     window.navegarComAudio(true); // Lê automaticamente a primeira pergunta
   },
+  // ==========================================
+  // 🎮 MODO DE JOGO: VERDADEIRO OU FALSO
+  // ==========================================
 
+  // ==========================================
+  // 🎮 MODO DE JOGO: VERDADEIRO OU FALSO
+  // ==========================================
+
+  iniciarVF(procId) {
+    const proc = S.procedimentos.find(p => p.id === procId);
+    if (!proc || !proc.steps) return;
+
+    const passosValidos = proc.steps.filter(s => s.titulo && s.descricao && s.descricao.trim() !== '');
+
+    if (passosValidos.length < 2) {
+      toast('⚠ Precisa de pelo menos 2 passos com DESCRIÇÃO para jogar!', 'error');
+      return;
+    }
+
+    // 👻 BUSCA O RECORDE ANTERIOR (FANTASMA)
+    let recordeAnterior = 0;
+    if (S.historico) {
+        const historicoVF = S.historico.filter(h => h.tipo === 'vf' && h.procId === procId);
+        if (historicoVF.length > 0) {
+            recordeAnterior = Math.max(...historicoVF.map(h => h.pontos));
+        }
+    }
+
+    let questoes = [];
+    const stepsEmbaralhados = passosValidos.sort(() => Math.random() - 0.5);
+
+    stepsEmbaralhados.forEach(step => {
+      let isVerdadeiro = Math.random() > 0.5;
+      let descricaoMostrada = step.descricao;
+
+      if (!isVerdadeiro) {
+        const outras = passosValidos.filter(p => p.id !== step.id);
+        const passoFalso = outras[Math.floor(Math.random() * outras.length)];
+        descricaoMostrada = passoFalso.descricao;
+      }
+
+      questoes.push({
+        stepId: step.id,
+        titulo: step.titulo,
+        descricaoMostrada: descricaoMostrada,
+        isVerdadeiro: isVerdadeiro
+      });
+    });
+
+    S.vfAtivo = {
+      procId: procId,
+      nome: proc.nome,
+      questoes: questoes,
+      indiceAtual: 0,
+      pontos: 0,
+      pbPontos: recordeAnterior, 
+      finalizado: false
+    };
+
+    S.tab = 'vf';
+    render();
+
+    // 🤖 O MOTOR INTELIGENTE LÊ A PRIMEIRA PERGUNTA
+    if (window._leituraAutomatica) {
+        window.falarTextoGuiaPro(window.coletarCamposEtapaAtualArray());
+    }
+  },
+  
+responderVF(respostaEscolhida) {
+    if (!S.vfAtivo || S.vfAtivo.finalizado) return;
+
+    if (window.speechSynthesis) window.speechSynthesis.cancel(); // Corta a fala anterior para não embolar
+
+    const q = S.vfAtivo.questoes[S.vfAtivo.indiceAtual];
+    
+    if (respostaEscolhida === q.isVerdadeiro) {
+      toast("✅ ACERTOU!", "green");
+      S.vfAtivo.pontos++;
+    } else {
+      toast("❌ ERROU!", "error");
+    }
+
+    S.vfAtivo.indiceAtual++;
+
+    // Verifica se chegou na última pergunta
+    if (S.vfAtivo.indiceAtual >= S.vfAtivo.questoes.length) {
+      S.vfAtivo.finalizado = true;
+    }
+    
+    // 1º ATUALIZA A TELA: Desenha a nova pergunta ou a tela de resultado final
+    render();
+
+    // 2º MÁGICA DA VOZ: O Motor lê automaticamente o que o "render()" acabou de desenhar na tela!
+    if (window._leituraAutomatica) {
+        window.falarTextoGuiaPro(window.coletarCamposEtapaAtualArray());
+    }
+  },
+  fecharVF() {
+    S.vfAtivo = null;
+    S.tab = 'procedimentos'; // Ou 'biblioteca', dependendo de onde quer voltar
+    render();
+  },
+  // Salva o resultado do jogo V/F no IndexedDB
+  async salvarResultadoVF() {
+    if (!S.vfAtivo) return;
+
+    const novoRegistro = {
+      id: Date.now(),
+      tipo: 'vf', // Marcamos como 'vf' para não misturar com os tempos de speedrun
+      procId: S.vfAtivo.procId,
+      nome: S.vfAtivo.nome,
+      data: Date.now(),
+      pontos: S.vfAtivo.pontos,
+      totalQuestoes: S.vfAtivo.questoes.length
+    };
+
+    try {
+      await DB.put('historico', novoRegistro);
+      if (!S.historico) S.historico = [];
+      S.historico.push(novoRegistro);
+      toast("✅ Pontuação salva no histórico!", "ok");
+    } catch (e) {
+      console.error("Erro ao salvar histórico do VF:", e);
+    }
+
+    // Limpa a tela do jogo e volta para o menu
+    S.vfAtivo = null;
+    S.tab = 'procedimentos'; 
+    render();
+  },
   sm2MostrarResposta() {
     S.sm2.mostrandoResposta = true;
     render();
@@ -2185,7 +2439,6 @@ const A={
   acaoPrincipal(){A.novoProcedimento();},
   fecharProc(){S.viewProcId=null;S.tab='procedimentos';render();},
   fecharFluxo(){S.viewFluxoId=null;S.tab='fluxo';render();},
-  /* ── Buscas Globais ── */
   /* ── Buscas Globais ── */
   limparBusca(tipo){
     if(tipo==='bib'){ S.bibBusca=''; S.bibPagina=0; }
@@ -2470,6 +2723,27 @@ iniciarExec(procId){
     }
     render(); 
     window.navegarComAudio(true); // Aciona o áudio logo de cara no primeiro passo!
+  },
+  // Função para navegar livremente sem marcar o passo como concluído
+  navegarPassoLivre(direcao) {
+    if (!S.execAtiva || !S.execAtiva.stepAtual) return;
+    const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
+    if (!proc) return;
+    
+    const steps = proc.steps.slice().sort((a,b) => a.ordem - b.ordem);
+    const currIndex = steps.findIndex(s => s.id === S.execAtiva.stepAtual);
+    
+    const novoIndex = currIndex + direcao;
+    
+    // Verifica se o próximo passo ou passo anterior existe
+    if (novoIndex >= 0 && novoIndex < steps.length) {
+       if (window.speechSynthesis) window.speechSynthesis.cancel(); // Para a leitura atual
+       S.execAtiva.stepAtual = steps[novoIndex].id;
+       render();
+       window.navegarComAudio(true); // Lê o áudio/texto do passo que você está visualizando
+    } else {
+       toast(direcao > 0 ? "🏁 Último passo atingido!" : "⚠ Este já é o primeiro passo.", "warning");
+    }
   },
 
   desafiarFantasma: function(histId) {
@@ -4778,10 +5052,11 @@ window.falarTextoGuiaPro = (camposArray) => {
 };
 
 // Ajustado para retornar um ARRAY de strings (Título, Descrição, Código) isolados para análise individual
+// Ajustado para retornar um ARRAY de strings (Título, Descrição, Código) isolados para análise individual
 window.coletarCamposEtapaAtualArray = () => {
   const listaCampos = [];
 
-  // MÁGICA: Escuta o SM-2! Se ele estiver rodando, pega apenas o que está sendo exibido.
+  // MÁGICA 1: Escuta o SM-2
   if (S.tab === 'executar' && S.sm2 && S.sm2.ativo) {
     const item = S.sm2.fila[S.sm2.atual];
     if (item) {
@@ -4794,16 +5069,34 @@ window.coletarCamposEtapaAtualArray = () => {
     return listaCampos;
   }
   
+  // 🎮 MÁGICA 2: Escuta o Jogo Verdadeiro ou Falso
+  if (S.tab === 'vf' && S.vfAtivo) {
+    if (!S.vfAtivo.finalizado) {
+        const q = S.vfAtivo.questoes[S.vfAtivo.indiceAtual];
+        if (q) {
+            listaCampos.push("pergunta!"); // Frase guia opcional
+            if (q.titulo) listaCampos.push(q.titulo);
+            listaCampos.push("resposta");
+            if (q.descricaoMostrada) listaCampos.push(q.descricaoMostrada);
+        }
+    } else {
+        listaCampos.push(`Fim de jogo! Você acertou ${S.vfAtivo.pontos} de ${S.vfAtivo.questoes.length}.`);
+    }
+    return listaCampos;
+  }
+
+  // MÁGICA 3: Escuta a Execução e Speedrun
   if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual) {
     const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
     const step = proc?.steps?.find(s => s.id === S.execAtiva.stepAtual);
     if (step) {
-      listaCampos.push(`Passo ${step.ordem}`); // Adicionado de forma isolada
+      listaCampos.push(`Passo ${step.ordem}`);
       if (step.titulo) listaCampos.push(step.titulo);
       if (step.descricao) listaCampos.push(step.descricao);
       if (step.codigo) listaCampos.push(step.codigo);
     }
   } 
+  // MÁGICA 4: Escuta os Fluxos de Diagnóstico
   else if (S.fluxoExec && S.fluxoExec.noAtual) {
     const fluxo = S.fluxos.find(f => f.id === S.fluxoExec.fluxoId);
     const noAtual = fluxo?.nos?.find(n => n.id === S.fluxoExec.noAtual);
