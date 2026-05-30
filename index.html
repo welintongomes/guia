@@ -5366,7 +5366,6 @@ window.formatarTempoMs = (ms) => {
 // 1. Função para Avançar (Simula o clique em "Concluir")
 window.avancarPassoAtalho = () => {
   if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual) {
-    // Procura o botão de concluir da etapa atual na interface e clica nele
     const btnConcluir = document.querySelector(`button[onclick*="A.marcarStepDone('${S.execAtiva.stepAtual}')"]`);
     if (btnConcluir) {
         btnConcluir.click();
@@ -5387,45 +5386,40 @@ window.voltarPassoAtalho = () => {
     if (currIndex > 0) {
        const stepAnterior = steps[currIndex - 1];
        S.execAtiva.stepAtual = stepAnterior.id;
-       
-       // Remove o passo anterior da lista de concluídos para ele voltar a ficar pendente
        S.execAtiva.stepsDone = S.execAtiva.stepsDone.filter(id => id !== stepAnterior.id);
-       
        toast("⏮ Voltando um passo...", "cyan");
        render();
-       window.navegarComAudio(true); // Lê e toca o áudio do passo anterior
+       window.navegarComAudio(true);
     } else {
        toast("⚠ Este já é o primeiro passo.", "error");
     }
   }
 };
 
-// ⌨ ATALHOS DE TECLADO
+// 3. Função para LER / PAUSAR (Atalho)
+window.acionarLeituraAtalho = () => {
+  if (S.tab === 'executar' && S.execAtiva) {
+     window.acionarLeituraTela();
+  }
+};
+
+// ⌨ ATALHOS DE TECLADO (PC)
 document.addEventListener('keydown', (e) => {
-  // Evita acionar atalhos sem querer se você estiver digitando um texto/pesquisa
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
   if (e.key === 'ArrowRight') { 
-     // Seta Direita -> Avança
      window.avancarPassoAtalho();
   } else if (e.key === 'ArrowLeft') { 
-     // Seta Esquerda -> Volta
      window.voltarPassoAtalho();
+  } else if (e.code === 'Space') { // 👈 NOVO: Barra de espaço para dar "Play" em LER
+     e.preventDefault(); 
+     window.acionarLeituraAtalho();
   }
 });
 
-// 🎧 ATALHOS DO FONE DE OUVIDO (Media Session API)
-if ('mediaSession' in navigator) {
-  // Intercepta o comando de "Próxima Música" (geralmente 2 toques no fone)
-  navigator.mediaSession.setActionHandler('nexttrack', () => {
-    window.avancarPassoAtalho();
-  });
-  
-  // Intercepta o comando de "Música Anterior" (geralmente 3 toques no fone)
-  navigator.mediaSession.setActionHandler('previoustrack', () => {
-    window.voltarPassoAtalho();
-  });
-}
+// 🎧 O SEGREDO PARA O CELULAR NÃO DORMIR (Áudio Silencioso Base64)
+// Isso cria um áudio em branco curtíssimo. 
+window._audioSilencioso = new Audio('data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAwAAAbAAqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV////////////////////////////////////////////AAAAAExhdmM1OC4xMwAAAAAAAAAAAAAAACQDkAAAAAAAAAGw9wrNaQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAAAAANIAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV/+MYxDsAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV/+MYxHYAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV');
 /* ══ INIT ══ */
 (async()=>{
   try{
