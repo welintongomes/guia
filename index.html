@@ -2428,6 +2428,7 @@ iniciarExec(procId){
     S.execAtiva={procId,stepsDone:[],stepAtual:steps[0]?.id||null,startTs:Date.now(),ultimoTimestamp:Date.now(),tempos:{}};
     S.tab='executar';
     render();
+    window.ativarMotorDeFoco(); // 👈 LIGA O MOTOR AQUI!
     window.navegarComAudio(true); // 👈 A MÁGICA DO PASSO 1 AQUI
   },
   iniciarSpeedrunDireto(procId) {
@@ -2468,7 +2469,8 @@ iniciarExec(procId){
     } else {
       toast("⏱ SPEEDRUN: Estabeleça seu primeiro recorde!", "cyan");
     }
-    render(); 
+    render();
+    window.ativarMotorDeFoco(); 
     window.navegarComAudio(true); // Aciona o áudio logo de cara no primeiro passo!
   },
 
@@ -5360,18 +5362,59 @@ window.formatarTempoMs = (ms) => {
   return `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}.${decis}`;
 };
 // =========================================================
-// 🎧 CONTROLES GLOBAIS DE TECLADO E FONE DE OUVIDO
+// 🎧 CONTROLES GLOBAIS E MOTOR DE FOCO
 // =========================================================
 
-// 1. Função para Avançar
+// 1. Cria um Player de Áudio invisível de verdade no site (MP3 em branco)
+if (!document.getElementById('motorFoco')) {
+    const audioEl = document.createElement('audio');
+    audioEl.id = 'motorFoco';
+    audioEl.loop = true;
+    audioEl.src = 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//MUxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//MUxBAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq';
+    document.body.appendChild(audioEl);
+}
+
+// 2. Função Suprema: Liga a Rádio e Destrava a Voz
+window.ativarMotorDeFoco = () => {
+    const motor = document.getElementById('motorFoco');
+    if (motor) motor.play().catch(()=>{});
+
+    // Engana o celular para destravar a voz para sempre
+    if ('speechSynthesis' in window) {
+        const vozMuda = new SpeechSynthesisUtterance(' ');
+        vozMuda.volume = 0;
+        window.speechSynthesis.speak(vozMuda);
+    }
+
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: 'Procedimento Ativo',
+            artist: 'Modo Foco / Piloto Automático',
+            artwork: [{ src: 'https://cdn-icons-png.flaticon.com/512/2040/2040504.png', sizes: '512x512', type: 'image/png' }]
+        });
+
+        // O segredo: Se o celular pausar a rádio, a gente avança o passo e dá play nela de novo!
+        const avancarEManterPlay = () => {
+            window.avancarPassoAtalho();
+            if(motor) motor.play();
+        };
+
+        const voltarEManterPlay = () => {
+            window.voltarPassoAtalho();
+            if(motor) motor.play();
+        };
+
+        navigator.mediaSession.setActionHandler('pause', avancarEManterPlay);
+        navigator.mediaSession.setActionHandler('play', avancarEManterPlay);
+        navigator.mediaSession.setActionHandler('nexttrack', avancarEManterPlay);
+        navigator.mediaSession.setActionHandler('previoustrack', voltarEManterPlay);
+    }
+};
+
+// 3. Funções de Avançar e Voltar
 window.avancarPassoAtalho = () => {
   if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual) {
-    
-    // 🚨 ACORDA OS MOTORES DE ÁUDIO E VOZ:
-    // Isso garante que o navegador saiba que o comando veio de você no fone!
     if (window.speechSynthesis) window.speechSynthesis.cancel(); 
-
-    // 🎯 CHAMADA DIRETA: Sem "btn.click()". Pulamos direto para a lógica!
     if (typeof A !== 'undefined' && A.marcarStepDone) {
         A.marcarStepDone(S.execAtiva.stepAtual);
         toast("⏭ Avançando...", "cyan");
@@ -5379,116 +5422,35 @@ window.avancarPassoAtalho = () => {
   }
 };
 
-// 2. Função para Voltar
 window.voltarPassoAtalho = () => {
   if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual) {
     const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
     if (!proc) return;
-    
     const steps = proc.steps.slice().sort((a,b) => a.ordem - b.ordem);
     const currIndex = steps.findIndex(s => s.id === S.execAtiva.stepAtual);
-    
     if (currIndex > 0) {
-       // 🚨 Acorda o áudio no retorno também!
        if (window.speechSynthesis) window.speechSynthesis.cancel(); 
-
        const stepAnterior = steps[currIndex - 1];
        S.execAtiva.stepAtual = stepAnterior.id;
        S.execAtiva.stepsDone = S.execAtiva.stepsDone.filter(id => id !== stepAnterior.id);
        toast("⏮ Voltando...", "cyan");
        render();
        window.navegarComAudio(true);
-    } else {
-       toast("⚠ Este já é o primeiro passo.", "error");
     }
   }
 };
 
-// 3. Função para LER / PAUSAR no PC
 window.acionarLeituraAtalho = () => {
-  if (S.tab === 'executar' && S.execAtiva) {
-     window.acionarLeituraTela();
-  }
+  if (S.tab === 'executar' && S.execAtiva) window.acionarLeituraTela();
 };
 
-// ⌨ ATALHOS DE TECLADO (PC)
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   if (e.key === 'ArrowRight') window.avancarPassoAtalho();
   else if (e.key === 'ArrowLeft') window.voltarPassoAtalho();
-  else if (e.code === 'Space') { 
-     e.preventDefault(); 
-     window.acionarLeituraAtalho();
-  }
+  else if (e.code === 'Space') { e.preventDefault(); window.acionarLeituraAtalho(); }
 });
 
-// =========================================================
-// 📱 O SEGREDO DO CELULAR: Rádio Silenciosa e Desbloqueio de Voz
-// =========================================================
-
-window._audioSilenciosoPlayer = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
-window._audioSilenciosoPlayer.loop = true; 
-
-// 🚨 A NOVA MÁGICA: Engana o Android para autorizar a voz para sempre!
-window.desbloquearVozAndroid = () => {
-    if ('speechSynthesis' in window) {
-        // Manda o celular falar um "espaço em branco" com o volume no zero absoluto.
-        // Como isso acontece logo que você toca na tela, o Android pensa: 
-        // "O humano tocou e pediu voz, está autorizado até fechar o app!"
-        const vozMuda = new SpeechSynthesisUtterance(' '); 
-        vozMuda.volume = 0; 
-        vozMuda.rate = 1;
-        window.speechSynthesis.speak(vozMuda);
-    }
-};
-
-window.ativarControleFone = () => {
-    window._audioSilenciosoPlayer.play().catch(() => {});
-
-    if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-            title: 'Executando Procedimento',
-            artist: 'Modo Foco Ativado',
-            artwork: [
-                { src: 'https://cdn-icons-png.flaticon.com/512/2040/2040504.png', sizes: '512x512', type: 'image/png' }
-            ]
-        });
-
-        // Quando o Airdots envia o comando, nós "acordamos" a voz forçadamente com o resume()
-        navigator.mediaSession.setActionHandler('pause', () => {
-            if (window.speechSynthesis) window.speechSynthesis.resume();
-            window.avancarPassoAtalho();
-            window._audioSilenciosoPlayer.play(); 
-        });
-
-        navigator.mediaSession.setActionHandler('play', () => {
-            if (window.speechSynthesis) window.speechSynthesis.resume();
-            window.avancarPassoAtalho();
-            window._audioSilenciosoPlayer.play();
-        });
-
-        navigator.mediaSession.setActionHandler('nexttrack', () => {
-            if (window.speechSynthesis) window.speechSynthesis.resume();
-            window.avancarPassoAtalho();
-        });
-        
-        navigator.mediaSession.setActionHandler('previoustrack', () => {
-            if (window.speechSynthesis) window.speechSynthesis.resume();
-            window.voltarPassoAtalho();
-        });
-    }
-};
-
-// O GATILHO INVISÍVEL:
-// No primeiro toque que você der na tela do app (ex: clicar no botão "Executar"), 
-// ele destrava a Voz e o Fone ao mesmo tempo!
-document.addEventListener('click', () => {
-    if(!window._foneConectado) {
-        window._foneConectado = true;
-        window.desbloquearVozAndroid(); // 👈 Desbloqueia a fala sintética
-        window.ativarControleFone();    // 👈 Assume o controle do Airdots
-    }
-}, { once: true });
 /* ══ INIT ══ */
 (async()=>{
   try{
