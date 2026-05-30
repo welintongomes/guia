@@ -5366,14 +5366,9 @@ window.formatarTempoMs = (ms) => {
 // 1. Função para Avançar
 window.avancarPassoAtalho = () => {
   if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual) {
-    
-    // 🚨 ACORDA OS MOTORES DE ÁUDIO E VOZ:
-    // Isso garante que o navegador saiba que o comando veio de você no fone!
-    if (window.speechSynthesis) window.speechSynthesis.cancel(); 
-
-    // 🎯 CHAMADA DIRETA: Sem "btn.click()". Pulamos direto para a lógica!
-    if (typeof A !== 'undefined' && A.marcarStepDone) {
-        A.marcarStepDone(S.execAtiva.stepAtual);
+    const btnConcluir = document.querySelector(`button[onclick*="A.marcarStepDone('${S.execAtiva.stepAtual}')"]`);
+    if (btnConcluir) {
+        btnConcluir.click();
         toast("⏭ Avançando...", "cyan");
     }
   }
@@ -5384,14 +5379,9 @@ window.voltarPassoAtalho = () => {
   if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual) {
     const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
     if (!proc) return;
-    
     const steps = proc.steps.slice().sort((a,b) => a.ordem - b.ordem);
     const currIndex = steps.findIndex(s => s.id === S.execAtiva.stepAtual);
-    
     if (currIndex > 0) {
-       // 🚨 Acorda o áudio no retorno também!
-       if (window.speechSynthesis) window.speechSynthesis.cancel(); 
-
        const stepAnterior = steps[currIndex - 1];
        S.execAtiva.stepAtual = stepAnterior.id;
        S.execAtiva.stepsDone = S.execAtiva.stepsDone.filter(id => id !== stepAnterior.id);
