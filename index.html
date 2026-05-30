@@ -5423,53 +5423,70 @@ document.addEventListener('keydown', (e) => {
 });
 
 // =========================================================
-// 📱 O SEGREDO DO CELULAR: Rádio Silenciosa Infinita
+// 📱 O SEGREDO DO CELULAR: Rádio Silenciosa e Desbloqueio de Voz
 // =========================================================
 
-// Cria um áudio de silêncio e configura para tocar em LOOP (nunca acaba)
 window._audioSilenciosoPlayer = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
 window._audioSilenciosoPlayer.loop = true; 
 
+// 🚨 A NOVA MÁGICA: Engana o Android para autorizar a voz para sempre!
+window.desbloquearVozAndroid = () => {
+    if ('speechSynthesis' in window) {
+        // Manda o celular falar um "espaço em branco" com o volume no zero absoluto.
+        // Como isso acontece logo que você toca na tela, o Android pensa: 
+        // "O humano tocou e pediu voz, está autorizado até fechar o app!"
+        const vozMuda = new SpeechSynthesisUtterance(' '); 
+        vozMuda.volume = 0; 
+        vozMuda.rate = 1;
+        window.speechSynthesis.speak(vozMuda);
+    }
+};
+
 window.ativarControleFone = () => {
-    // Dá play no silêncio infinito para forçar o player a aparecer na barra do celular
     window._audioSilenciosoPlayer.play().catch(() => {});
 
     if ('mediaSession' in navigator) {
-        // Isso cria a notificação visual de mídia no celular!
         navigator.mediaSession.metadata = new MediaMetadata({
             title: 'Executando Procedimento',
             artist: 'Modo Foco Ativado',
             artwork: [
-                { src: 'https://cdn-icons-png.flaticon.com/512/2040/2040504.png', sizes: '512x512', type: 'image/png' } // Ícone genérico para ficar bonito
+                { src: 'https://cdn-icons-png.flaticon.com/512/2040/2040504.png', sizes: '512x512', type: 'image/png' }
             ]
         });
 
-        // 🚨 A MÁGICA DOS AIRDOTS (1 TOQUE): 
-        // Quando você der 1 toque no Airdots, ele tenta "Pausar" a nossa rádio silenciosa.
-        // Nós interceptamos isso, avançamos o passo, e mandamos a rádio tocar de novo para não perder o controle!
+        // Quando o Airdots envia o comando, nós "acordamos" a voz forçadamente com o resume()
         navigator.mediaSession.setActionHandler('pause', () => {
+            if (window.speechSynthesis) window.speechSynthesis.resume();
             window.avancarPassoAtalho();
             window._audioSilenciosoPlayer.play(); 
         });
 
-        // Caso o celular entenda que já estava pausado e mande um "Play"
         navigator.mediaSession.setActionHandler('play', () => {
+            if (window.speechSynthesis) window.speechSynthesis.resume();
             window.avancarPassoAtalho();
             window._audioSilenciosoPlayer.play();
         });
 
-        // Garantia extra para fones com mais funções
-        navigator.mediaSession.setActionHandler('nexttrack', window.avancarPassoAtalho);
-        navigator.mediaSession.setActionHandler('previoustrack', window.voltarPassoAtalho);
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+            if (window.speechSynthesis) window.speechSynthesis.resume();
+            window.avancarPassoAtalho();
+        });
+        
+        navigator.mediaSession.setActionHandler('previoustrack', () => {
+            if (window.speechSynthesis) window.speechSynthesis.resume();
+            window.voltarPassoAtalho();
+        });
     }
 };
 
-// O celular exige que o usuário toque na tela pelo menos uma vez antes de permitir o autoplay do silêncio.
-// Quando você clicar em qualquer lugar da tela pela primeira vez (ex: para entrar num procedimento), o player assume o controle.
+// O GATILHO INVISÍVEL:
+// No primeiro toque que você der na tela do app (ex: clicar no botão "Executar"), 
+// ele destrava a Voz e o Fone ao mesmo tempo!
 document.addEventListener('click', () => {
     if(!window._foneConectado) {
         window._foneConectado = true;
-        window.ativarControleFone();
+        window.desbloquearVozAndroid(); // 👈 Desbloqueia a fala sintética
+        window.ativarControleFone();    // 👈 Assume o controle do Airdots
     }
 }, { once: true });
 /* ══ INIT ══ */
