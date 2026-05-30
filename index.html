@@ -878,6 +878,7 @@ async function propagarEdicaoBiblioteca(bib, tituloAntigo) {
 }
 
 /* ══ RENDER ══ */
+/* ══ RENDER ══ */
 function render(){
   updateTopbar();
   const body=document.getElementById('body');if(!body)return;
@@ -885,25 +886,60 @@ function render(){
     t.classList.remove('on');
     if(t.dataset.tab===S.tab)t.classList.add('on');
   });
+  
+  // 🤖 MÁGICA: BARRA DE CONTROLE GLOBAL DE ÁUDIO
+  const autoAtivo = window._leituraAutomatica;
+  const corAuto = autoAtivo ? 'var(--green2)' : 'var(--chrome)';
+  const bgAuto = autoAtivo ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.05)';
+  const borderAuto = autoAtivo ? 'var(--green2)' : 'rgba(255,255,255,0.1)';
+  
+  // Detecta se você já está dentro de uma execução para não duplicar o botão (já que existe o rodapé)
+  const emExecucao = 
+     (S.tab === 'executar' && (S.execAtiva || (S.sm2 && S.sm2.ativo))) ||
+     (S.tab === 'fluxo' && S.fluxoExec) ||
+     (S.tab === 'treino' && S.treino.procId);
+
+  // O botão global que ficará no topo da tela
+  const barraGlobalHtml = !emExecucao ? `
+    <div style="display:flex; justify-content:center; align-items:center; padding: 0 4px 12px; margin-bottom: 4px;">
+      <button onclick="window.toggleLeituraAuto()" style="background:${bgAuto}; border:1px solid ${borderAuto}; border-radius:12px; padding:8px 12px; color:${corAuto}; cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: all 0.2s;">
+        ${autoAtivo ? '🤖 PILOTO AUTOMÁTICO: ON' : '🔇 PILOTO AUTOMÁTICO: OFF'}
+      </button>
+    </div>
+  ` : '';
+
+  // Injeção da barra global no topo de cada tela antes de renderizar o conteúdo
   if(S.tab==='procedimentos'){
     if(S.viewProcId){
       const p=S.procedimentos.find(x=>x.id===S.viewProcId);
-      body.innerHTML=p?buildVerProcedimento(p):'';
+      body.innerHTML=p ? (barraGlobalHtml + buildVerProcedimento(p)) : '';
       document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-    }else body.innerHTML=buildProcedimentos();
-  }else if(S.tab==='executar'){body.innerHTML=buildExecutar();}
-  else if(S.tab==='treino'){body.innerHTML=buildTreino();}
-  else if(S.tab==='fluxo'){
+    }else body.innerHTML= barraGlobalHtml + buildProcedimentos();
+    
+  }else if(S.tab==='executar'){
+      body.innerHTML= (emExecucao ? '' : barraGlobalHtml) + buildExecutar();
+      
+  }else if(S.tab==='treino'){
+      body.innerHTML= (emExecucao ? '' : barraGlobalHtml) + buildTreino();
+      
+  }else if(S.tab==='fluxo'){
     if(S.viewFluxoId&&!S.fluxoExec){
       const f=S.fluxos.find(x=>x.id===S.viewFluxoId);
-      body.innerHTML=f?buildVerFluxo(f):'';
+      body.innerHTML=f ? (barraGlobalHtml + buildVerFluxo(f)) : '';
       document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
     }else if(S.fluxoExec){
       body.innerHTML=buildFluxoExec();
       document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-    }else body.innerHTML=buildFluxos();
-  }else if(S.tab==='biblioteca'){body.innerHTML=buildBiblioteca();}
-  else if(S.tab==='historico'){buildHistorico();}
+    }else body.innerHTML= barraGlobalHtml + buildFluxos();
+    
+  }else if(S.tab==='biblioteca'){
+      body.innerHTML = barraGlobalHtml + buildBiblioteca();
+      
+  }else if(S.tab==='historico'){
+      buildHistorico();
+      // O histórico constrói o próprio HTML interno, então injetamos a barra logo acima dele
+      body.innerHTML = barraGlobalHtml + body.innerHTML; 
+  }
 }
 
 function updateTopbar(){
