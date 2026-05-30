@@ -5359,6 +5359,73 @@ window.formatarTempoMs = (ms) => {
   const decis = Math.floor((ms % 1000) / 100); // Decisegundos (1 dígito)
   return `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}.${decis}`;
 };
+// =========================================================
+// 🎧 CONTROLES GLOBAIS DE TECLADO E FONE DE OUVIDO
+// =========================================================
+
+// 1. Função para Avançar (Simula o clique em "Concluir")
+window.avancarPassoAtalho = () => {
+  if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual) {
+    // Procura o botão de concluir da etapa atual na interface e clica nele
+    const btnConcluir = document.querySelector(`button[onclick*="A.marcarStepDone('${S.execAtiva.stepAtual}')"]`);
+    if (btnConcluir) {
+        btnConcluir.click();
+        toast("⏭ Avançando para o próximo...", "cyan");
+    }
+  }
+};
+
+// 2. Função para Voltar
+window.voltarPassoAtalho = () => {
+  if (S.tab === 'executar' && S.execAtiva && S.execAtiva.stepAtual) {
+    const proc = S.procedimentos.find(p => p.id === S.execAtiva.procId);
+    if (!proc) return;
+    
+    const steps = proc.steps.slice().sort((a,b) => a.ordem - b.ordem);
+    const currIndex = steps.findIndex(s => s.id === S.execAtiva.stepAtual);
+    
+    if (currIndex > 0) {
+       const stepAnterior = steps[currIndex - 1];
+       S.execAtiva.stepAtual = stepAnterior.id;
+       
+       // Remove o passo anterior da lista de concluídos para ele voltar a ficar pendente
+       S.execAtiva.stepsDone = S.execAtiva.stepsDone.filter(id => id !== stepAnterior.id);
+       
+       toast("⏮ Voltando um passo...", "cyan");
+       render();
+       window.navegarComAudio(true); // Lê e toca o áudio do passo anterior
+    } else {
+       toast("⚠ Este já é o primeiro passo.", "error");
+    }
+  }
+};
+
+// ⌨ ATALHOS DE TECLADO
+document.addEventListener('keydown', (e) => {
+  // Evita acionar atalhos sem querer se você estiver digitando um texto/pesquisa
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  if (e.key === 'ArrowRight') { 
+     // Seta Direita -> Avança
+     window.avancarPassoAtalho();
+  } else if (e.key === 'ArrowLeft') { 
+     // Seta Esquerda -> Volta
+     window.voltarPassoAtalho();
+  }
+});
+
+// 🎧 ATALHOS DO FONE DE OUVIDO (Media Session API)
+if ('mediaSession' in navigator) {
+  // Intercepta o comando de "Próxima Música" (geralmente 2 toques no fone)
+  navigator.mediaSession.setActionHandler('nexttrack', () => {
+    window.avancarPassoAtalho();
+  });
+  
+  // Intercepta o comando de "Música Anterior" (geralmente 3 toques no fone)
+  navigator.mediaSession.setActionHandler('previoustrack', () => {
+    window.voltarPassoAtalho();
+  });
+}
 /* ══ INIT ══ */
 (async()=>{
   try{
