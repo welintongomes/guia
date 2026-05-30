@@ -103,7 +103,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .exec-dot.active{background:var(--yellow);border-color:var(--yellow2);color:var(--ink);font-weight:900;box-shadow:var(--glow);}
 .exec-line{flex:1;min-width:6px;height:2px;background:rgba(255,255,255,.08);}
 .exec-line.done{background:var(--green);}
-.exec-step-card{background:var(--steel);border-radius:var(--r2);overflow:hidden;border:2px solid rgba(245,200,0,.2);box-shadow:var(--glow);}
+.exec-step-card{background:var(--steel);padding: 5px; border-radius:var(--r2);overflow:hidden;border:2px solid rgba(245,200,0,.2);box-shadow:var(--glow);}
 .exec-step-head{background:linear-gradient(90deg,rgba(245,200,0,.1),rgba(245,200,0,.02));padding:12px 16px;border-radius: 10px;border-bottom:1px solid rgba(245,200,0,.15);display:flex;gap:12px;}
 .exec-num-badge{width:36px;height:36px;border-radius:var(--r);background:var(--yellow);color:var(--ink);font-family:var(--font-head);font-size:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .exec-step-title{font-family:var(--font-head);font-size:20px;letter-spacing:1px;color:white;}
@@ -389,6 +389,60 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
     max-width:90vw;
   }
 
+}
+/* =========================================================
+   🌅 ANIMAÇÕES DE TRANSIÇÃO SUAVE
+   ========================================================= */
+
+@keyframes fadeSuave {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Aplica a transição no cartão do passo inteiro */
+.exec-step-card {
+  animation: fadeSuave 0.3s ease-out forwards;
+}
+
+/* Aplica nas imagens e cria um fundo para evitar o "flash" branco */
+.exec-img img {
+  animation: fadeSuave 0.4s ease-out forwards;
+  background-color: #111; /* Cor de fundo enquanto a foto não carrega */
+  min-height: 120px;      /* Evita que a tela pule de tamanho */
+  object-fit: cover;
+}
+/* =========================================================
+   🌅 ANIMAÇÕES E ESTILO DO PLAYER NATIVO
+   ========================================================= */
+
+@keyframes fadeSuave {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.exec-step-card {
+  animation: fadeSuave 0.3s ease-out forwards;
+}
+
+.exec-img img {
+  animation: fadeSuave 0.4s ease-out forwards;
+  background-color: #111; 
+  min-height: 120px;      
+  object-fit: cover;
+}
+
+/* Escurece o player padrão do navegador (Chrome/Safari) */
+audio::-webkit-media-controls-panel {
+  background-color: #1a1a1a;
+}
+audio {
+    border: 2px solid rgba(245,200,0,.2);
+    /* border: solid 5px #f5c8006e; */
+    border-radius: 20px;
+    opacity: 0.85;
+}
+audio:focus {
+  outline: none;
 }
 </style>
 </head>
@@ -1085,8 +1139,18 @@ function buildStepCard(step,procId,idx){
 
   // 🟢 VERSÃO EXPANDIDA
   const fotosHtml = step.fotos?.length ? `<div class="step-imgs">${step.fotos.map((f,i)=>`<div class="step-img" onclick="event.stopPropagation(); lightbox('${f}')"><img src="${f}" alt="${i+1}" loading="lazy"></div>`).join('')}</div>` : '';
-  const audioHtml = step.audio ? `<div style="margin-top:8px; background:rgba(0,0,0,.2); padding:8px; border-radius:4px; border-left:3px solid var(--yellow)"><div style="font-family:var(--font-mono);font-size:9px;color:var(--yellow);text-transform:uppercase;margin-bottom:4px">🎙 Áudio de Instrução</div><audio controls src="${step.audio}" style="width:100%; height:30px;" onplay="tocarAudioLockScreen('${esc(window.limparTagsTexto(step.titulo))}')"></audio></div>` : '';
-
+const audioHtml = step.audio ? `
+      <div style="margin: 12px 0; background: linear-gradient(90deg, rgba(245,200,0,0.1) 0%, rgba(0,0,0,0.3) 100%); border: 1px solid rgba(245,200,0,0.2); border-radius: 12px; padding: 12px; box-shadow: inset 0 0 15px rgba(0,0,0,0.3);">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+          <span style="background: rgba(245,200,0,0.2); padding: 6px; border-radius: 50%; font-size: 14px; display:flex; align-items:center; justify-content:center;">🎙️</span>
+          <div style="flex: 1;">
+            <div style="font-family:var(--font-mono); font-size:9px; color:var(--yellow); text-transform:uppercase; letter-spacing:1px;">Áudio Gravado</div>
+            <div style="font-size:12px; color:white; font-weight:bold;">Instruções da Etapa</div>
+          </div>
+          <div style="font-size:14px; opacity:0.5; color:var(--yellow);">ılılı.</div>
+        </div>
+        <audio controls src="${step.audio}" style="width:100%; height:28px;" onplay="tocarAudioLockScreen('${esc(window.limparTagsTexto(step.titulo))}')"></audio>
+      </div>` : '';
   return `<div class="step-card" id="sc_${step.id}" 
     draggable="true" 
     ondragstart="A.drag(event, '${step.id}')" 
@@ -1564,7 +1628,7 @@ function buildExecStepCard(step, faltando){
   const fotosHtml = step.fotos?.length ? `<div class="exec-imgs">${step.fotos.map((f,i)=>`<div class="exec-img" onclick="lightbox('${f}')"><img src="${f}" alt="${i+1}" loading="lazy"></div>`).join('')}</div>` : '';
   
   // 🎵 HTML do player de áudio
-  const audioHtml = step.audio ? `<div style="margin-top:8px; margin-bottom:8px; background:rgba(0,0,0,.2); padding:8px; border-radius:4px; border-left:3px solid var(--yellow)"><div style="font-family:var(--font-mono);font-size:9px;color:var(--yellow);text-transform:uppercase;margin-bottom:4px">🎙 Áudio de Instrução</div><audio controls src="${step.audio}" style="width:100%; height:30px;" onplay="tocarAudioLockScreen('${esc(window.limparTagsTexto(step.titulo))}')"></audio></div>` : '';
+  const audioHtml = step.audio ? `<div style="margin-top:8px; margin-bottom:8px; background:rgba(0,0,0,.2); padding:8px; border-radius:4px; border-left:3px solid var(--yellow)"><div style="font-family:var(--font-mono);font-size:9px;color:var(--yellow);text-transform:uppercase;margin-bottom:4px">🎙 Áudio de Instrução</div><audio controls src="${step.audio}" style="width:100%; height:28px;" onplay="tocarAudioLockScreen('${esc(window.limparTagsTexto(step.titulo))}')"></audio></div>` : '';
 
   const isPassoEfetuado = S.execAtiva?.stepsDone?.includes(step.id);
   const classeBotao = isPassoEfetuado ? 'btn green' : 'btn steel';
@@ -3682,10 +3746,18 @@ function abrirModalVerBibItem(item){
   const bg=document.createElement('div');bg.className='modal-bg';bg.onclick=e=>{if(e.target===bg)fecharModal();};
   const fotosHtml=item.fotos?.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">${item.fotos.map((f,i)=>`<div style="width:90px;height:72px;border-radius:var(--r);overflow:hidden;border:1px solid rgba(255,255,255,.1);cursor:pointer" onclick="lightbox('${f}')"><img src="${f}" alt="${i+1}" style="width:100%;height:100%;object-fit:cover"></div>`).join('')}</div>`:'';
   
-  const audioHtml = item.audio ? `<div style="margin:12px 0; background:rgba(251,146,60,0.1); padding:10px; border-radius:var(--r); border-left:3px solid #fb923c;">
-    <div style="font-family:var(--font-mono);font-size:10px;color:#fb923c;text-transform:uppercase;margin-bottom:6px;">🎙 Áudio Gravado</div>
-    <audio controls src="${item.audio}" style="width:100%; height:40px;"></audio>
-  </div>` : '';
+  const audioHtml = item.audio ? `
+      <div style="margin: 12px 0; background: linear-gradient(90deg, rgba(251,146,60,0.1) 0%, rgba(0,0,0,0.3) 100%); border: 1px solid rgba(251,146,60,0.2); border-radius: 12px; padding: 12px; box-shadow: inset 0 0 15px rgba(0,0,0,0.3);">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+          <span style="background: rgba(251,146,60,0.2); padding: 6px; border-radius: 50%; font-size: 14px; display:flex; align-items:center; justify-content:center;">🎙️</span>
+          <div style="flex: 1;">
+            <div style="font-family:var(--font-mono); font-size:10px; color:#fb923c; text-transform:uppercase; letter-spacing:1px;">Áudio Gravado</div>
+            <div style="font-size:12px; color:white; font-weight:bold;">Detalhes do Card</div>
+          </div>
+          <div style="font-size:14px; opacity:0.5; color:#fb923c;">ılılı.</div>
+        </div>
+        <audio controls src="${item.audio}" style="width:100%; height:25px;"></audio>
+      </div>` : '';
 
   const codigoHtml = item.codigo ? `<pre class="code-block"><code>${esc(item.codigo)}</code></pre>` : '';
 
@@ -4569,7 +4641,7 @@ function buildNoEditorCard(no,idx,todos,path){
       <div class="label" style="margin-bottom:4px;">Multimídia de Suporte:</div>
       <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
         <div class="photo-drop" style="width:36px; height:36px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="document.getElementById('file_${no.id}').click()"><span style="font-size:14px; opacity:0.6">📷</span></div>
-        <div id="btnGravar_${no.id}" class="photo-drop" style="width:36px; height:36px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer; border-color:rgba(34,211,238,.3); background:rgba(34,211,238,.02);" onclick="toggleGravacaoNativa('fluxo', '${no.id}')"><span style="font-size:14px; opacity:0.6">🎙</span></div>
+        <div id="btnGravar_${no.id}" class="photo-drop" style="width:60px; height:36px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer; border-color:rgba(34,211,238,.3); background:rgba(34,211,238,.02);" onclick="toggleGravacaoNativa('fluxo', '${no.id}')"><span style="font-size:14px; opacity:0.6">🎙</span></div>
         <div class="photo-drop" style="width:36px; height:36px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer; border-color:rgba(245,200,0,.3); background:rgba(245,200,0,.02);" onclick="document.getElementById('audioFile_${no.id}').click()"><span style="font-size:14px; opacity:0.6">📱</span></div>
         <input type="file" id="audioFile_${no.id}" accept="audio/*" capture="microphone" style="display:none" onchange="adicionarAudioTemp(event, 'fluxo', '${no.id}')">
         ${(no.fotos||[]).map((f,i)=>`<div class="photo-thumb" style="width:36px;height:36px"><img src="${f}"><div class="photo-del" style="width:14px;height:14px;font-size:8px;top:1px;right:1px;" onclick="removerFotoNo('${no.id}',${i})">✕</div></div>`).join('')}
@@ -4671,7 +4743,18 @@ window.abrirModalProcInline = (procId) => {
   // Aqui adicionamos o índice (i) para saber qual é o primeiro passo
   const stepsHtml = steps.map((s, i) => {
     const fotosHtml = s.fotos?.length ? `<div class="step-imgs" style="margin-top:8px">${s.fotos.map((f,idx)=>`<div class="step-img" onclick="lightbox('${f}')"><img src="${f}"></div>`).join('')}</div>` : '';
-    const audioHtml = s.audio ? `<div style="margin-top:8px; background:rgba(0,0,0,.2); padding:8px; border-radius:4px; border-left:3px solid var(--yellow)"><div style="font-family:var(--font-mono);font-size:9px;color:var(--yellow);text-transform:uppercase;margin-bottom:4px">🎙 Áudio de Instrução</div><audio controls src="${s.audio}" style="width:100%; height:30px;" onplay="tocarAudioLockScreen('${esc(s.titulo)}')"></audio></div>` : '';
+    const audioHtml = s.audio ? `
+      <div style="margin: 12px 0; background: linear-gradient(90deg, rgba(245,200,0,0.1) 0%, rgba(0,0,0,0.3) 100%); border: 1px solid rgba(245,200,0,0.2); border-radius: 12px; padding: 12px; box-shadow: inset 0 0 15px rgba(0,0,0,0.3);">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+          <span style="background: rgba(245,200,0,0.2); padding: 6px; border-radius: 50%; font-size: 14px; display:flex; align-items:center; justify-content:center;">🎙️</span>
+          <div style="flex: 1;">
+            <div style="font-family:var(--font-mono); font-size:9px; color:var(--yellow); text-transform:uppercase; letter-spacing:1px;">Áudio Gravado</div>
+            <div style="font-size:12px; color:white; font-weight:bold;">Instruções da Etapa</div>
+          </div>
+          <div style="font-size:14px; opacity:0.5; color:var(--yellow);">ılılı.</div>
+        </div>
+        <audio controls src="${s.audio}" style="width:100%; height:28px;" onplay="tocarAudioLockScreen('${esc(s.titulo)}')"></audio>
+      </div>` : '';
     const codigoHtml = s.codigo ? `<pre class="code-block"><code>${esc(s.codigo)}</code></pre>` : '';
 
     return `
@@ -4824,7 +4907,7 @@ window.toggleGravacaoNativa = async (alvo, id) => {
     window._mediaRecorder.start();
     // Muda o visual do botão para mostrar que está gravando
     if(btn) {
-      btn.innerHTML = '<div style="font-size:20px;color:#e74c3c">⏹ PARAR</div>';
+      btn.innerHTML = '<div style="font-size:13px;color:#e74c3c">⏹ PARAR</div>';
       btn.classList.add('gravando-ativo');
     }
   } catch (err) {
