@@ -224,7 +224,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .search-clear:active{transform:translateY(-50%) scale(.85);background:rgba(255,255,255,.1);color:white;}
 .bib-search-input:focus{border-color:rgba(251,146,60,.5);}
 .bib-search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:15px;opacity:.5;pointer-events:none;}
-.bib-pages{display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 0;}
+.bib-pages{display:flex;margin-bottom: 55px;align-items:center;justify-content:center;gap:8px;padding:8px 0;}
 .bib-page-btn{width:30px;height:30px;border-radius:var(--r);border:1px solid rgba(255,255,255,.1);background:var(--steel2);color:var(--chrome);font-family:var(--font-mono);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
 .bib-page-btn.on{background:rgba(251,146,60,.15);border-color:rgba(251,146,60,.4);color:#fb923c;}
 .bib-page-btn:active{transform:scale(.9);}
@@ -482,6 +482,19 @@ audio:focus {
 <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importarArquivo(event)">
 <script>
 'use strict';
+/* ══ INJEÇÃO DE CSS GLOBAL PARA AS BARRAS FIXAS ══ */
+const styleFixos = document.createElement('style');
+styleFixos.innerHTML = `
+  .sticky-search-container {
+    position: sticky;
+    top: 93%; /* IMPORTANTE: Ajuste para a altura exata do seu header (topbar) */
+    z-index: 99;
+    background: #0a0a0a; /* Fundo idêntico ao seu app para esconder os cards passando por baixo */
+    padding: 8px 0;
+    /*margin-bottom: 12px;*/
+  }
+`;
+document.head.appendChild(styleFixos);
 /* ══ INDEXEDDB ══ */
 const DB={name:'GuiaPro',ver:2,db:null}; // <-- Versão 2 para criar o Cofre
 DB.open=()=>new Promise((res,rej)=>{
@@ -520,7 +533,6 @@ DB.open=()=>new Promise((res,rej)=>{
   req.onerror=()=>rej(req.error);
 });
 
-// INTERCEPTADOR DE MÍDIAS: Arranca os dados pesados antes de salvar!
 // INTERCEPTADOR DE MÍDIAS: Arranca os dados pesados antes de salvar!
 DB._putOriginal = (s,v)=>new Promise((r,j)=>{const tx=DB.db.transaction(s,'readwrite');const q=tx.objectStore(s).put(v);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
 
@@ -671,11 +683,66 @@ window.hidratarMidias = async () => {
   }
 };
 
-// O Vigia Silencioso: Se a tela mudar e um @m_ aparecer, ele hidrata!
 const observerMidias = new MutationObserver(() => {
     window.hidratarMidias();
+    if (window.aplicarLazyLoading) window.aplicarLazyLoading(); // ⚡ GATILHO VIRTUAL SCROLLER
 });
 observerMidias.observe(document.body, { childList: true, subtree: true });
+/* ══ LAZY LOADING VIRTUAL (DOM LEVE / ALTA PERFORMANCE) ══ */
+const lazyStyle = document.createElement('style');
+lazyStyle.innerHTML = `
+  .lazy-card {
+    transition: opacity 0.3s ease;
+  }
+  .lazy-card.lazy-hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+`;
+document.head.appendChild(lazyStyle);
+
+window._lazyObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        const el = entry.target;
+        if (entry.isIntersecting) {
+            // Entrou na tela: Liga o processamento de layout/pintura e exibe
+            el.classList.remove('lazy-hidden');
+            el.style.contentVisibility = 'visible';
+        } else {
+            // Saiu da tela: Trava a altura exata antes de ocultar para não dar saltos no scroll
+            const rect = el.getBoundingClientRect();
+            if (rect.height > 0) {
+                // Math.ceil arredonda pra cima para não perder nenhum sub-pixel da caixa
+                el.style.containIntrinsicSize = `auto ${Math.ceil(rect.height)}px`;
+                el.style.contentVisibility = 'hidden'; // 👈 Aqui a mágica descarrega a memória
+            }
+            el.classList.add('lazy-hidden');
+        }
+    });
+}, { rootMargin: '1000px 0px 1000px 0px' }); // Cria uma "faixa" carregada de 1000px pra cima e pra baixo
+
+window.aplicarLazyLoading = () => {
+    if (!window._lazyObserver) return;
+    
+    // Varre todas as classes repetitivas do seu sistema de uma vez só
+    const seletores = [
+        '.proc-card:not(.lazy-card)',
+        '.step-card:not(.lazy-card)',
+        '.exec-step-card:not(.lazy-card)',
+        '.treino-step:not(.lazy-card)',
+        '.fluxo-card:not(.lazy-card)',
+        '.bib-step-row:not(.lazy-card)',
+        '.no-card-editor:not(.lazy-card)',
+        '.export-item:not(.lazy-card)',
+        '.historico-card:not(.lazy-card)',
+        '.gabarito-item:not(.lazy-card)'
+    ].join(', ');
+
+    document.querySelectorAll(seletores).forEach(el => {
+        el.classList.add('lazy-card');
+        window._lazyObserver.observe(el);
+    });
+};
 /* ══ SISTEMA DE BACKUP ZIP (Seguro e Isolado) ══ */
 
 // 1. Exportação Completa
@@ -942,67 +1009,66 @@ function render(){
     if(t.dataset.tab===S.tab)t.classList.add('on');
   });
   
-  // 🤖 MÁGICA: BARRA DE CONTROLE GLOBAL DE ÁUDIO
-  const autoAtivo = window._leituraAutomatica;
-  const corAuto = autoAtivo ? 'var(--green2)' : 'var(--chrome)';
-  const bgAuto = autoAtivo ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.05)';
-  const borderAuto = autoAtivo ? 'var(--green2)' : 'rgba(255,255,255,0.1)';
-  
-  // Detecta se você já está dentro de uma execução para não duplicar o botão
-  const emExecucao = 
-       (S.tab === 'executar' && (S.execAtiva || (S.sm2 && S.sm2.ativo))) ||
-       (S.tab === 'fluxo' && S.fluxoExec) ||
-       (S.tab === 'treino' && S.treino.procId) ||
-       (S.tab === 'vf' && S.vfAtivo); // 👈 ADICIONADO AQUI PARA O JOGO V/F
-
-  // O botão global que ficará no topo da tela
-  const barraGlobalHtml = !emExecucao ? `
-    <div style="display:flex; justify-content:center; align-items:center; padding: 0 4px 12px; margin-bottom: 4px;">
-      <button onclick="window.toggleLeituraAuto()" style="background:${bgAuto}; border:1px solid ${borderAuto}; border-radius:12px; padding:8px 12px; color:${corAuto}; cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: all 0.2s;">
-        ${autoAtivo ? '🤖 PILOTO AUTOMÁTICO: ON' : '🔇 PILOTO AUTOMÁTICO: OFF'}
-      </button>
-    </div>
-  ` : '';
-
-  // Injeção da barra global no topo de cada tela antes de renderizar o conteúdo
   if(S.tab==='procedimentos'){
     if(S.viewProcId){
       const p=S.procedimentos.find(x=>x.id===S.viewProcId);
-      body.innerHTML=p ? (barraGlobalHtml + buildVerProcedimento(p)) : '';
+      body.innerHTML=p ? buildVerProcedimento(p) : '';
       document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-    }else body.innerHTML= barraGlobalHtml + buildProcedimentos();
+    }else body.innerHTML= buildProcedimentos();
     
   }else if(S.tab==='executar'){
-      body.innerHTML= (emExecucao ? '' : barraGlobalHtml) + buildExecutar();
+      body.innerHTML= buildExecutar();
       
   }else if(S.tab==='treino'){
-      body.innerHTML= (emExecucao ? '' : barraGlobalHtml) + buildTreino();
+      body.innerHTML= buildTreino();
       
   }else if(S.tab==='fluxo'){
     if(S.viewFluxoId&&!S.fluxoExec){
       const f=S.fluxos.find(x=>x.id===S.viewFluxoId);
-      body.innerHTML=f ? (barraGlobalHtml + buildVerFluxo(f)) : '';
+      body.innerHTML=f ? buildVerFluxo(f) : '';
       document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
     }else if(S.fluxoExec){
       body.innerHTML=buildFluxoExec();
       document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-    }else body.innerHTML= barraGlobalHtml + buildFluxos();
+    }else body.innerHTML= buildFluxos();
     
   }else if(S.tab==='biblioteca'){
-      body.innerHTML = barraGlobalHtml + buildBiblioteca();
+      body.innerHTML = buildBiblioteca();
       
   }else if(S.tab==='historico'){
       buildHistorico();
-      body.innerHTML = barraGlobalHtml + body.innerHTML; 
       
   }else if(S.tab==='vf'){
-      // 👈 A CHAMADA DA TELA DO JOGO AQUI
       body.innerHTML = buildVF(); 
   }
 }
-
 function updateTopbar(){
-  const t=document.getElementById('topTitle');const sub=document.getElementById('topSub');const btn=document.getElementById('btnMain');
+  const t=document.getElementById('topTitle');
+  const sub=document.getElementById('topSub');
+  const btn=document.getElementById('btnMain');
+  
+  // 🤖 INJEÇÃO DO BOTÃO PILOTO AUTOMÁTICO MINIMIZADO NO HEADER
+  let actionsContainer = document.querySelector('.topbar-actions') || document.getElementById('topbar-actions');
+  
+  // Fallback: Se não achar a classe explícita, usa o pai do botão de Adicionar (+)
+  if (!actionsContainer && btn) { actionsContainer = btn.parentElement; }
+  
+  if (actionsContainer) {
+      let btnPiloto = document.getElementById('btnPilotoMinimizado');
+      if (!btnPiloto) {
+          btnPiloto = document.createElement('button');
+          btnPiloto.id = 'btnPilotoMinimizado';
+          btnPiloto.onclick = window.toggleLeituraAuto;
+          btnPiloto.style.cssText = "background:transparent; border:none; font-size:22px; cursor:pointer; margin-right:8px; display:flex; align-items:center; justify-content:center; transition:all 0.2s; outline:none;";
+          actionsContainer.prepend(btnPiloto); // Coloca ele antes do botão "＋"
+      }
+      const autoAtivo = window._leituraAutomatica;
+      btnPiloto.innerHTML = autoAtivo ? '🔊' : '🔇';
+      btnPiloto.style.opacity = autoAtivo ? '1' : '0.5';
+      btnPiloto.title = autoAtivo ? "Piloto Automático: ON" : "Piloto Automático: OFF";
+  }
+
+  // Comportamento normal da topbar
   if(S.tab==='executar'&&S.execAtiva){
     const p=S.procedimentos.find(x=>x.id===S.execAtiva.procId);
     if(t)t.textContent=p?.nome?.toUpperCase()||'EXECUTAR';if(sub)sub.textContent='EXECUÇÃO EM ANDAMENTO';
@@ -1022,7 +1088,6 @@ function updateTopbar(){
     if(btn){btn.style.display='flex';btn.textContent='＋';btn.onclick=()=>A.novoProcedimento();btn.className='icon-btn yellow';}
   }
 }
-
 /* ══ ABA PROCEDIMENTOS ══ */
 function buildProcedimentosLista() {
   const q = S.procBusca.toLowerCase().trim();
@@ -1050,10 +1115,13 @@ function buildProcedimentosLista() {
 function buildProcedimentos(){
   if(!S.procedimentos.length)return`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">SEM PROCEDIMENTOS</div><div class="empty-desc">Crie seu primeiro procedimento técnico.</div><button class="btn yellow" style="max-width:240px;margin-top:8px" onclick="A.novoProcedimento()">＋ NOVO PROCEDIMENTO</button></div>`;
   
-  const searchHtml = `<div class="bib-search" style="margin-bottom:12px">
-    <span class="bib-search-icon">🔍</span>
-    <input type="text" class="bib-search-input" style="border-color:rgba(245,200,0,.3)" placeholder="Buscar procedimentos…" value="${esc(S.procBusca)}" oninput="A.procBuscar(this.value)" id="procSearchInput">
-    <div class="search-clear" id="procClearBtn" onclick="A.limparBusca('proc')" style="display:${S.procBusca?'flex':'none'}">✕</div>
+  const searchHtml = `
+  <div class="sticky-search-container">
+    <div class="bib-search" style="margin-bottom:0">
+      <span class="bib-search-icon">🔍</span>
+      <input type="text" class="bib-search-input" style="border-color:rgba(245,200,0,.3)" placeholder="Buscar procedimentos…" value="${esc(S.procBusca)}" oninput="A.procBuscar(this.value)" id="procSearchInput">
+      <div class="search-clear" id="procClearBtn" onclick="A.limparBusca('proc')" style="display:${S.procBusca?'flex':'none'}">✕</div>
+    </div>
   </div>`;
 
   return searchHtml + `<div id="procListContainer" style="display:flex;flex-direction:column;gap:8px">${buildProcedimentosLista()}</div>`;
@@ -1327,37 +1395,30 @@ function buildSM2Card() {
 
 function buildSelecionarExec(){
   const q = (S.execBusca || '').toLowerCase().trim();
-
-  // 1. Aplica o filtro da barra de pesquisa
   let procs = q ? S.procedimentos.filter(p => (p.nome||'').toLowerCase().includes(q) || (p.categoria||'').toLowerCase().includes(q)) : S.procedimentos;
 
-  // 2. Lógica de Paginação (Lazy visual)
   const total = procs.length;
   const pages = Math.ceil(total / BIB_POR_PAGINA);
   const start = (S.execPagina || 0) * BIB_POR_PAGINA;
   const items = procs.slice(start, start + BIB_POR_PAGINA);
 
-  // 3. Cabeçalho com Barra de Pesquisa Integrada
   const headerHtml = `
   <div class="card" style="margin-bottom:12px;">
-    <div class="card-head">
-      <div class="card-title">▶ SELECIONAR PROCEDIMENTO</div>
-    </div>
-    <div class="card-body">
-      <div class="info-box" style="margin-bottom:12px;">Escolha um procedimento para execução guiada.</div>
-      
-      <div style="display:flex;gap:6px;align-items:center;">
-        <input type="text" id="execSearchInput" placeholder="Buscar procedimento..." value="${esc(S.execBusca||'')}" onkeyup="if(event.key==='Enter') A.execBuscar(this.value)" style="flex:1;padding:10px 12px;border-radius:var(--r);border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.2);color:white;font-size:13px;outline:none;">
-        <button class="btn yellow sm" onclick="A.execBuscar(document.getElementById('execSearchInput').value)" style="height:38px;padding:0 14px;color:#000;font-weight:bold;">🔍</button>
-        ${q ? `<button class="btn ghost sm" style="color:#e74c3c;border-color:rgba(231,76,60,.3);height:38px;padding:0 12px;" onclick="A.limparBusca('exec')">✕</button>` : ''}
-      </div>
+    <div class="card-head"><div class="card-title">▶ SELECIONAR PROCEDIMENTO</div></div>
+    <div class="card-body"><div class="info-box">Escolha um procedimento para execução guiada.</div></div>
+  </div>`;
+
+  const searchHtml = `
+  <div class="sticky-search-container">
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input type="text" id="execSearchInput" placeholder="Buscar procedimento..." value="${esc(S.execBusca||'')}" onkeyup="if(event.key==='Enter') A.execBuscar(this.value)" style="flex:1;padding:10px 12px;border-radius:var(--r);border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.4);color:white;font-size:13px;outline:none;">
+      <button class="btn yellow sm" onclick="A.execBuscar(document.getElementById('execSearchInput').value)" style="height:38px;padding:0 14px;color:#000;font-weight:bold;">🔍</button>
+      ${q ? `<button class="btn ghost sm" style="color:#e74c3c;border-color:rgba(231,76,60,.3);height:38px;padding:0 12px;" onclick="A.limparBusca('exec')">✕</button>` : ''}
     </div>
   </div>`;
 
-  // 4. Estatísticas de Exibição
   const statsHtml = `<div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px;margin-bottom:8px"><span style="font-family:var(--font-mono);padding-left: 10px;font-size:10px;color:var(--chrome);text-transform:uppercase">${q ? `${total} resultados` : total + ' disponíveis para execução'}</span>${pages>1 ? `<span style="font-family:var(--font-mono);font-size:10px;color:var(--yellow)">Pág ${(S.execPagina||0)+1}/${pages}</span>` : ''}</div>`;
 
-  // 5. Geração dos Cards (Mantendo seu design e o botão de Duplicar)
   let itensHtml = '';
   if (items.length === 0) {
     itensHtml = `<div style="text-align:center;padding:20px;color:var(--chrome);font-size:12px">Nenhum procedimento encontrado para "${esc(q)}".</div>`;
@@ -1369,21 +1430,15 @@ function buildSelecionarExec(){
             <div class="proc-title" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">▶ ${esc(p.nome)}</div>
             <div class="proc-meta">${(p.steps||[]).length} passos · ${p.categoria||'Geral'}</div>
           </div>
-          
-          <button onclick="A.duplicarProcedimento(${p.id}, event)" 
-                  style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); color:var(--chrome2); padding:6px 10px; border-radius:4px; font-size:11px; cursor:pointer; font-weight:bold; display:flex; align-items:center; gap:4px; z-index:10; height:30px;" 
-                  title="Duplicar este procedimento">
-            📄 Copiar
-          </button>
+          <button onclick="A.duplicarProcedimento(${p.id}, event)" style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); color:var(--chrome2); padding:6px 10px; border-radius:4px; font-size:11px; cursor:pointer; font-weight:bold; display:flex; align-items:center; gap:4px; z-index:10; height:30px;" title="Duplicar este procedimento">📄 Copiar</button>
         </div>
       `).join('')}
     </div>`;
   }
 
-  // 6. Botões de Paginação
   const paginacaoHtml = pages > 1 ? `<div class="bib-pages" style="margin-top:10px">${Array.from({length:pages},(_,i)=>`<button class="bib-page-btn${i===(S.execPagina||0)?' on':''}" onclick="A.execMudarPagina(${i})" style="${i===(S.execPagina||0)?'background:var(--yellow);border-color:var(--yellow);color:#000':''}">${i+1}</button>`).join('')}</div>` : '';
 
-  return headerHtml + statsHtml + itensHtml + paginacaoHtml;
+  return headerHtml + searchHtml + statsHtml + itensHtml + paginacaoHtml;
 }
 
 function buildExecAtiva(){
@@ -1689,44 +1744,36 @@ function buildTreino(){
 }
 function buildSelecionarTreino(){
   const q = (S.treinoBusca || '').toLowerCase().trim();
-  
-  // 1. Pega apenas procedimentos com 2+ passos
   let procs = S.procedimentos.filter(p => (p.steps||[]).length >= 2);
   
   if(!procs.length && !q) return `<div class="empty"><div class="empty-icon">🎓</div><div class="empty-title">PASSOS INSUFICIENTES</div><div class="empty-desc">Cada procedimento precisa de pelo menos 2 passos para o modo treino.</div></div>`;
 
-  // 2. Aplica o filtro da barra de pesquisa, se houver
-  if (q) {
-    procs = procs.filter(p => (p.nome||'').toLowerCase().includes(q) || (p.categoria||'').toLowerCase().includes(q));
-  }
+  if (q) procs = procs.filter(p => (p.nome||'').toLowerCase().includes(q) || (p.categoria||'').toLowerCase().includes(q));
 
-  // 3. Lógica de Paginação (Lazy visual)
   const total = procs.length;
   const pages = Math.ceil(total / BIB_POR_PAGINA);
   const start = (S.treinoPagina || 0) * BIB_POR_PAGINA;
   const items = procs.slice(start, start + BIB_POR_PAGINA);
 
-  // 4. Cabeçalho com Barra de Pesquisa Integrada
   const headerHtml = `
   <div class="treino-card" style="margin-bottom:12px;">
-    <div class="card-head">
-      <div class="card-title" style="color:#a855f7">🎓 SELECIONAR TREINO</div>
-    </div>
+    <div class="card-head"><div class="card-title" style="color:#a855f7">🎓 SELECIONAR TREINO</div></div>
     <div class="card-body">
-      <div class="info-box" style="background:rgba(168,85,247,.05);border-color:rgba(168,85,247,.2);color:#a855f7;margin-bottom:12px;">Os passos aparecem embaralhados. Toque-os na ordem correta.</div>
-      
-      <div style="display:flex;gap:6px;align-items:center;">
-        <input type="text" id="treinoSearchInput" placeholder="Buscar treino..." value="${esc(S.treinoBusca||'')}" onkeyup="if(event.key==='Enter') A.treinoBuscar(this.value)" style="flex:1;padding:10px 12px;border-radius:var(--r);border:1px solid rgba(168,85,247,.3);background:rgba(0,0,0,0.2);color:white;font-size:13px;outline:none;">
-        <button class="btn purple sm" onclick="A.treinoBuscar(document.getElementById('treinoSearchInput').value)" style="height:38px;padding:0 14px;">🔍</button>
-        ${q ? `<button class="btn ghost sm" style="color:#e74c3c;border-color:rgba(231,76,60,.3);height:38px;padding:0 12px;" onclick="A.limparBusca('treino')">✕</button>` : ''}
-      </div>
+      <div class="info-box" style="background:rgba(168,85,247,.05);border-color:rgba(168,85,247,.2);color:#a855f7;margin-bottom:0;">Os passos aparecem embaralhados. Toque-os na ordem correta.</div>
     </div>
   </div>`;
 
-  // 5. Estatísticas de Exibição
+  const searchHtml = `
+  <div class="sticky-search-container">
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input type="text" id="treinoSearchInput" placeholder="Buscar treino..." value="${esc(S.treinoBusca||'')}" onkeyup="if(event.key==='Enter') A.treinoBuscar(this.value)" style="flex:1;padding:10px 12px;border-radius:var(--r);border:1px solid rgba(168,85,247,.3);background:rgba(0,0,0,0.4);color:white;font-size:13px;outline:none;">
+      <button class="btn purple sm" onclick="A.treinoBuscar(document.getElementById('treinoSearchInput').value)" style="height:38px;padding:0 14px;">🔍</button>
+      ${q ? `<button class="btn ghost sm" style="color:#e74c3c;border-color:rgba(231,76,60,.3);height:38px;padding:0 12px;" onclick="A.limparBusca('treino')">✕</button>` : ''}
+    </div>
+  </div>`;
+
   const statsHtml = `<div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px;margin-bottom:8px"><span style="font-family:var(--font-mono);padding-left: 10px;font-size:10px;color:var(--chrome);text-transform:uppercase">${q ? `${total} resultados` : total + ' disponíveis para treino'}</span>${pages>1 ? `<span style="font-family:var(--font-mono);font-size:10px;color:#a855f7">Pág ${(S.treinoPagina||0)+1}/${pages}</span>` : ''}</div>`;
 
-  // 6. Geração dos Cards
   let itensHtml = '';
   if (items.length === 0) {
     itensHtml = `<div style="text-align:center;padding:20px;color:var(--chrome);font-size:12px">Nenhum treino encontrado para "${esc(q)}".</div>`;
@@ -1734,10 +1781,9 @@ function buildSelecionarTreino(){
     itensHtml = `<div style="display:flex;flex-direction:column;gap:8px">${items.map(p => `<div class="proc-card" onclick="A.iniciarTreino(${p.id})"><div class="proc-card-body"><div class="proc-title">🎓 ${esc(window.limparTagsTexto(p.nome))}</div><div class="proc-meta">${(p.steps||[]).length} passos · ${p.categoria||'Geral'}</div><div class="proc-badge-row"><span class="proc-badge pb-purple">🔀 Embaralhado</span></div></div></div>`).join('')}</div>`;
   }
 
-  // 7. Botões de Paginação
   const paginacaoHtml = pages > 1 ? `<div class="bib-pages" style="margin-top:10px">${Array.from({length:pages},(_,i)=>`<button class="bib-page-btn${i===(S.treinoPagina||0)?' on':''}" onclick="A.treinoMudarPagina(${i})" style="${i===(S.treinoPagina||0)?'background:#a855f7;border-color:#a855f7':''}">${i+1}</button>`).join('')}</div>` : '';
 
-  return headerHtml + statsHtml + itensHtml + paginacaoHtml;
+  return headerHtml + searchHtml + statsHtml + itensHtml + paginacaoHtml;
 }
 
 function buildTreinoAtivo(){
@@ -1819,14 +1865,21 @@ function buildFluxosLista() {
 }
 
 function buildFluxos(){
-  const introHtml = `<div class="card" style="border-color:rgba(34,211,238,.12); margin-bottom:12px;"><div class="card-head"><div class="card-title" style="color:var(--cyan2)">🔀 FLUXO DIAGNÓSTICO</div></div><div class="card-body"><div class="info-box cyan">Crie árvores de decisão. Cada nó tem uma pergunta e opções que levam ao próximo nó ou ao final do fluxo.</div></div></div>`;
+  const introHtml = `
+  <div class="card" style="border-color:rgba(34,211,238,.12); margin-bottom:12px;">
+    <div class="card-head"><div class="card-title" style="color:var(--cyan2)">🔀 FLUXO DIAGNÓSTICO</div></div>
+    <div class="card-body"><div class="info-box cyan" style="margin-bottom:0;">Crie árvores de decisão. Cada nó tem uma pergunta e opções que levam ao próximo nó ou ao final do fluxo.</div></div>
+  </div>`;
 
   if(!S.fluxos.length) return introHtml + `<div class="empty"><div class="empty-icon">🔀</div><div class="empty-title">SEM FLUXOS</div><div class="empty-desc">Crie seu primeiro fluxo de diagnóstico.</div><button class="btn cyan" style="max-width:240px;margin-top:8px" onclick="A.novoFluxo()">＋ NOVO FLUXO</button></div>`;
 
-  const searchHtml = `<div class="bib-search" style="margin-bottom:12px">
-    <span class="bib-search-icon">🔍</span>
-    <input type="text" class="bib-search-input" style="border-color:rgba(34,211,238,.3)" placeholder="Buscar fluxos…" value="${esc(S.fluxoBusca)}" oninput="A.fluxoBuscar(this.value)" id="fluxoSearchInput">
-    <div class="search-clear" id="fluxoClearBtn" onclick="A.limparBusca('fluxo')" style="display:${S.fluxoBusca?'flex':'none'}">✕</div>
+  const searchHtml = `
+  <div class="sticky-search-container">
+    <div class="bib-search" style="margin-bottom:0">
+      <span class="bib-search-icon">🔍</span>
+      <input type="text" class="bib-search-input" style="border-color:rgba(34,211,238,.3)" placeholder="Buscar fluxos…" value="${esc(S.fluxoBusca)}" oninput="A.fluxoBuscar(this.value)" id="fluxoSearchInput">
+      <div class="search-clear" id="fluxoClearBtn" onclick="A.limparBusca('fluxo')" style="display:${S.fluxoBusca?'flex':'none'}">✕</div>
+    </div>
   </div>`;
 
   return introHtml + searchHtml + `<div id="fluxoListContainer" style="display:flex;flex-direction:column;gap:8px">${buildFluxosLista()}</div>`;
@@ -1995,22 +2048,26 @@ function buildBibliotecaLista() {
 }
 
 function buildBiblioteca(){
-  const searchHtml=`<div class="bib-search" style="margin-bottom:12px">
-    <span class="bib-search-icon">🔍</span>
-    <input type="text" class="bib-search-input" placeholder="Buscar passos na biblioteca…" value="${esc(S.bibBusca)}" oninput="A.bibBuscar(this.value)" id="bibSearchInput">
-    <div class="search-clear" id="bibClearBtn" onclick="A.limparBusca('bib')" style="display:${S.bibBusca?'flex':'none'}">✕</div>
+  const introHtml = `
+  <div class="card" style="border-color:rgba(251,146,60,.1); margin-bottom:12px;">
+    <div class="card-head"><div class="card-title" style="color:#fb923c">📚 BIBLIOTECA DE PASSOS</div></div>
+    <div class="card-body"><div class="info-box orange" style="margin-bottom:0;">Todos os passos criados em procedimentos e fluxos ficam aqui. Use a busca para encontrar e reutilizar.</div></div>
+  </div>`;
+
+  const searchHtml= `
+  
+  <div class="sticky-search-container">
+    <div class="bib-search" style="margin-bottom:0">
+      <span class="bib-search-icon">🔍</span>
+      <input type="text" class="bib-search-input" placeholder="Buscar passos na biblioteca…" value="${esc(S.bibBusca)}" oninput="A.bibBuscar(this.value)" id="bibSearchInput">
+      <div class="search-clear" id="bibClearBtn" onclick="A.limparBusca('bib')" style="display:${S.bibBusca?'flex':'none'}">✕</div>
+    </div>
   </div>`;
   
-  return `<div class="card" style="border-color:rgba(251,146,60,.1)">
-    <div class="card-head"><div class="card-title" style="color:#fb923c">📚 BIBLIOTECA DE PASSOS</div></div>
-    <div class="card-body"><div class="info-box orange">Todos os passos criados em procedimentos e fluxos ficam aqui. Use a busca para encontrar e reutilizar.</div></div>
-  </div>
-  ${searchHtml}
+  return introHtml + searchHtml + `
   <div id="bibListContainer">${buildBibliotecaLista()}</div>
-  <button class="btn ghost-orange sm" onclick="A.novoBibItem()" style="margin-top:12px">＋ NOVO PASSO NA BIBLIOTECA</button>`;
+  `;
 }
-
-/* ══ ABA HISTÓRICO ══ */
 
 /* ══ ABA HISTÓRICO ══ */
 function formataDataRelativa(ts) {
@@ -2227,7 +2284,7 @@ function buildHistorico() {
         }
 
         html += `
-        <div style="background: var(--steel2); border: 1px solid rgba(255,255,255,.05); border-left: 3px solid ${corHeader}; border-radius: var(--r); margin-bottom: 8px; overflow: hidden;">
+    <div class="historico-card" style="background: var(--steel2); border: 1px solid rgba(255,255,255,.05); border-left: 3px solid ${corHeader}; border-radius: var(--r); margin-bottom: 8px; overflow: hidden;">
           <div onclick="const b=document.getElementById('hb_${h.id}'); b.style.display = b.style.display==='block' ? 'none' : 'block';" style="padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: background 0.2s;">
              <div style="font-size: 14px; font-weight: bold; color: var(--chrome2); display: flex; align-items: center; gap: 8px;">
                 <span style="font-size:16px;">${icon}</span>
