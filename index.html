@@ -1744,6 +1744,7 @@ function buildTreino(){
 }
 function buildSelecionarTreino(){
   const q = (S.treinoBusca || '').toLowerCase().trim();
+  // 1. Pega apenas procedimentos com 2+ passos
   let procs = S.procedimentos.filter(p => (p.steps||[]).length >= 2);
   
   if(!procs.length && !q) return `<div class="empty"><div class="empty-icon">🎓</div><div class="empty-title">PASSOS INSUFICIENTES</div><div class="empty-desc">Cada procedimento precisa de pelo menos 2 passos para o modo treino.</div></div>`;
@@ -1755,6 +1756,7 @@ function buildSelecionarTreino(){
   const start = (S.treinoPagina || 0) * BIB_POR_PAGINA;
   const items = procs.slice(start, start + BIB_POR_PAGINA);
 
+  // 4. Cabeçalho com Barra de Pesquisa Integrada
   const headerHtml = `
   <div class="treino-card" style="margin-bottom:12px;">
     <div class="card-head"><div class="card-title" style="color:#a855f7">🎓 SELECIONAR TREINO</div></div>
