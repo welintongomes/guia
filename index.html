@@ -203,7 +203,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .opt-input:focus{border-color:rgba(34,211,238,.4);}
 .opt-dest-sel{width: 90px;background:rgba(0,0,0,.3);color:var(--cyan2);border:1px solid rgba(34,211,238,.2);border-radius:var(--r);padding:7px 8px;font-size:11px;font-family:var(--font-mono);outline:none;cursor:pointer;}
 /* ══ BIBLIOTECA ══ */
-.bib-card{background:var(--steel);max-height: 330px; border:1px solid rgba(251,146,60,.1);border-radius:var(--r2);overflow:scroll;}
+.bib-card{background:var(--steel);max-height: 280px; border:1px solid rgba(251,146,60,.1);border-radius:var(--r2);overflow:scroll;}
 .bib-step-row{display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .15s;}
 .bib-step-row:last-child{border-bottom:none;}
 .bib-step-row:active{background:rgba(255,255,255,.03);}
@@ -243,7 +243,7 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .modal.orange-top{border-top-color:#fb923c;padding: 12px;}
 @keyframes modalUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .modal-handle{width:36px;height:4px;background:rgba(255,255,255,.12);border-radius:2px;margin:0 auto 4px;}
-.modal h2{font-family:var(--font-head);font-size:22px;padding-left: 10px; letter-spacing:2px;color:var(--chrome2);}
+.modal h2{font-family:var(--font-head);text-align: center;font-size:22px;padding-left: 10px; letter-spacing:2px;color:var(--chrome2);}
 .modal::-webkit-scrollbar{width:3px;}
 .modal::-webkit-scrollbar-thumb{background:rgba(245,200,0,.15);}
 .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:500;display:flex;align-items:center;justify-content:center;animation:bgIn .2s;cursor:pointer;}
@@ -383,10 +383,10 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
     70% { box-shadow: 0 0 0 6px rgba(231, 76, 60, 0); }
     100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
 }
-@media (min-width: 1024px){
+@media (max-width: 768px){
 
   .modal.cyan-top{
-    max-width:90vw;
+    max-width:97vw;
   }
 
 }
@@ -444,6 +444,14 @@ audio {
 }
 audio:focus {
   outline: none;
+}
+@media (max-width: 768px){
+
+  .bib-card{
+  max-height: 300px;
+  }
+
+
 }
 </style>
 </head>
@@ -3723,51 +3731,61 @@ function abrirModalBibItem(item){
     <div style="display:flex;flex-direction:column;gap:10px">
       
       <div>
-        <div class="label">Título / Pergunta *</div>
+        <div class="label" style="display:flex; flex-direction: row-reverse; justify-content:space-between; align-items:center;">
+          <span>Título / Pergunta *</span>
+          <span style="cursor:pointer; font-size:14px; opacity:0.7; transition:0.2s;" title="Copiar" onclick="copiarValorInput('bTitulo', this)">📋</span>
+        </div>
         <input type="text" id="bTitulo" class="input" value="${esc(item?.titulo||'')}" placeholder="Ex: Pressão dos Pneus…">
       </div>
 
       <div>
-        <div class="label">Descrição / Solução</div>
+        <div class="label" style="display:flex; flex-direction: row-reverse; justify-content:space-between; align-items:center;">
+          <span>Descrição / Solução</span>
+          <span style="cursor:pointer; font-size:14px; opacity:0.7; transition:0.2s;" title="Copiar" onclick="copiarValorInput('bDesc', this)">📋</span>
+        </div>
         <textarea id="bDesc" class="textarea" style="min-height:80px" placeholder="Detalhes…">${esc(item?.descricao||'')}</textarea>
       </div>
 
       <div>
-        <div class="label" style="color:var(--yellow)">💻 CÓDIGO FONTE (Opcional)</div>
+        <div class="label" style="color:var(--yellow); flex-direction: row-reverse; display:flex; justify-content:space-between; align-items:center;">
+          <span>💻 CÓDIGO FONTE (Opcional)</span>
+          <span style="cursor:pointer; font-size:14px; opacity:0.7; transition:0.2s;" title="Copiar" onclick="copiarValorInput('bCodigo', this)">📋</span>
+        </div>
         <textarea id="bCodigo" class="textarea code-input" placeholder="Cole seu código aqui..."
         onkeydown="if(event.key==='Tab'){event.preventDefault();const s=this.selectionStart;this.value=this.value.substring(0,s)+'  '+this.value.substring(this.selectionEnd);this.selectionEnd=s+2;}">${esc(item?.codigo||'')}</textarea>
       </div>
       
       <div style="display:flex;gap:10px">
         <div style="flex:1">
-          <div class="label">Categoria</div>
+          <div class="label" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Categoria</span>
+            <span style="cursor:pointer; font-size:14px; opacity:0.7; transition:0.2s;" title="Copiar" onclick="copiarValorInput('bCat', this)">📋</span>
+          </div>
           <input type="text" id="bCat" class="input" value="${esc(item?.categoria||'')}" placeholder="Motor, Suspensão…">
         </div>
 
         <div style="flex:1">
-          <div class="label">Alerta</div>
+          <div class="label" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Alerta</span>
+            <span style="cursor:pointer; font-size:14px; opacity:0.7; transition:0.2s;" title="Copiar" onclick="copiarValorInput('bAlerta', this)">📋</span>
+          </div>
           <input type="text" id="bAlerta" class="input" value="${esc(item?.alerta||'')}" placeholder="⚠ Cuidado com…">
         </div>
       </div>
 
-      <!-- ===== FOTO ===== -->
       <div style="display:flex;gap:6px">
         <div style="flex:1">
           <div class="label" style="font-size:10px">📷 FOTOS</div>
 
-          <!-- BOTÃO PRINCIPAL -->
           <div class="photo-drop" onclick="abrirEscolhaFotoBib()">
             <div style="font-size:20px;opacity:.6">📷</div>
           </div>
 
-          <!-- INPUT GALERIA -->
           <input type="file" id="bibPhotoInputGaleria" accept="image/*" multiple style="display:none" onchange="adicionarFotosBib(event)">
 
-          <!-- INPUT CAMERA -->
           <input type="file" id="bibPhotoInputCamera" accept="image/*" capture="environment" style="display:none" onchange="adicionarFotosBib(event)">
         </div>
         
-        <!-- AUDIO PC -->
         <div style="flex:1">
           <div class="label" style="font-size:10px; color:var(--cyan2)">🎙 PC / NATIVO</div>
           <div id="btnGravar_bib" class="photo-drop" style="border-color:rgba(34,211,238,.3); background:rgba(34,211,238,.02)" onclick="toggleGravacaoNativa('bib')">
@@ -3775,7 +3793,6 @@ function abrirModalBibItem(item){
           </div>
         </div>
 
-        <!-- AUDIO CEL -->
         <div style="flex:1">
           <div class="label" style="font-size:10px; color:var(--yellow)">📱 CELULAR</div>
           <div class="photo-drop" style="border-color:rgba(245,200,0,.3); background:rgba(245,200,0,.02)" onclick="document.getElementById('bibAudioInput').click()">
@@ -3801,6 +3818,7 @@ function abrirModalBibItem(item){
   renderAudioPreview('bib');
 }
 
+/* ══ MODAL DE VISUALIZAÇÃO DA BIBLIOTECA ══ */
 function abrirModalVerBibItem(item){
   fecharModal();
   const bg=document.createElement('div');bg.className='modal-bg';bg.onclick=e=>{if(e.target===bg)fecharModal();};
@@ -3819,25 +3837,50 @@ function abrirModalVerBibItem(item){
         <audio controls src="${item.audio}" style="width:100%; height:25px;"></audio>
       </div>` : '';
 
-  const codigoHtml = item.codigo ? `<pre class="code-block"><code>${esc(item.codigo)}</code></pre>` : '';
+  const codigoHtml = item.codigo ? `
+      <div style="margin-top: 14px;">
+        <div style="display:flex; gap: 10px; justify-content: flex-end; flex-direction: row-reverse; align-items:center; margin-bottom: 4px;">
+          <span style="font-size:10px; color:var(--yellow); text-transform:uppercase; opacity:0.8;">💻 Código Fonte</span>
+          <span style="cursor:pointer; font-size:14px; opacity:0.7; transition:0.2s;" title="Copiar" onclick="copiarTextoDoElemento('vCodigo', this)">📋</span>
+        </div>
+        <pre class="code-block"><code id="vCodigo">${esc(item.codigo)}</code></pre>
+      </div>` : '';
 
   bg.innerHTML=`<div class="modal orange-top">
     <div class="modal-handle"></div>
-    <h2 style="color:#fb923c">${esc(item.titulo)}</h2>
+    
+    <div style="display:flex; justify-content: flex-end; align-items:flex-start; gap:10px; margin-bottom: 10px;flex-direction: row-reverse;">
+      <h2 id="vTitulo" style="color:#fb923c; margin:0;">${esc(item.titulo)}</h2>
+      <span style="cursor:pointer; font-size:16px; opacity:0.7; transition:0.2s; flex-shrink:0; margin-top:2px;" title="Copiar" onclick="copiarTextoDoElemento('vTitulo', this)">📋</span>
+    </div>
+    
     ${audioHtml}
-    ${item.descricao?`<div style="font-size:13px;color:var(--chrome2);line-height:1.7">${esc(item.descricao)}</div>`:''}
+    
+    ${item.descricao ? `
+    <div style="margin-top: 12px;">
+      <div style="display:flex; justify-content: flex-end; flex-direction: row-reverse; gap: 10px; align-items:center; margin-bottom: 4px;">
+        <span style="font-size:10px; color:var(--chrome2); text-transform:uppercase; opacity:0.8;">Descrição</span>
+        <span style="cursor:pointer; font-size:14px; opacity:0.7; transition:0.2s;" title="Copiar" onclick="copiarTextoDoElemento('vDesc', this)">📋</span>
+      </div>
+      <div id="vDesc" style="font-size:13px;color:var(--chrome2);line-height:1.7">${esc(item.descricao)}</div>
+    </div>` : ''}
+    
     ${codigoHtml}
+    
     ${item.alerta?`<div class="warn-box">⚠ ${esc(item.alerta)}</div>`:''}
     ${fotosHtml}
+    
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
       ${item.categoria?`<span class="proc-badge pb-orange">${esc(item.categoria)}</span>`:''}
       ${item.origem?`<span class="proc-badge pb-gray">${esc(item.origem)}</span>`:''}
     </div>
+    
     <div style="display:flex;gap:8px;margin-top:15px">
       <button class="btn steel sm" onclick="fecharModal()">Fechar</button>
       <button class="btn orange-btn sm" onclick="fecharModal();A.editarBibItem(${item.id})">✏ Editar</button>
     </div>
   </div>`;
+  
   document.body.appendChild(bg);
 }
 
@@ -5925,6 +5968,47 @@ document.addEventListener('click', () => {
         window.ativarControleFone();    // 👈 Assume o controle do Airdots
     }
 }, { once: true });
+/* ══ FUNÇÃO AUXILIAR PARA COPIAR TEXTO ══ */
+function copiarValorInput(idElemento, iconeClicado) {
+  const input = document.getElementById(idElemento);
+  
+  if (input && input.value.trim() !== '') {
+    navigator.clipboard.writeText(input.value).then(() => {
+      // Feedback visual rápido
+      const textoOriginal = iconeClicado.innerHTML;
+      iconeClicado.innerHTML = "✅";
+      iconeClicado.style.opacity = "1";
+      
+      // Volta ao ícone original após 1.5 segundos
+      setTimeout(() => {
+        iconeClicado.innerHTML = textoOriginal;
+        iconeClicado.style.opacity = "0.7";
+      }, 1500);
+    }).catch(err => {
+      console.error('Erro ao copiar: ', err);
+    });
+  }
+}
+/* ══ FUNÇÃO AUXILIAR PARA COPIAR TEXTO DE DIV/H2/CODE ══ */
+function copiarTextoDoElemento(idElemento, iconeClicado) {
+  const elemento = document.getElementById(idElemento);
+  
+  if (elemento) {
+    // Usamos innerText porque ele respeita melhor as quebras de linha do HTML
+    const texto = elemento.innerText || elemento.textContent;
+    
+    navigator.clipboard.writeText(texto.trim()).then(() => {
+      const textoOriginal = iconeClicado.innerHTML;
+      iconeClicado.innerHTML = "✅";
+      iconeClicado.style.opacity = "1";
+      
+      setTimeout(() => {
+        iconeClicado.innerHTML = textoOriginal;
+        iconeClicado.style.opacity = "0.7";
+      }, 1500);
+    }).catch(err => console.error('Erro ao copiar: ', err));
+  }
+}
 /* ══ INIT ══ */
 (async()=>{
   try{
